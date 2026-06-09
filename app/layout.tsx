@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "JobPilot",
+  title: "JobApplication",
   description:
     "An AI-powered job hunting assistant that finds, scores, and researches roles.",
 };
