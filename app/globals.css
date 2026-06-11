@@ -69,9 +69,8 @@
   --color-overlay: #111827;
   --color-overlay-dark: #131316;
 
-  /* Chart and logo support */
+  /* Chart support */
   --color-chart-axis: #9ca3af;
-  --color-logo-gradient-end: #4a2ec5;
 
   /* Border radius */
   --radius-sm: 4px;
@@ -79,7 +78,6 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
-  --radius-logo: 10px;
 
   /* Shadows */
   --shadow-card:
@@ -147,6 +145,10 @@ a {
   background-color: var(--color-surface-muted);
 }
 
+.bg-text-muted {
+  background-color: var(--color-text-muted);
+}
+
 .border-accent {
   border-color: var(--color-accent);
 }
@@ -209,6 +211,110 @@ a {
 
 .shadow-card {
   box-shadow: var(--shadow-card);
+}
+
+.bg-accent {
+  background-color: var(--color-accent);
+}
+
+.bg-accent-muted {
+  background-color: var(--color-accent-muted);
+}
+
+.text-error {
+  color: var(--color-error);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.bg-success-lightest {
+  background-color: var(--color-success-lightest);
+}
+
+.text-border-light {
+  color: var(--color-border-light);
+}
+
+.text-text-darkest {
+  color: var(--color-text-darkest);
+}
+
+.text-success-foreground {
+  color: var(--color-success-foreground);
+}
+
+.bg-success {
+  background-color: var(--color-success);
+}
+
+.bg-info {
+  background-color: var(--color-info);
+}
+
+.bg-info-lightest {
+  background-color: var(--color-info-lightest);
+}
+
+.text-info-medium {
+  color: var(--color-info-medium);
+}
+
+.bg-warning {
+  background-color: var(--color-warning);
+}
+
+.bg-border-light {
+  background-color: var(--color-border-light);
+}
+
+.bg-accent-light {
+  background-color: var(--color-accent-light);
+}
+
+.border-accent-light {
+  border-color: var(--color-accent-light);
+}
+
+.bg-border {
+  background-color: var(--color-border);
+}
+
+.bg-info-light {
+  background-color: var(--color-info-light);
+}
+
+.bg-success-light {
+  background-color: var(--color-success-light);
+}
+
+.bg-success-alt {
+  background-color: var(--color-success-alt);
+}
+
+.text-success-darker {
+  color: var(--color-success-darker);
+}
+
+.checkbox-accent {
+  accent-color: var(--color-accent);
+}
+
+.placeholder\:text-text-muted::placeholder {
+  color: var(--color-text-muted);
+}
+
+.focus\:border-accent:focus {
+  border-color: var(--color-accent);
+}
+
+.focus\:ring-accent:focus {
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.disabled\:bg-surface-secondary:disabled {
+  background-color: var(--color-surface-secondary);
 }
 
 .landing-hero-gradient {

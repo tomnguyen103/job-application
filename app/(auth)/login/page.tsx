@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactElement } from "react";
@@ -8,6 +7,7 @@ import {
   signInWithGoogle,
 } from "@/actions/auth";
 import { OAuthProviderButton } from "@/components/auth/OAuthProviderButton";
+import { Logo } from "@/components/layout/Logo";
 import { loginProviderDetails } from "@/lib/auth";
 import type { SupportedOAuthProvider } from "@/lib/auth";
 import {
@@ -71,13 +71,13 @@ export default async function LoginPage({
     <main className="min-h-screen bg-background px-6 py-10">
       <section className="mx-auto grid min-h-[calc(100vh-80px)] max-w-[1120px] overflow-hidden rounded-xl border border-border bg-surface shadow-card lg:grid-cols-[1fr_420px]">
         <div className="landing-hero-gradient flex min-h-[520px] flex-col justify-between border-b border-border px-8 py-8 lg:border-b-0 lg:border-r">
-          <Link href="/" aria-label="JobPilot home" className="w-fit">
-            <Image src="/logo.png" alt="JobPilot" width={118} height={40} />
+          <Link href="/" aria-label="Job Application home" className="w-fit">
+            <Logo />
           </Link>
 
           <div>
             <p className="text-xs font-bold uppercase leading-4 text-accent">
-              JobPilot
+              Job Application
             </p>
             <h1 className="mt-4 max-w-[560px] text-[38px] font-bold leading-[1.05] text-text-black sm:text-[48px]">
               Sign in and bring your job search into focus
@@ -92,7 +92,7 @@ export default async function LoginPage({
         <div className="flex flex-col justify-center px-6 py-10 sm:px-10">
           <div>
             <h2 className="text-base font-semibold leading-6 text-text-primary">
-              Continue to JobPilot
+              Continue to Job Application
             </h2>
             <p className="mt-2 text-xs font-medium leading-4 text-text-secondary">
               Choose the account you want to use for this workspace.

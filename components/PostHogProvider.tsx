@@ -11,7 +11,7 @@ import {
   resetPostHog,
 } from "@/lib/posthog-client";
 
-const storedPostHogUserKey = "jobpilot.posthog.userId";
+const storedPostHogUserKey = "jobapplication.posthog.userId";
 
 type Props = {
   children: React.ReactNode;
@@ -60,7 +60,12 @@ export function PostHogProvider({ children }: Props) {
         return;
       }
 
-      if (error) {
+      // A logged-out visitor is the normal case: getCurrentUser() tries to
+      // refresh the session from the httpOnly cookie, and with no cookie the
+      // backend returns 401 "No refresh token provided". Treat that as
+      // anonymous (handled by the no-user branch below) and only surface
+      // genuinely unexpected errors.
+      if (error && error.statusCode !== 401) {
         console.error("[posthog/auth-sync]", error);
         return;
       }

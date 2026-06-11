@@ -1,15 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { ReactElement } from "react";
 
+import { Logo } from "@/components/layout/Logo";
+import { NavLinks } from "@/components/layout/NavLinks";
 import { SignOutButton } from "@/components/layout/SignOutButton";
 import { getCurrentUser } from "@/lib/insforge-server";
-
-const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Find Jobs", href: "/find-jobs" },
-  { label: "Profile", href: "/profile" },
-];
 
 export async function Navbar(): Promise<ReactElement> {
   const user = await getCurrentUser();
@@ -17,30 +12,11 @@ export async function Navbar(): Promise<ReactElement> {
   return (
     <header className="border-b border-border bg-surface">
       <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-6 lg:px-0">
-        <Link href="/" aria-label="JobPilot home">
-          <Image
-            src="/logo.png"
-            alt="JobPilot"
-            width={118}
-            height={40}
-            priority
-          />
+        <Link href="/" aria-label="Job Application home">
+          <Logo />
         </Link>
 
-        <nav
-          aria-label="Primary navigation"
-          className="hidden items-center gap-10 md:flex"
-        >
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-sm font-medium text-text-dark transition-colors hover:text-accent"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <NavLinks />
 
         {user ? (
           <SignOutButton />

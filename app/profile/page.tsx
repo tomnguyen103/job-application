@@ -1,31 +1,75 @@
 import type { ReactElement } from "react";
 
-import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
-import { requireCurrentUser } from "@/lib/insforge-server";
+import { CompletionIndicator } from "@/components/profile/CompletionIndicator";
+import { ProfilePageContent } from "@/components/profile/ProfilePageContent";
+import { createInsforgeServer, requireCurrentUser } from "@/lib/insforge-server";
+import { computeProfileCompletion, mapProfileRowToProfile } from "@/lib/utils";
+import type { Profile } from "@/types";
 
 export const dynamic = "force-dynamic";
 
+function emptyProfile(email: string): Profile {
+  return {
+    fullName: "",
+    email,
+    phone: "",
+    location: "",
+    linkedinUrl: "",
+    portfolioUrl: "",
+    workAuthorization: "citizen",
+    currentTitle: "",
+    experienceLevel: "junior",
+    yearsExperience: "",
+    skills: [],
+    industries: [],
+    workExperience: [],
+    education: {
+      degree: "high_school",
+      fieldOfStudy: "",
+      institution: "",
+      graduationYear: "",
+    },
+    jobTitlesSeeking: "",
+    remotePreference: "any",
+    salaryExpectation: "",
+    preferredLocations: "",
+  };
+}
+
 export default async function ProfilePage(): Promise<ReactElement> {
-  await requireCurrentUser();
+  const user = await requireCurrentUser();
+  const insforge = await createInsforgeServer();
+
+  const { data: row } = await insforge.database
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const profile: Profile = row
+    ? mapProfileRowToProfile(row, user.email ?? "")
+    : emptyProfile(user.email ?? "");
+
+  const { percentage, missingFields } = computeProfileCompletion(profile);
 
   return (
     <main className="min-h-screen bg-background">
       <Navbar />
-      <section className="mx-auto max-w-[1280px] border-x border-b border-border bg-surface px-8 py-10">
-        <div className="rounded-xl border border-border bg-surface p-6 shadow-card">
-          <p className="text-xs font-bold uppercase leading-4 text-accent">
-            Profile
-          </p>
-          <h1 className="mt-3 text-[30px] font-semibold leading-9 text-text-primary">
-            Profile workspace
-          </h1>
-          <p className="mt-3 max-w-[560px] text-sm font-medium leading-5 text-text-secondary">
-            Your profile area is ready for this account.
-          </p>
+      <section className="mx-auto w-full max-w-[1080px] px-6 py-10">
+        <div className="flex flex-col gap-6">
+          {missingFields.length > 0 && (
+            <CompletionIndicator
+              percentage={percentage}
+              missingFields={missingFields}
+            />
+          )}
+          <ProfilePageContent
+            profile={profile}
+            resumeUrl={row?.resume_pdf_url ?? undefined}
+          />
         </div>
       </section>
-      <Footer />
     </main>
   );
 }

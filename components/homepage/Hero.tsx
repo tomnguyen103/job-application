@@ -12,8 +12,8 @@ export function Hero(): ReactElement {
           Your tools shouldn&apos;t be.
         </h1>
         <p className="mt-8 max-w-[560px] text-[15px] font-medium leading-6 text-text-secondary">
-          Stop applying blind. JobPilot finds the jobs, researches the companies,
-          and gives you everything you need to stand out.
+          Stop applying blind. Job Application finds the jobs, researches the
+          companies, and gives you everything you need to stand out.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Link
@@ -34,10 +34,10 @@ export function Hero(): ReactElement {
       <div className="border-t border-border bg-surface-tertiary px-6 py-14 md:px-14">
         <div className="mx-auto max-w-[1140px] overflow-hidden rounded-xl">
           <Image
-            src="/images/dashboard-demo.png"
-            alt="JobPilot dashboard preview with activity and research charts"
-            width={4788}
-            height={2416}
+            src="/images/dashboard-demo2.png"
+            alt="Job Application dashboard preview with activity and research charts"
+            width={1920}
+            height={969}
             priority
             sizes="(max-width: 1280px) 90vw, 1140px"
             className="h-auto w-full"
