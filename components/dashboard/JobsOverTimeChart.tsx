@@ -42,6 +42,11 @@ export function JobsOverTimeChart({
           </p>
         ) : (
           /* initialDimension: recharts' -1×-1 default warns on SSR/first render */
+          <div
+            role="img"
+            aria-label="Area chart of jobs found per day over the last 30 days"
+            className="h-full w-full"
+          >
           <ResponsiveContainer
             width="100%"
             height="100%"
@@ -105,6 +110,7 @@ export function JobsOverTimeChart({
               />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         )}
       </div>
     </section>

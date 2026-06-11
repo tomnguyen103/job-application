@@ -42,6 +42,11 @@ export function MatchDistributionChart({
           </p>
         ) : (
           /* initialDimension: recharts' -1×-1 default warns on SSR/first render */
+          <div
+            role="img"
+            aria-label="Bar chart of job matches grouped by match-score range"
+            className="h-full w-full"
+          >
           <ResponsiveContainer
             width="100%"
             height="100%"
@@ -81,6 +86,7 @@ export function MatchDistributionChart({
               />
             </BarChart>
           </ResponsiveContainer>
+          </div>
         )}
       </div>
     </section>

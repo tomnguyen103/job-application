@@ -67,32 +67,35 @@ export async function saveProfile(
     const salaryExpectation =
       (formData.get("salary_expectation") as string | null)?.trim() ?? "";
 
+    // Absent/empty selects store null; a non-empty value outside the allowed
+    // set only happens via client tampering — reject it instead of silently
+    // coercing to null.
     const rawExperienceLevel = formData.get("experience_level") as
       | string
       | null;
-    const experienceLevel = VALID_EXPERIENCE_LEVELS.has(
-      rawExperienceLevel ?? "",
-    )
-      ? rawExperienceLevel
-      : null;
+    if (rawExperienceLevel && !VALID_EXPERIENCE_LEVELS.has(rawExperienceLevel)) {
+      return { success: false, error: "Invalid experience level." };
+    }
+    const experienceLevel = rawExperienceLevel || null;
 
     const rawRemotePreference = formData.get("remote_preference") as
       | string
       | null;
-    const remotePreference = VALID_REMOTE_PREFERENCES.has(
-      rawRemotePreference ?? "",
-    )
-      ? rawRemotePreference
-      : null;
+    if (rawRemotePreference && !VALID_REMOTE_PREFERENCES.has(rawRemotePreference)) {
+      return { success: false, error: "Invalid remote preference." };
+    }
+    const remotePreference = rawRemotePreference || null;
 
     const rawWorkAuthorization = formData.get("work_authorization") as
       | string
       | null;
-    const workAuthorization = VALID_WORK_AUTHORIZATIONS.has(
-      rawWorkAuthorization ?? "",
-    )
-      ? rawWorkAuthorization
-      : null;
+    if (
+      rawWorkAuthorization &&
+      !VALID_WORK_AUTHORIZATIONS.has(rawWorkAuthorization)
+    ) {
+      return { success: false, error: "Invalid work authorization." };
+    }
+    const workAuthorization = rawWorkAuthorization || null;
 
     const rawYearsExperience = formData.get("years_experience");
     // FormData text inputs always yield string | null; never File.

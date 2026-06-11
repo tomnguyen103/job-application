@@ -94,8 +94,11 @@ export async function searchJobs(
     params.set("where", where);
   }
 
+  // Bounds a hung Adzuna endpoint — the find-jobs agent awaits this search
+  // before scoring, so a stall here would block the whole run.
   const response = await fetch(
     `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params}`,
+    { signal: AbortSignal.timeout(15_000) },
   );
 
   if (!response.ok) {

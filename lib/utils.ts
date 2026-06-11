@@ -13,9 +13,12 @@ export function mapProfileRowToProfile(
     location: row.location ?? "",
     linkedinUrl: row.linkedin_url ?? "",
     portfolioUrl: row.portfolio_url ?? "",
-    workAuthorization: row.work_authorization ?? "citizen",
+    // Missing select-style fields map to "" (not a plausible default) so
+    // computeProfileCompletion reports them as missing — mirroring how
+    // saveProfile snapshots unset values before computing is_complete.
+    workAuthorization: row.work_authorization ?? "",
     currentTitle: row.current_title ?? "",
-    experienceLevel: row.experience_level ?? "junior",
+    experienceLevel: row.experience_level ?? "",
     yearsExperience:
       row.years_experience !== null && row.years_experience !== undefined
         ? String(row.years_experience)
@@ -24,13 +27,13 @@ export function mapProfileRowToProfile(
     industries: row.industries ?? [],
     workExperience: row.work_experience ?? [],
     education: row.education ?? {
-      degree: "high_school",
+      degree: "",
       fieldOfStudy: "",
       institution: "",
       graduationYear: "",
     },
     jobTitlesSeeking: (row.job_titles_seeking ?? []).join(", "),
-    remotePreference: row.remote_preference ?? "any",
+    remotePreference: row.remote_preference ?? "",
     salaryExpectation: row.salary_expectation ?? "",
     preferredLocations: (row.preferred_locations ?? []).join(", "),
   };
@@ -49,7 +52,7 @@ export function computeProfileCompletion(profile: Profile): {
     { field: "Experience Level", filled: !!profile.experienceLevel },
     {
       field: "Years Experience",
-      filled: profile.yearsExperience !== "" && profile.yearsExperience !== null,
+      filled: profile.yearsExperience !== "",
     },
     { field: "Skills", filled: profile.skills.length > 0 },
     { field: "Work Experience", filled: profile.workExperience.length > 0 },

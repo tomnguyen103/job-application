@@ -42,6 +42,11 @@ export function ResearchActivityChart({
           </p>
         ) : (
           /* initialDimension: recharts' -1×-1 default warns on SSR/first render */
+          <div
+            role="img"
+            aria-label="Bar chart of companies researched per day over the last 7 days"
+            className="h-full w-full"
+          >
           <ResponsiveContainer
             width="100%"
             height="100%"
@@ -80,6 +85,7 @@ export function ResearchActivityChart({
               />
             </BarChart>
           </ResponsiveContainer>
+          </div>
         )}
       </div>
     </section>

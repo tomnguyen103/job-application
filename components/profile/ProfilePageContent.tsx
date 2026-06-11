@@ -17,6 +17,15 @@ export function ProfilePageContent({ profile, resumeUrl }: Props): ReactElement 
   const [extractionKey, setExtractionKey] = useState(0);
 
   function handleExtract(extracted: Partial<Profile>): void {
+    // Applying extraction remounts the form (key below), which discards any
+    // unsaved manual edits — make that explicit instead of silent.
+    if (
+      !window.confirm(
+        "Apply the extracted resume data to the form? Unsaved manual edits will be replaced.",
+      )
+    ) {
+      return;
+    }
     setMergedProfile((prev) => {
       const next = { ...prev };
 

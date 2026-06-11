@@ -1,16 +1,8 @@
 import Browserbase from "@browserbasehq/sdk";
 
+import { requireEnv } from "@/lib/env";
+
 const COMPANY_RESEARCH_SESSION_TIMEOUT_SECONDS = 120;
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`${name} is not configured.`);
-  }
-
-  return value;
-}
 
 export function getBrowserbaseProjectId(): string {
   return requireEnv("BROWSERBASE_PROJECT_ID");

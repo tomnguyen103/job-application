@@ -9,7 +9,6 @@ import { JobInfo } from "@/components/job-details/JobInfo";
 import { MatchScore } from "@/components/job-details/MatchScore";
 import { Navbar } from "@/components/layout/Navbar";
 import { parseCompanyResearchDossier } from "@/lib/company-research";
-import { filterCompanyTechStackToEvidence } from "@/lib/company-research-tech";
 import {
   createInsforgeServer,
   requireCurrentUser,
@@ -103,23 +102,13 @@ function clampScore(score: number | null): number {
   return Math.min(100, Math.max(0, Math.round(score)));
 }
 
+// The stored dossier's techStack was already evidence-filtered against the
+// browser research and job posting when the agent saved it (agent/research.ts)
+// — re-filtering here with no research evidence would strip researched tech.
 function companyResearchForDisplay(
   row: JobDetailsRow,
-  description: string,
 ): CompanyResearchDossier | null {
-  const dossier = parseCompanyResearchDossier(row.company_research);
-
-  if (!dossier) {
-    return null;
-  }
-
-  return {
-    ...dossier,
-    techStack: filterCompanyTechStackToEvidence(dossier.techStack, {
-      researchTechnologies: [],
-      jobDescription: description,
-    }),
-  };
+  return parseCompanyResearchDossier(row.company_research);
 }
 
 function mapJobRowToDetails(row: JobDetailsRow): JobDetails {
@@ -145,7 +134,7 @@ function mapJobRowToDetails(row: JobDetailsRow): JobDetails {
     ),
     matchedSkills: cleanList(row.matched_skills),
     missingSkills: cleanList(row.missing_skills),
-    companyResearch: companyResearchForDisplay(row, description),
+    companyResearch: companyResearchForDisplay(row),
     dateFound: row.found_at ? formatRelativeTime(row.found_at) : "—",
   };
 }
