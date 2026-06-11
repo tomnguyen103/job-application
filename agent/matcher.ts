@@ -1,9 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
-
+import { createGeminiClient } from "@/agent/gemini";
 import type { JobMatchContent, UsableAdzunaJob } from "@/agent/types";
 import type { Profile } from "@/types";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 function buildPrompt(profile: Profile, job: UsableAdzunaJob): string {
   const candidate = {
@@ -95,6 +92,7 @@ export async function scoreJobMatch(
   profile: Profile,
   job: UsableAdzunaJob,
 ): Promise<JobMatchContent> {
+  const ai = createGeminiClient();
   const result = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{ role: "user", parts: [{ text: buildPrompt(profile, job) }] }],

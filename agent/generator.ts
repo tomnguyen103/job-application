@@ -1,8 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
-
+import { createGeminiClient } from "@/agent/gemini";
 import type { Profile } from "@/types";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export type GeneratedResumeContent = {
   professionalSummary: string;
@@ -95,6 +92,7 @@ function sanitize(raw: unknown, roleCount: number): GeneratedResumeContent {
 export async function generateResumeContent(
   profile: Profile,
 ): Promise<GeneratedResumeContent> {
+  const ai = createGeminiClient();
   const result = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{ role: "user", parts: [{ text: buildPrompt(profile) }] }],

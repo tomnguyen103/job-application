@@ -1,8 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
-
+import { createGeminiClient } from "@/agent/gemini";
 import type { Education, Profile, WorkExperience } from "@/types";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 const VALID_DEGREES = new Set([
   "high_school",
@@ -168,6 +165,7 @@ function sanitize(raw: RawExtracted): Partial<Profile> {
 export async function extractProfileFromPdf(
   pdfBase64: string,
 ): Promise<Partial<Profile>> {
+  const ai = createGeminiClient();
   const result = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [

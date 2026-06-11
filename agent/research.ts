@@ -1,7 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
 import type { Stagehand } from "@browserbasehq/stagehand";
 import { z } from "zod";
 
+import { createGeminiClient } from "@/agent/gemini";
 import {
   createCompanyResearchSession,
   releaseBrowserbaseSession,
@@ -597,16 +597,6 @@ ${JSON.stringify(
 
 CANDIDATE PROFILE:
 ${JSON.stringify(profileData, null, 2)}`;
-}
-
-function createGeminiClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured.");
-  }
-
-  return new GoogleGenAI({ apiKey });
 }
 
 async function synthesizeDossier(
