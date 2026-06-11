@@ -2,6 +2,8 @@
 allowed_redirect_urls = [
   "http://localhost:3000/api/auth/callback",
   "http://127.0.0.1:3000/api/auth/callback",
+  "https://job-application.tomnguyen.me/api/auth/callback",
+  "https://job-application-eosin-ten.vercel.app/api/auth/callback",
 ]
 require_email_verification = true
 verify_email_method = "code"
