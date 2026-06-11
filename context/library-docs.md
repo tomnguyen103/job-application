@@ -1,6 +1,6 @@
 # Library Docs
 
-Project-specific usage patterns for every third party library in this project. This file only covers how we use each library in this specific project — rules, patterns, and constraints specific to JobPilot.
+Project-specific usage patterns for every third party library in this project. This file only covers how we use each library in this specific project — rules, patterns, and constraints specific to Job Application.
 
 Read the relevant section before implementing any feature that touches these libraries.
 
@@ -78,27 +78,43 @@ if (!user) redirect("/login");
 
 ### DB Queries
 
+All DB access goes through `insforge.database.from(...)` — NOT `insforge.from(...)`.
+
 ```typescript
-// Read
-const { data, error } = await insforge
+// Read (single row — may return null if not found)
+const { data, error } = await insforge.database
+  .from("profiles")
+  .select("*")
+  .eq("id", user.id)
+  .maybeSingle();
+
+// Read (list)
+const { data, error } = await insforge.database
   .from("jobs")
   .select("*")
   .eq("user_id", user.id)
   .order("found_at", { ascending: false });
 
 // Insert
-const { data, error } = await insforge
+const { data, error } = await insforge.database
   .from("jobs")
-  .insert({ user_id: user.id, title, company, match_score })
+  .insert([{ user_id: user.id, title, company, match_score }])
   .select()
   .single();
 
 // Update
-const { error } = await insforge
+const { error } = await insforge.database
   .from("jobs")
   .update({ company_research: dossier })
   .eq("id", jobId)
   .eq("user_id", user.id); // always scope to user
+
+// Upsert
+const { error } = await insforge.database
+  .from("profiles")
+  .upsert({ id: user.id, ...fields }, { onConflict: "id" })
+  .select()
+  .single();
 ```
 
 **Rules:**
@@ -111,21 +127,29 @@ const { error } = await insforge
 
 ### Storage
 
+The real `@insforge/sdk` storage API differs from older docs. Use only these shapes:
+
 ```typescript
-// Upload file
+// Upload — File or Blob only; NO options argument
 const { data, error } = await insforge.storage
   .from("resumes")
-  .upload(`${userId}/resume.pdf`, fileBuffer, {
-    contentType: "application/pdf",
-    upsert: true, // overwrites existing file
-  });
+  .upload(`${userId}/resume.pdf`, file); // file must be File | Blob
 
-// Get public URL
-const { data } = insforge.storage
+// Overwrite strategy — remove then re-upload (no upsert flag exists)
+await insforge.storage.from("resumes").remove(`${userId}/resume.pdf`); // ignore error
+const { data, error } = await insforge.storage
+  .from("resumes")
+  .upload(`${userId}/resume.pdf`, file);
+
+// Get public URL — returns a plain string, NOT { data: { publicUrl } }
+const url: string = insforge.storage
   .from("resumes")
   .getPublicUrl(`${userId}/resume.pdf`);
 
-const url = data.publicUrl;
+// Delete a file
+const { error } = await insforge.storage
+  .from("resumes")
+  .remove(`${userId}/resume.pdf`);
 ```
 
 **Storage paths:**
@@ -134,9 +158,11 @@ const url = data.publicUrl;
 
 **Rules:**
 
-- Always use `upsert: true` for base resume uploads — overwrites existing file
-- Always save the public URL back to the DB after upload
-- Never write files to disk — always upload buffer directly to storage
+- `upload(path, file)` accepts `File | Blob` — never a `Buffer` or `ArrayBuffer`
+- There is no `upsert: true` option on `upload` — use `remove` then `upload` to replace
+- `getPublicUrl(path)` returns a plain `string` directly — do NOT destructure `.data.publicUrl`
+- Always save the returned URL string to the DB after upload
+- Never write files to disk — always upload the `File` directly from FormData
 
 ---
 
@@ -162,9 +188,12 @@ export async function searchJobs(
     "content-type": "application/json",
   });
 
-  // Only add where if location is provided
-  if (location) {
-    params.set("where", location);
+  // Adzuna's `where` is strictly geographic — "Remote" matches no location
+  // and returns ZERO results (live-verified). Strip remote markers and omit
+  // the parameter entirely when nothing geographic remains.
+  const where = normalizeWhere(location); // strips "remote" / "work from home" / "wfh"
+  if (where) {
+    params.set("where", where);
   }
 
   const response = await fetch(
@@ -209,14 +238,12 @@ const jobRecord = {
   user_id: userId,
   run_id: runId,
   source: "search", // always 'search' for Adzuna jobs
-  source_url: job.redirect_url,
-  external_apply_url: job.redirect_url,
+  source_url: canonicalSourceUrl(job.redirect_url), // stable identity — the dedupe key
+  external_apply_url: job.redirect_url, // full tracking URL — used for apply clicks
   title: job.title,
   company: job.company.display_name,
   location: job.location.display_name,
-  salary: job.salary_min
-    ? `$${Math.round(job.salary_min / 1000)}k - $${Math.round(job.salary_max! / 1000)}k`
-    : null,
+  salary: formatSalary(job), // agent/adzuna.ts — equal bounds collapse to "$146k", min-only renders "$146k+", null when absent
   job_type: job.contract_type || "fulltime",
   about_role: job.description, // Adzuna returns snippet — used as description
   match_score: scoredJob.matchScore,
@@ -230,11 +257,13 @@ const jobRecord = {
 **Rules:**
 
 - Always include `category=it-jobs` — never search Adzuna without this filter
-- Never pass `where` if location is empty — omit the parameter entirely
+- Adzuna's `where` is strictly geographic — strip remote markers via `normalizeWhere` and omit the parameter when empty or nothing geographic remains (passing "remote" returns 0 results)
 - `source` is always `'search'` for Adzuna jobs — never any other value
 - `salary_is_predicted: "1"` means Adzuna estimated the salary — this is normal
-- Adzuna description is a snippet — GPT-4o scores from it, not a full description
-- Default country to `'us'` — support `gb`, `au`, `ca` as alternatives
+- Adzuna description is a 500-char snippet — Gemini 2.5-flash (`agent/matcher.ts`) scores from it, not a full description
+- Country comes from `detectCountry(location)` (`lib/adzuna.ts`) — keyword sniff for `gb`/`au`/`ca`, default `'us'`
+- Real results can omit any field (`contract_type` is often missing) — narrow to `UsableAdzunaJob` before scoring and default `job_type` to `"fulltime"`
+- `redirect_url` carries a per-request `?se=` tracking token (live-verified: the same ad returns a different URL on every call) — NEVER dedupe or compare on the raw URL. Store `canonicalSourceUrl(redirect_url)` (origin + path, which embeds the stable ad id) in `source_url`; only `external_apply_url` keeps the full tracking URL
 
 ---
 
@@ -257,6 +286,10 @@ const session = await bb.sessions.create({
 ```
 
 **Important — Browserbase runs independently from your Next.js server:**
+**Installed reality check (2026-06-10):** `@browserbasehq/sdk@2.14.0` is installed. Feature 13 centralizes this in `lib/browserbase.ts`: create one 120 second Browserbase session, pass its id to Stagehand, call `stagehand.close()`, then explicitly request Browserbase release with `sessions.update(sessionId, { status: "REQUEST_RELEASE", projectId })`. This explicit release is required because Stagehand v3 with `disableAPI: true` closes CDP but does not call the hosted Stagehand API session end path.
+
+**Browse CLI setup note (2026-06-10):** `browse skills install` is installed for Codex at `C:\Users\huuth\.agents\skills\browse\SKILL.md`. If Windows tries to spawn `C:\Program Files\nodejs\npx.cmd` and fails with `C:\Program`, put the user npm shim first in PATH for that command: `$env:PATH='C:\Users\huuth\AppData\Roaming\npm;' + $env:PATH; browse skills install`.
+
 Browserbase sessions run on Browserbase's cloud infrastructure, not inside your Next.js API route. The API route triggers the Browserbase session and returns a response while the session continues running independently on Browserbase's platform. Do not add `maxDuration` or any timeout configuration to Next.js API routes to accommodate Browserbase session length.
 
 **Rules:**
@@ -266,6 +299,8 @@ Browserbase sessions run on Browserbase's cloud infrastructure, not inside your 
 - Always end sessions cleanly — call stagehand.close() when done
 - Project ID always from `process.env.BROWSERBASE_PROJECT_ID` — never hardcode
 - Browserbase client lives in `lib/browserbase.ts` — always import from there
+- Server-side redirect following for company research must go through `trustedResearchRedirectUrl()` in `lib/company-research-url.ts`; only HTTPS URLs on trusted Adzuna redirect hosts are allowed. Any other saved job URL falls back to `fallbackCompanyHomepage(company)`.
+- `jobs.company_research.sources` should contain only pages actually opened and meaningfully extracted; never show guessed homepages or saved job URLs as research sources.
 
 ---
 
@@ -283,13 +318,16 @@ const stagehand = new Stagehand({
   apiKey: process.env.BROWSERBASE_API_KEY!,
   projectId: process.env.BROWSERBASE_PROJECT_ID!,
   browserbaseSessionID: session.id,
-  model: { modelName: "openai/gpt-4o", apiKey: process.env.OPENAI_API_KEY! },
+  model: { modelName: "google/gemini-2.5-flash", apiKey: process.env.GEMINI_API_KEY! },
+  disableAPI: true,
   disablePino: true,
 });
 
 await stagehand.init();
-const page = stagehand.context.activePage()!;
+const page = await stagehand.context.awaitActivePage();
 ```
+
+**Installed reality check (2026-06-10):** `@browserbasehq/stagehand@3.5.0` is installed. Feature 13 uses the v3 method forms: `stagehand.extract(instruction, schema, { timeout, serverCache: false })`, `page.goto(url, { waitUntil: "networkidle", timeoutMs })`, and `await stagehand.context.awaitActivePage()`. Use `lib/stagehand.ts` instead of constructing Stagehand directly in agent code.
 
 ### extract()
 
@@ -477,6 +515,10 @@ const response = await openai.chat.completions.create({
 
 ## OpenAI GPT-4o
 
+> **Model reality check (2026-06-09):** every shipped AI feature uses **Gemini 2.5-flash** via `@google/genai` — extraction (`agent/extractor.ts`, F07), resume generation (`agent/generator.ts`, F08), and job match scoring (`agent/matcher.ts`, F10, temperature 0.3). The `openai` package is NOT installed. This section remains only as the reference plan for company-research synthesis (Feature 13) — decide that feature's model when building it.
+
+> **Feature 13 update (2026-06-10):** company research synthesis also uses **Gemini 2.5-flash** via `@google/genai` (`agent/research.ts`, temperature 0.4, thinking disabled). Stagehand extraction uses the same provider through `modelName: "google/gemini-2.5-flash"`. The `openai` package is still not a direct app dependency.
+
 **Check first:** Check AGENTS.md for an installed OpenAI skill. The skill will have the latest API patterns and model capabilities.
 
 ### Structured JSON Response
@@ -531,6 +573,8 @@ const result = JSON.parse(response.choices[0].message.content!);
 ## PostHog
 
 **Check first:** Check AGENTS.md for an installed PostHog skill. If a PostHog MCP server is configured — use it. The skill/MCP will have the latest client and server patterns.
+
+**MCP project note (2026-06-10):** the PostHog MCP may default to the wrong context. This app's data lives in project **JobApplication (id 425525)** in org **Tom Nguyen (`019e2bb8-…`)** — if `read-data-schema` shows mobile/language-app events, run `switch-organization` then `switch-project` first. The project `api_token` matches `NEXT_PUBLIC_POSTHOG_KEY`.
 
 ### Client Setup (Browser)
 
@@ -587,6 +631,92 @@ await posthog.shutdown(); // required — ensures event is sent
 - Call `posthog.identify(userId)` after login on client side
 - Call `posthog.reset()` on logout on client side
 
+### Querying Events — Query API / HogQL (Feature 17)
+
+The `phc_` ingestion key **cannot query**. Runtime queries go through the PostHog
+Query API with a personal API key, via `lib/posthog-query.ts` — always import
+`queryPostHogHogQL` from there, never construct the request inline.
+
+```typescript
+// lib/posthog-query.ts — server only
+const rows = await queryPostHogHogQL(
+  `SELECT toDate(timestamp) AS day, count() AS c
+   FROM events
+   WHERE event = 'job_found'
+     AND distinct_id = {userId}
+     AND timestamp >= now() - INTERVAL 30 DAY
+   GROUP BY day
+   ORDER BY day`,
+  { userId },
+);
+// rows: (string | number | null)[][] — e.g. [["2026-06-09", 40], ["2026-06-10", 11]]
+// null on missing config or any request failure — callers degrade, never throw
+```
+
+**Env (all required, server-side):**
+
+| Var | Value | Notes |
+| --- | ----- | ----- |
+| `POSTHOG_PERSONAL_API_KEY` | `phx_…` | Scope `query:read`; created at PostHog → Settings → Personal API Keys. Secret — never `NEXT_PUBLIC_` |
+| `POSTHOG_PROJECT_ID` | `425525` | The JobApplication project |
+| `POSTHOG_API_HOST` | `https://us.posthog.com` | Query host ≠ ingestion host (`us.i.posthog.com`) |
+
+**Rules:**
+
+- Endpoint is `POST {POSTHOG_API_HOST}/api/projects/{POSTHOG_PROJECT_ID}/query` with body `{ query: { kind: "HogQLQuery", query, values } }` and `Authorization: Bearer` (live-verified 2026-06-10)
+- Always pass user input via HogQLQuery `values` placeholders (`{userId}`) — never string-interpolate into SQL
+- Always filter on `distinct_id = {userId}` — server captures use `distinctId: userId`, so this scopes to the current user
+- `queryPostHogHogQL` returns `null` on missing env or any failure (with `[posthog/query]` logging) — dashboard charts degrade to their empty-state message; never let a PostHog failure crash a page
+- The request carries `AbortSignal.timeout(8000)` — a hung endpoint must never block the force-dynamic dashboard SSR (timeouts surface through the existing catch → `null`). Non-OK responses log a 300-char slice of PostHog's error body, which names causes like a missing `query:read` scope
+- Chart data shaping lives in `lib/dashboard-charts.ts` (pure, tested transforms: `buildDailySeries` gap-fills rolling windows, `buildMatchDistribution` buckets scores incl. the `<50%` bucket, `computeYAxis` picks nice five-tick axes) — fetchers stay thin
+- HogQL `toDate(timestamp)` buckets in the project timezone (US/Central); transform day-keys are UTC-based — a late-evening event can drift one column at window edges, which is accepted
+- Charts count PostHog **events**, not InsForge DB rows — totals can legitimately differ from the DB-backed stats bar (events only exist since 2026-06-09; re-found jobs emit one event per save)
+- Rate budget: the /query endpoint allows ~120 requests/h — the dashboard issues 3 parallel queries per load, fine for personal use; don't add per-chart polling
+
+---
+
+## Recharts
+
+**Check first:** Check AGENTS.md for an installed recharts skill. None exists as of 2026-06-10 — this section is the project authority.
+
+**Installed reality check (2026-06-10):** `recharts@3.8.1` with React 19. Introduced in Feature 14 for the dashboard mock charts; F17 wired the same components to real PostHog data (see the PostHog Querying section) — the data props were swapped, the charts were not rebuilt.
+
+### Chart Components
+
+The three dashboard charts live in `components/dashboard/` (`ResearchActivityChart`, `JobsOverTimeChart`, `MatchDistributionChart`) — one component per file, each a Client Component (`"use client"`), each rendering its own card shell. Data arrives as typed props from the Server Component page; never fetch inside a chart component. Since F17 each chart also takes `yAxis: YAxisConfig` (page-computed via `computeYAxis` from `lib/dashboard-charts` — type-only import in the chart, so no server code lands in the client bundle) and an optional `emptyMessage`; when `data` is empty the chart renders the message centered in the `h-[280px]` area instead of the plot (RecentActivity's empty-state pattern).
+
+```tsx
+<div className="mt-6 h-[280px]">
+  <ResponsiveContainer
+    width="100%"
+    height="100%"
+    initialDimension={{ width: 580, height: 280 }}
+  >
+    <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+      <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="4 4" />
+      <XAxis dataKey="day" axisLine={false} tickLine={false} tickMargin={10}
+        tick={{ fill: "var(--color-chart-axis)", fontSize: 12 }} />
+      <YAxis axisLine={false} tickLine={false} width={32}
+        tick={{ fill: "var(--color-chart-axis)", fontSize: 12 }}
+        ticks={[0, 3, 6, 9, 12]} domain={[0, 12]} />
+      <Bar dataKey="count" fill="var(--color-info)" radius={[4, 4, 0, 0]}
+        barSize={24} isAnimationActive={false} />
+    </BarChart>
+  </ResponsiveContainer>
+</div>
+```
+
+**Rules:**
+
+- `ResponsiveContainer` needs a parent with an explicit height — the house pattern is `mt-6 h-[280px]` inside the chart card
+- ALWAYS pass `initialDimension={{ width: <approx card width>, height: 280 }}` — the default is `-1×-1`, which renders once before `ResizeObserver` measures (and during SSR) and logs "The width(-1) and height(-1) of chart should be greater than 0" on every load (×2 in dev StrictMode). The value is a first-paint estimate only; the observer corrects it on mount (live-verified fix, 2026-06-10)
+- Colors are ALWAYS CSS-variable strings in recharts props (`var(--color-info)`, `var(--color-success)`, `var(--color-accent)`, `var(--color-chart-axis)`, `var(--color-border)`) — never hex, never raw Tailwind colors; SVG resolves the variables at paint time (runtime-verified)
+- `isAnimationActive={false}` on every series (`Bar`, `Area`) — mount animations freeze invisible in hidden/throttled tabs (rAF paused) and re-animate on each visit of this force-dynamic page
+- House axis style: `axisLine={false} tickLine={false}`, 12px ticks, `tickMargin={10}`, YAxis `width={32}` with explicit `ticks` + `domain` — since F17 these come from the `yAxis` prop (`computeYAxis` in `lib/dashboard-charts.ts`), never hardcoded; grid is horizontal-only dashed (`vertical={false}` `strokeDasharray="4 4"`)
+- Bars: `radius={[4, 4, 0, 0]}`; line/area: `type="monotone"` `strokeWidth={3}` `dot={false}` with a `<linearGradient>` fill fading `var(--color-accent)` 0.2 → 0
+- Categorical X axes with few buckets must force every label: recharts auto-skip dropped "80-90%" on the six-bucket distribution in its 1/3-width card — `interval={0}` fixes it (live-verified 2026-06-10). Dense time axes (30 daily points) instead thin via `interval="preserveStartEnd"` + `minTickGap={24}`
+- No `<Tooltip>`/`<Legend>` — F17 kept the charts static (matches the design; `activeDot={false}` stays on the area chart)
+
 ---
 
 ## @react-pdf/renderer
@@ -620,13 +750,16 @@ const ResumePDF = ({ profile }: { profile: Profile }) => (
 // Generate buffer
 const buffer = await renderToBuffer(<ResumePDF profile={profile} />)
 
-// Upload directly to InsForge Storage
-await insforge.storage
+// Wrap the buffer — upload() accepts File | Blob only, never a raw Buffer
+const file = new File([new Uint8Array(buffer)], 'resume.pdf', {
+  type: 'application/pdf',
+})
+
+// Overwrite strategy: remove then upload (no upsert option exists)
+await insforge.storage.from('resumes').remove(`${userId}/resume.pdf`) // ignore error
+const { error } = await insforge.storage
   .from('resumes')
-  .upload(`${userId}/resume.pdf`, buffer, {
-    contentType: 'application/pdf',
-    upsert: true
-  })
+  .upload(`${userId}/resume.pdf`, file)
 ```
 
 **Supported CSS properties:**
@@ -638,7 +771,8 @@ Only use these — others are silently ignored:
 - Server-side only — never import in client components
 - Always use `renderToBuffer` — not `renderToStream` or `PDFDownloadLink`
 - PDF generation only in `app/api/resume/` routes
-- Generated buffer uploaded directly to InsForge Storage — never written to disk
+- Generated buffer is wrapped in a `File` and uploaded to InsForge Storage — never written to disk
+- Storage upload follows the InsForge section above: `remove` then `upload`, no `upsert` option
 - Always save public URL to DB after upload
 
 ---

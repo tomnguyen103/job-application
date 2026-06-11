@@ -103,6 +103,10 @@
 │   ├── adzuna.ts                          → Adzuna API client
 │   ├── posthog-client.ts                  → PostHog browser client
 │   ├── posthog-server.ts                  → PostHog server client
+│   ├── posthog-query.ts                   → PostHog Query API (HogQL) client — F17
+│   ├── dashboard-stats.ts                 → Dashboard stat math — F15
+│   ├── dashboard-activity.ts              → Recent activity merge + formatting — F16
+│   ├── dashboard-charts.ts                → Chart transforms + PostHog fetchers — F17
 │   └── utils.ts                           → Shared utility functions
 └── types/
     └── index.ts                           → Global TypeScript types
@@ -263,6 +267,7 @@ URL saved to profiles table
 | matched_skills     | text[]      | Skills user has that match                     |
 | missing_skills     | text[]      | Skills user lacks                              |
 | company_research   | jsonb       | Company dossier from research agent            |
+| researched_at      | timestamptz | Set when company research is saved (F16)       |
 | found_at           | timestamptz |                                                |
 
 ### `agent_logs`

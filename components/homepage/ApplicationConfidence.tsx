@@ -16,7 +16,7 @@ const confidencePoints: ConfidencePoint[] = [
   {
     title: "AI-Powered Job Matching",
     description:
-      "Stop guessing which jobs are worth applying to. JobPilot scores every role against your actual skills so you focus on the ones that matter.",
+      "Stop guessing which jobs are worth applying to. Job Application scores every role against your actual skills so you focus on the ones that matter.",
     active: true,
   },
   {
@@ -31,8 +31,8 @@ export function ApplicationConfidence(): ReactElement {
     <section className="landing-section-grid mx-auto grid max-w-[1280px] border-x border-t border-border bg-surface lg:grid-cols-2">
       <div className="flex min-h-[690px] items-center justify-center bg-surface-muted px-8 py-16 sm:px-16">
         <Image
-          src="/images/agnet-log.png"
-          alt="Agent log showing JobPilot matching and resume actions"
+          src="/images/agent-log3.png"
+          alt="Agent log showing Job Application matching and resume actions"
           width={2144}
           height={1656}
           sizes="(max-width: 1024px) 84vw, 540px"

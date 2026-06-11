@@ -252,8 +252,11 @@ All environment variables defined in `.env.local` for development. Never hardcod
 | `ADZUNA_APP_KEY`                | lib/adzuna.ts          |
 | `NEXT_PUBLIC_POSTHOG_KEY`       | lib/posthog-client.ts  |
 | `NEXT_PUBLIC_POSTHOG_HOST`      | lib/posthog-client.ts  |
+| `POSTHOG_PERSONAL_API_KEY`      | lib/posthog-query.ts   |
+| `POSTHOG_PROJECT_ID`            | lib/posthog-query.ts   |
+| `POSTHOG_API_HOST`              | lib/posthog-query.ts   |
 
-`NEXT_PUBLIC_` prefix means the variable is exposed to the browser. Never add `NEXT_PUBLIC_` to secret keys.
+`NEXT_PUBLIC_` prefix means the variable is exposed to the browser. Never add `NEXT_PUBLIC_` to secret keys. `POSTHOG_PERSONAL_API_KEY` is a secret (`phx_`, scope `query:read`) — server-side only; the query host `POSTHOG_API_HOST` (`us.posthog.com`) is not the ingestion host (`us.i.posthog.com`).
 
 ---
 
@@ -313,6 +316,7 @@ Approved dependencies for this project:
 - `posthog-node` — PostHog server client
 - `@react-pdf/renderer` — Resume PDF generation
 - `pdf-parse` — Extract text from uploaded PDF
+- `recharts` — Dashboard analytics charts
 - `zod` — Schema validation
 - `lucide-react` — Icons
 - `tailwindcss` — Styling
