@@ -25,6 +25,13 @@ export async function POST() {
 
   try {
     const extracted = await extractProfileFromPdf(base64);
+    console.log("[resume/extract] extracted fields:", Object.keys(extracted));
+    if (Object.keys(extracted).length === 0) {
+      return NextResponse.json(
+        { error: "No profile data could be read from this resume PDF." },
+        { status: 422 },
+      );
+    }
     return NextResponse.json({ data: extracted });
   } catch (error) {
     console.error("[resume/extract]", error);
