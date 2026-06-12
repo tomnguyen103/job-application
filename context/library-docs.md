@@ -374,7 +374,7 @@ Replace the existing Stagehand "Company Research Pattern" section in library-doc
 
 ### Company Research Pattern
 
-Three-step process: homepage extraction → sub-page extraction → GPT-4o synthesis.
+Three-step process: homepage extraction → sub-page extraction → Gemini synthesis.
 Job description and user profile come from DB — never re-fetch what you already have.
 Browser's only job is the company website.
 
@@ -435,7 +435,7 @@ const subPageData = await stagehand.extract({
   }),
 });
 
-// Step 3 — GPT-4o synthesis (after browser closes)
+// Step 3 — Gemini synthesis (after browser closes)
 // Feed three data sources: company research + job from DB + profile from DB
 const systemPrompt = `You are a sharp career strategist preparing a candidate to apply for a specific role. You are given (a) research collected from the company's own website, (b) the job posting, and (c) the candidate's profile. Produce a concise, concrete briefing that gives this specific candidate an edge for this specific role.
 
@@ -475,14 +475,14 @@ Experience: ${profile.years_experience} years, level ${profile.experience_level}
 Skills: ${profile.skills.join(", ")}
 Work history: ${JSON.stringify(profile.work_experience)}`;
 
-const response = await openai.chat.completions.create({
-  model: "gpt-4o",
-  response_format: { type: "json_object" },
-  temperature: 0.4,
-  messages: [
-    { role: "system", content: systemPrompt },
-    { role: "user", content: userPrompt },
-  ],
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: userPrompt,
+  config: {
+    systemInstruction: systemPrompt,
+    responseMimeType: "application/json",
+    temperature: 0.4,
+  },
 });
 ```
 
@@ -505,7 +505,7 @@ const response = await openai.chat.completions.create({
 - Always use `extract()` with a Zod schema — never parse raw HTML or use regex
 - Always wrap every `act()` and `extract()` in try/catch
 - Always call `await stagehand.close()` when done — ends the Browserbase session
-- Model is always `gpt-4o` — never use other models
+- Model is always `gemini-2.5-flash` — never use other models
 - Temperature is `0.4` for synthesis — grounded but flexible enough to make real connections
 - Max 3 sub-pages — never exceed this on free plan
 - Always close session in finally block — never leave sessions open even if research fails
@@ -513,38 +513,33 @@ const response = await openai.chat.completions.create({
 - If browser research returns empty — still run synthesis with job + profile only
 - yourEdge, gapsToAddress, and smartQuestions are the most valuable fields — never skip them
 
-## OpenAI GPT-4o
+## Google Gemini
 
 > **Model reality check (2026-06-09):** every shipped AI feature uses **Gemini 2.5-flash** via `@google/genai` — extraction (`agent/extractor.ts`, F07), resume generation (`agent/generator.ts`, F08), and job match scoring (`agent/matcher.ts`, F10, temperature 0.3). The `openai` package is NOT installed. This section remains only as the reference plan for company-research synthesis (Feature 13) — decide that feature's model when building it.
 
 > **Feature 13 update (2026-06-10):** company research synthesis also uses **Gemini 2.5-flash** via `@google/genai` (`agent/research.ts`, temperature 0.4, thinking disabled). Stagehand extraction uses the same provider through `modelName: "google/gemini-2.5-flash"`. The `openai` package is still not a direct app dependency.
 
-**Check first:** Check AGENTS.md for an installed OpenAI skill. The skill will have the latest API patterns and model capabilities.
+**Check first:** Check AGENTS.md for an installed Gemini skill. The skill will have the latest API patterns and model capabilities.
 
 ### Structured JSON Response
 
 ```typescript
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-const response = await openai.chat.completions.create({
-  model: "gpt-4o",
-  response_format: { type: "json_object" },
-  temperature: 0.3,
-  messages: [
-    {
-      role: "system",
-      content: "You are a job matching assistant. Return only valid JSON.",
-    },
-    {
-      role: "user",
-      content: `Your prompt here`,
-    },
-  ],
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: `Your prompt here`,
+  config: {
+    systemInstruction:
+      "You are a job matching assistant. Return only valid JSON.",
+    responseMimeType: "application/json",
+    temperature: 0.3,
+  },
 });
 
-const result = JSON.parse(response.choices[0].message.content!);
+const result = JSON.parse(response.text);
 ```
 
 **Temperature settings:**
@@ -561,9 +556,9 @@ const result = JSON.parse(response.choices[0].message.content!);
 
 **Rules:**
 
-- Model string is always `'gpt-4o'` — never use other model names
-- Always use `response_format: { type: 'json_object' }` for structured data
-- Always parse `response.choices[0].message.content` as string — even with json_object it returns a string
+- Model string is always `'gemini-2.5-flash'` — never use other model names
+- Always set `responseMimeType: 'application/json'` in `config` for structured data
+- Always read `response.text` (a string) and `JSON.parse` it — even in JSON mode it returns a string
 - Always validate parsed JSON before using — wrap in try/catch
 - Match threshold is always `MATCH_THRESHOLD` from `lib/utils.ts` — never hardcode 70
 - Company research synthesis must always return a complete dossier — never return empty even if browser research failed
@@ -796,13 +791,13 @@ export async function POST(req: NextRequest) {
   const pdfData = await pdf(buffer);
   const extractedText = pdfData.text; // raw text content
 
-  // Send to GPT-4o for structured extraction
+  // Send to Gemini for structured extraction
 }
 ```
 
 **Rules:**
 
 - Server-side only — never import in client components
-- `pdfData.text` is raw unformatted text — GPT-4o handles the structure extraction
+- `pdfData.text` is raw unformatted text — Gemini handles the structure extraction
 - Always handle parse errors — some PDFs are image-based and return empty text
 - If `pdfData.text` is empty or very short — return error to user: "Could not extract text from this PDF. Please try a different file."
