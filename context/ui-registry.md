@@ -177,6 +177,7 @@ The profile page uses a **stacked-card layout on the page background** — not t
 
 - Path: `components/profile/CompletionIndicator.tsx` (Server Component)
 - Props: `percentage: number`, `missingFields: string[]`
+- Renders `null` when `missingFields` is empty — a complete profile shows no card, guaranteed inside the component itself (callers like `app/profile/page.tsx` may also guard, but don't have to)
 - Alert icon: inline SVG, `text-error`
 - Missing-field tag classes: `rounded-full bg-accent-muted px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-accent`
 - Ring: SVG donut `r=34` `strokeWidth=8`, track circle `text-border-light`, progress circle `text-error` with `strokeDasharray`/`strokeDashoffset` derived from `percentage`; wrapper `relative h-20 w-20`, svg `-rotate-90`, centered label `text-lg font-semibold text-text-primary`
