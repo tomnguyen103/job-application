@@ -31,7 +31,7 @@ Return ONLY valid JSON with this exact shape — no markdown, no code fences, no
       "title": "string",
       "startDate": "e.g. January 2022",
       "endDate": "e.g. March 2024 — empty string if current",
-      "currentlyWorking": true,
+      "currentlyWorking": false,
       "responsibilities": "summary of key work"
     }
   ],
@@ -96,7 +96,9 @@ const PLACEHOLDER_URL_HOSTS = new Set([
 function cleanProfileUrl(value: unknown): string {
   const v = str(value);
   if (!v) return "";
-  const withScheme = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+  const withScheme = /^https?:\/\//i.test(v)
+    ? v.replace(/^http:\/\//i, "https://")
+    : `https://${v}`;
   let url: URL;
   try {
     url = new URL(withScheme);

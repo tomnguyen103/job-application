@@ -30,6 +30,14 @@ test("sanitizeExtractedProfile drops bare placeholder links from resume template
   assert.equal(result.portfolioUrl, undefined);
 });
 
+test("sanitizeExtractedProfile upgrades http:// profile URLs to https://", () => {
+  const result = sanitizeExtractedProfile({
+    linkedinUrl: "http://linkedin.com/in/abigail-hall",
+  });
+
+  assert.equal(result.linkedinUrl, "https://linkedin.com/in/abigail-hall");
+});
+
 test("sanitizeExtractedProfile drops non-URL junk like a literal Email label", () => {
   const result = sanitizeExtractedProfile({ portfolioUrl: "Email" });
 

@@ -60,6 +60,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
   const validateAndSubmit = (file: File): void => {
     setClientError(null);
     setGenerateSuccess(false);
+    setExtractSuccess(false);
     if (file.type !== "application/pdf") {
       setClientError("Only PDF files are accepted.");
       return;
