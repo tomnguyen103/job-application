@@ -31,7 +31,7 @@ Return ONLY valid JSON with this exact shape — no markdown, no code fences, no
       "title": "string",
       "startDate": "e.g. January 2022",
       "endDate": "e.g. March 2024 — empty string if current",
-      "currentlyWorking": "true when this is their current role, else false",
+      "currentlyWorking": true,
       "responsibilities": "summary of key work"
     }
   ],
@@ -49,7 +49,7 @@ Rules:
 - Return null for any field not found in the resume — never invent data
 - skills: every technical and professional skill explicitly mentioned
 - industries: infer from work history (e.g. FinTech, SaaS, Healthcare)
-- yearsExperience: if the resume states a total (e.g. "7 years of experience"), use that number; otherwise compute from the earliest start date to the latest end date, counting overlapping roles only once — never sum overlapping date ranges. Return a plain number string e.g. "5"
+- yearsExperience: if the resume states a total (e.g. "7 years of experience"), use that number; otherwise compute the union of worked date ranges — count overlapping roles once and exclude gaps between roles. Return a plain number string e.g. "5"
 - experienceLevel: infer from that same total (0-2: junior, 3-5: mid, 6-9: senior, 10+: lead), lowercase exactly as listed
 - workExperience: up to 3 most recent roles only
 - currentlyWorking: true when the role's end date reads Present/Current/Now — endDate must then be an empty string
@@ -168,9 +168,11 @@ export function sanitizeExtractedProfile(raw: RawExtracted): Partial<Profile> {
         const role = r as Record<string, unknown>;
         const endDate = str(role.endDate);
         // Reconcile the pair: an endDate of "Present" means a current role
-        // even when the model leaves currentlyWorking false.
+        // even when the model leaves currentlyWorking false, and a string
+        // "true" must count as a boolean true.
         const currentlyWorking =
           role.currentlyWorking === true ||
+          /^true$/i.test(str(role.currentlyWorking)) ||
           /^(present|current|now)$/i.test(endDate);
         return {
           company: str(role.company),

@@ -66,6 +66,24 @@ test("sanitizeExtractedProfile marks a Present end date as currently working", (
   assert.equal(result.workExperience?.[1].endDate, "December 2022");
 });
 
+test("sanitizeExtractedProfile coerces a string \"true\" currentlyWorking flag", () => {
+  const result = sanitizeExtractedProfile({
+    workExperience: [
+      {
+        company: "HealthTech Dynamics",
+        title: "Software Engineer",
+        startDate: "January 2023",
+        endDate: "",
+        currentlyWorking: "true",
+        responsibilities: "Built healthcare software",
+      },
+    ],
+  });
+
+  assert.equal(result.workExperience?.[0].currentlyWorking, true);
+  assert.equal(result.workExperience?.[0].endDate, "");
+});
+
 test("sanitizeExtractedProfile accepts enum values regardless of casing", () => {
   const raw: RawExtracted = {
     experienceLevel: "Senior",
