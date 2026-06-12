@@ -17,15 +17,10 @@ export function ProfilePageContent({ profile, resumeUrl }: Props): ReactElement 
   const [extractionKey, setExtractionKey] = useState(0);
 
   function handleExtract(extracted: Partial<Profile>): void {
-    // Applying extraction remounts the form (key below), which discards any
-    // unsaved manual edits — make that explicit instead of silent.
-    if (
-      !window.confirm(
-        "Apply the extracted resume data to the form? Unsaved manual edits will be replaced.",
-      )
-    ) {
-      return;
-    }
+    // No confirm gate: clicking Extract is the user's intent, and a native
+    // dialog is invisible in replays and silently discards the data when
+    // dismissed or suppressed by the browser. Applying remounts the form
+    // (key below); ResumeUpload shows an explicit success line instead.
     setMergedProfile((prev) => {
       const next = { ...prev };
 

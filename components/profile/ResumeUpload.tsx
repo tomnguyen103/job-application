@@ -39,6 +39,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
   const [clientError, setClientError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractSuccess, setExtractSuccess] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generateSuccess, setGenerateSuccess] = useState(false);
@@ -59,6 +60,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
   const validateAndSubmit = (file: File): void => {
     setClientError(null);
     setGenerateSuccess(false);
+    setExtractSuccess(false);
     if (file.type !== "application/pdf") {
       setClientError("Only PDF files are accepted.");
       return;
@@ -105,6 +107,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
 
   const handleExtract = async (): Promise<void> => {
     setExtractError(null);
+    setExtractSuccess(false);
     setIsExtracting(true);
     try {
       const res = await fetch("/api/resume/extract", { method: "POST" });
@@ -113,7 +116,15 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
         setExtractError(json.error ?? "Extraction failed. Please try again.");
         return;
       }
-      onExtract?.(json.data ?? {});
+      const data = json.data ?? {};
+      if (Object.keys(data).length === 0) {
+        setExtractError(
+          "No profile data could be read from this resume. Please try a different PDF.",
+        );
+        return;
+      }
+      onExtract?.(data);
+      setExtractSuccess(true);
     } catch {
       setExtractError("Extraction failed. Please try again.");
     } finally {
@@ -227,6 +238,12 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
               </button>
               {extractError && (
                 <p className="text-xs font-medium text-error">{extractError}</p>
+              )}
+              {extractSuccess && !extractError && (
+                <p className="text-xs font-medium text-success">
+                  Resume data applied to the form below — review it, then Save
+                  Profile.
+                </p>
               )}
             </div>
           </div>
