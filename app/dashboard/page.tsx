@@ -6,7 +6,10 @@ import { MatchDistributionChart } from "@/components/dashboard/MatchDistribution
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import type { ActivityEntry } from "@/components/dashboard/RecentActivity";
 import { ResearchActivityChart } from "@/components/dashboard/ResearchActivityChart";
-import { StatsBar } from "@/components/dashboard/StatsBar";
+import {
+  DASHBOARD_STAT_LABELS,
+  StatsBar,
+} from "@/components/dashboard/StatsBar";
 import type { DashboardStat } from "@/components/dashboard/StatsBar";
 import { TodayWorkspace } from "@/components/dashboard/TodayWorkspace";
 import { Navbar } from "@/components/layout/Navbar";
@@ -47,22 +50,22 @@ function buildStats(values: {
 }): DashboardStat[] {
   return [
     {
-      label: "Total Jobs Found",
+      label: DASHBOARD_STAT_LABELS.TOTAL_JOBS,
       value: values.totalJobsFound,
       caption: "All time",
     },
     {
-      label: "Avg. Match Rate",
+      label: DASHBOARD_STAT_LABELS.AVG_MATCH,
       value: values.avgMatchRate,
       caption: "Across all jobs",
     },
     {
-      label: "Companies Researched",
+      label: DASHBOARD_STAT_LABELS.COMPANIES,
       value: values.companiesResearched,
       caption: "Total researched",
     },
     {
-      label: "Jobs This Week",
+      label: DASHBOARD_STAT_LABELS.JOBS_WEEK,
       value: values.jobsThisWeek,
       caption: "New this week",
     },

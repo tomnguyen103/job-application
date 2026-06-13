@@ -35,7 +35,6 @@ export function ApplicationConfidence(): ReactElement {
           alt="Agent log showing Job Application matching and resume actions"
           width={2144}
           height={1656}
-          loading="eager"
           sizes="(max-width: 1024px) 84vw, 540px"
           className="h-auto w-full max-w-[540px]"
         />

@@ -43,7 +43,7 @@ Three nav items: Dashboard, Find Jobs, Profile.
 
 Content sections use semantic surfaces. Repeated items, tools, forms, and analytics panels use cards; full-width marketing sections may be unframed bands or bordered sections.
 
-```
+```text
 background: bg-surface or bg-surface-elevated
 border: 1px solid var(--color-border)
 border-radius: 8px
@@ -61,7 +61,7 @@ Three levels used consistently throughout:
 
 **Section headings** — card titles, page section titles
 
-```
+```text
 font-size: 16px
 font-weight: 600
 color: #101828
@@ -70,7 +70,7 @@ line-height: 24px
 
 **Body / primary content text**
 
-```
+```text
 font-size: 14px
 font-weight: 500
 color: #101828
@@ -79,7 +79,7 @@ line-height: 20px
 
 **Secondary / muted text** — labels, timestamps, subtitles
 
-```
+```text
 font-size: 12px
 font-weight: 400
 color: #99A1AF
@@ -94,7 +94,7 @@ Stat numbers on dashboard use 30px / weight 600 / color #101828.
 
 All badges use `border-radius: 9999px` (pill shape) unless specified otherwise.
 
-```
+```text
 padding: 2px 8px
 font-size: 12px
 font-weight: 500
@@ -108,7 +108,7 @@ Trend badges on stat cards use `border-radius: 4px` (not pill) with `#ECFDF5` ba
 
 **Primary button:**
 
-```
+```text
 background: bg-accent
 color: text-accent-foreground
 border-radius: 8px
@@ -121,7 +121,7 @@ font-weight: 500
 
 **Secondary button:**
 
-```
+```text
 background: bg-surface
 border: border border-border
 color: text-text-primary
@@ -140,7 +140,7 @@ padding: 8px 16px
 
 ## Form Inputs
 
-```
+```text
 background: bg-surface
 border: border border-border
 border-radius: 8px
@@ -167,17 +167,17 @@ focus: ring-1 ring-accent border-accent
 
 Inline progress bar shown next to the percentage number.
 
-```
+```text
 height: 4px
 border-radius: 9999px
-background track: #E7EAF3
+background track: bg-border-light
 ```
 
 Fill color by score:
 
-- 80-100%: `#10B981` (green)
-- 60-79%: `#61A8FF` (blue)
-- Below 60%: `#FF8904` (orange)
+- 90-100%: `bg-success` (green)
+- 80-89%: `bg-info` (blue)
+- Below 80%: `bg-warning` (orange)
 
 ---
 

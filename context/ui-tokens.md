@@ -172,10 +172,9 @@ Match score bars and indicators use gradient stops based on score range:
 
 | Score Range | Color  | Token                                  |
 | ----------- | ------ | -------------------------------------- |
-| 90-100%     | Green  | `text-success` / `bg-success-lightest` |
-| 70-89%      | Green  | `text-success` / `bg-success-light`    |
-| 50-69%      | Orange | `text-warning`                         |
-| Below 50%   | Gray   | `text-text-muted`                      |
+| 90-100%     | Green  | `bg-success` / `text-success`          |
+| 80-89%      | Blue   | `bg-info` / `text-info-foreground`     |
+| Below 80%   | Orange | `bg-warning` / `text-warning`          |
 
 ### Skills Badges
 
@@ -217,7 +216,7 @@ Tailored resume actions reuse existing tokens only: `bg-accent` for Generate, `b
 | Body / activity text | 14px | 500    | 20px        | `text-text-primary`   |
 | Trend badge text     | 12px | 500    | 16px        | `text-success-darker` |
 | Timestamp / muted    | 12px | 400    | 16px        | `text-text-muted`     |
-| Chart axis labels    | 12px | 400    | 15px        | `#9CA3AF`             |
+| Chart axis labels    | 12px | 400    | 15px        | `var(--color-chart-axis)` |
 | Stat subtitle        | 12px | 400    | 16px        | `text-text-muted`     |
 
 Font family: **Inter** — import from Google Fonts or use next/font/google.
@@ -247,7 +246,7 @@ Font family: **Inter** — import from Google Fonts or use next/font/google.
 
 ```
 background: bg-surface or bg-surface-elevated
-border: 1px solid var(--border)
+border: 1px solid var(--color-border)
 border-radius: 8px (rounded-md in Tailwind)
 padding: 24px (p-6)
 box-shadow: 0px 1px 3px rgba(0,0,0,0.1), 0px 1px 2px -1px rgba(0,0,0,0.1)
@@ -317,8 +316,8 @@ border-radius: rounded-full
 ### Trend Badges (stat cards)
 
 ```
-background: #ECFDF5 (success-lightest)
-text color: #009966 (success-darker)
+background: bg-success-lightest
+text color: text-success-darker
 border-radius: 4px (rounded-sm)
 padding: 2px 8px
 font-size: 12px
@@ -330,9 +329,9 @@ font-weight: 500
 Each activity type has a specific dot color:
 | Activity Type | Outer ring | Inner dot |
 |---|---|---|
-| Resume tailored | `#F3E8FF` (accent-light) | `#7C5CFC` (accent) |
-| Cover letter | `#DBEAFE` (info-light) | `#61A8FF` (info) |
-| Job found | `#D0FAE5` (success-light) | `#00BC7D` (success-alt) |
+| Accent/custom | `bg-accent-light` | `bg-accent` |
+| Company research | `bg-info-light` | `bg-info` |
+| Job found | `bg-success-light` | `bg-success-alt` |
 Dot size: 8px inner, 16px outer with white border
 
 ### Dashboard Chart Colors

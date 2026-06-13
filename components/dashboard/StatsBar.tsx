@@ -1,7 +1,17 @@
 import type { ReactElement } from "react";
 
+export const DASHBOARD_STAT_LABELS = {
+  TOTAL_JOBS: "Total Jobs Found",
+  AVG_MATCH: "Avg. Match Rate",
+  COMPANIES: "Companies Researched",
+  JOBS_WEEK: "Jobs This Week",
+} as const;
+
+export type DashboardStatLabel =
+  (typeof DASHBOARD_STAT_LABELS)[keyof typeof DASHBOARD_STAT_LABELS];
+
 export type DashboardStat = {
-  label: string;
+  label: DashboardStatLabel;
   value: string;
   badge?: string;
   caption: string;

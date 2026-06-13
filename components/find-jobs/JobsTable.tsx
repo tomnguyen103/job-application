@@ -74,15 +74,19 @@ function CompanyIcon(): ReactElement {
 }
 
 function MatchMeter({ score }: { score: number }): ReactElement {
+  const clampedScore = Math.max(0, Math.min(100, score));
+
   return (
     <div className="flex items-center gap-3">
       <span className="h-1 w-24 shrink-0 overflow-hidden rounded-full bg-border-light">
         <span
-          className={`block h-full rounded-full ${matchScoreBarClass(score)}`}
-          style={{ width: `${score}%` }}
+          className={`block h-full rounded-full ${matchScoreBarClass(clampedScore)}`}
+          style={{ width: `${clampedScore}%` }}
         />
       </span>
-      <span className="text-sm font-semibold text-text-primary">{score}%</span>
+      <span className="text-sm font-semibold text-text-primary">
+        {clampedScore}%
+      </span>
     </div>
   );
 }

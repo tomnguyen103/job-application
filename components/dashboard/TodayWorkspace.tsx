@@ -1,14 +1,18 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
 
-import type { DashboardStat } from "@/components/dashboard/StatsBar";
+import {
+  DASHBOARD_STAT_LABELS,
+  type DashboardStat,
+  type DashboardStatLabel,
+} from "@/components/dashboard/StatsBar";
 
 type Props = {
   profileComplete: boolean;
   stats: DashboardStat[];
 };
 
-function getStatValue(stats: DashboardStat[], label: string): string {
+function getStatValue(stats: DashboardStat[], label: DashboardStatLabel): string {
   return stats.find((stat) => stat.label === label)?.value ?? "-";
 }
 
@@ -16,10 +20,13 @@ export function TodayWorkspace({
   profileComplete,
   stats,
 }: Props): ReactElement {
-  const totalJobs = getStatValue(stats, "Total Jobs Found");
-  const averageMatch = getStatValue(stats, "Avg. Match Rate");
-  const researchedCompanies = getStatValue(stats, "Companies Researched");
-  const jobsThisWeek = getStatValue(stats, "Jobs This Week");
+  const totalJobs = getStatValue(stats, DASHBOARD_STAT_LABELS.TOTAL_JOBS);
+  const averageMatch = getStatValue(stats, DASHBOARD_STAT_LABELS.AVG_MATCH);
+  const researchedCompanies = getStatValue(
+    stats,
+    DASHBOARD_STAT_LABELS.COMPANIES,
+  );
+  const jobsThisWeek = getStatValue(stats, DASHBOARD_STAT_LABELS.JOBS_WEEK);
 
   return (
     <section className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
