@@ -301,7 +301,7 @@ import { Button } from "../../../components/ui/button";
 ## Temporary Generated Files
 
 - Job-tailored resume PDFs are temporary generated files, not profile resume replacements.
-- Store owner-scoped metadata in `tailored_resumes` and the PDF in the documented InsForge Storage path.
+- Store owner-scoped metadata in `tailored_resumes`, including both InsForge `storage_key` and `storage_url`, and the PDF in the documented InsForge Storage path.
 - Never accept a user-supplied storage key or file path from the browser.
 - Route handlers must verify both `jobs.user_id` and `tailored_resumes.user_id` match the current user.
 - Expired tailored resumes must not be downloadable.

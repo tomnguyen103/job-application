@@ -7,9 +7,9 @@ import type { Profile, WorkExperience } from "@/types";
 
 // Print-document palette. React PDF cannot consume app CSS variables.
 const COLORS = {
-  ink: "#111111",
-  body: "#333333",
-  muted: "#666666",
+  ink: "black",
+  body: "dimgray",
+  muted: "gray",
 };
 
 const DEGREE_LABELS: Record<string, string> = {

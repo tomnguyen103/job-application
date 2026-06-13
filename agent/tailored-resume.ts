@@ -19,6 +19,7 @@ export type TailoredResumeContent = {
 };
 
 const MAX_BULLETS_PER_ROLE = 4;
+const MIN_BULLETS_PER_ROLE = 2;
 
 type SanitizerOptions = {
   roleCount: number;
@@ -53,6 +54,68 @@ function containsForbiddenTerm(text: string, forbiddenTerms: string[]): boolean 
 
 function normalizeBullet(value: string): string {
   return cleanText(value).replace(/^[-*\u2022]\s*/, "");
+}
+
+function findBalancedObject(text: string, start: number): string | null {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+export function extractFirstJsonObject(text: string): string | null {
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== "{") {
+      continue;
+    }
+
+    const candidate = findBalancedObject(text, i);
+    if (!candidate) {
+      return null;
+    }
+
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 export function buildTailoredResumeInput(
@@ -119,7 +182,7 @@ Rules:
 - Saved Adzuna descriptions may be snippets. Do not infer hidden requirements or company details beyond the visible saved fields.
 - professionalSummary: 2-3 concise sentences, no first-person pronouns.
 - roles: exactly ${profile.workExperience.length} entries, in the same order as candidate.workExperience.
-- Each role: 2-${MAX_BULLETS_PER_ROLE} ATS-friendly bullets, each starting with a strong action verb.
+- Each role: ${MIN_BULLETS_PER_ROLE}-${MAX_BULLETS_PER_ROLE} ATS-friendly bullets, each starting with a strong action verb.
 - If a role has little responsibility text, write conservative bullets derivable from its title and provided responsibilities only.
 - Keep wording direct, plain, and suitable for a single-column resume.`;
 }
@@ -164,8 +227,10 @@ export function sanitizeTailoredResumeContent(
       .filter((bullet) => !containsForbiddenTerm(bullet, forbiddenTerms))
       .slice(0, MAX_BULLETS_PER_ROLE);
 
-    if (bullets.length === 0) {
-      throw new Error(`Model response is missing bullets for role ${i + 1}`);
+    if (bullets.length < MIN_BULLETS_PER_ROLE) {
+      throw new Error(
+        `Model response must include at least ${MIN_BULLETS_PER_ROLE} bullets for role ${i + 1}`,
+      );
     }
 
     roles.push({ bullets });
@@ -194,12 +259,12 @@ export async function generateTailoredResumeContent({
   });
 
   const text = (result.text ?? "").trim();
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  const jsonPayload = extractFirstJsonObject(text);
+  if (!jsonPayload) {
     throw new Error("No JSON object found in model response");
   }
 
-  const raw = JSON.parse(jsonMatch[0]) as unknown;
+  const raw = JSON.parse(jsonPayload) as unknown;
   return sanitizeTailoredResumeContent(raw, {
     roleCount: profile.workExperience.length,
     forbiddenTerms: job.missingSkills,

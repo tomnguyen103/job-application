@@ -43,6 +43,10 @@ type PreviousTailoredResumeRow = {
   storage_key: string | null;
 };
 
+type RemovableStorageBucket = {
+  remove(path: string): Promise<{ error: unknown }>;
+};
+
 function cleanText(value: string | null | undefined, fallback = ""): string {
   const text = value?.trim();
   return text ? text : fallback;
@@ -66,6 +70,13 @@ function mapJobRowToTailoredResumeJob(
     matchedSkills: cleanList(row.matched_skills),
     missingSkills: cleanList(row.missing_skills),
   };
+}
+
+async function removeTailoredResumeFile(
+  bucket: RemovableStorageBucket,
+  key: string,
+): Promise<{ error: unknown }> {
+  return bucket.remove(key);
 }
 
 export async function POST(_request: Request, { params }: RouteContext) {
@@ -210,6 +221,19 @@ export async function POST(_request: Request, { params }: RouteContext) {
       }
 
       uploadedKey = uploadData.key ?? storageKey;
+      const uploadedUrl = uploadData.url;
+
+      if (!uploadedUrl) {
+        console.error("[tailored-resume] upload response missing URL");
+        await removeTailoredResumeFile(bucket, uploadedKey);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Failed to save the tailored resume. Please try again.",
+          },
+          { status: 500 },
+        );
+      }
 
       const { error: insertError } = await insforge.database
         .from("tailored_resumes")
@@ -219,6 +243,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
             user_id: user.id,
             job_id: job.id,
             storage_key: uploadedKey,
+            storage_url: uploadedUrl,
             file_name: TAILORED_RESUME_FILE_NAME,
             generated_at: generatedAt.toISOString(),
             expires_at: expiresAt.toISOString(),
@@ -229,7 +254,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
       if (insertError) {
         console.error("[tailored-resume] metadata insert error:", insertError);
-        await bucket.remove(uploadedKey);
+        await removeTailoredResumeFile(bucket, uploadedKey);
         return NextResponse.json(
           {
             success: false,
@@ -247,7 +272,10 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
       for (const row of previous) {
         if (row.storage_key && row.id !== resumeId) {
-          const { error: removeError } = await bucket.remove(row.storage_key);
+          const { error: removeError } = await removeTailoredResumeFile(
+            bucket,
+            row.storage_key,
+          );
           if (removeError) {
             console.warn(
               "[tailored-resume] previous file cleanup warning:",
@@ -285,7 +313,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       });
     } catch (error) {
       console.error("[tailored-resume]", error);
-      await bucket.remove(uploadedKey);
+      await removeTailoredResumeFile(bucket, uploadedKey);
       return NextResponse.json(
         {
           success: false,

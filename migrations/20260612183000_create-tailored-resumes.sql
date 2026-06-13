@@ -7,6 +7,7 @@ CREATE TABLE tailored_resumes (
   user_id      uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   job_id       uuid NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
   storage_key  text NOT NULL,
+  storage_url  text NOT NULL,
   file_name    text NOT NULL DEFAULT 'tailored-resume.pdf',
   generated_at timestamptz NOT NULL DEFAULT now(),
   expires_at   timestamptz NOT NULL,

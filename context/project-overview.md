@@ -163,7 +163,7 @@ Full width layout on all pages. No sidebar.
 
 ### Tailored Resume Data
 
-- Stored in `tailored_resumes` table with InsForge Storage key metadata
+- Stored in `tailored_resumes` table with InsForge Storage key + URL metadata
 - Generated per job when user clicks Generate Tailored Resume on the job details page
 - Expires after 15 days and is deleted from storage and database by scheduled cleanup
 - Never replaces the profile page's active base resume at `resumes/{user_id}/resume.pdf`

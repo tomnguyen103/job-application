@@ -7,6 +7,7 @@ export type TailoredResumeRecord = {
   user_id: string;
   job_id: string;
   storage_key: string;
+  storage_url: string;
   file_name: string | null;
   generated_at: string;
   expires_at: string;

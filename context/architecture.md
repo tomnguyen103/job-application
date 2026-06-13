@@ -203,7 +203,7 @@ URL saved to profiles table
 
 ### Job-Tailored Resume Operations (API Routes)
 
-```
+```text
 User clicks Generate Tailored Resume on job details page
         ↓
 API route in app/api/jobs/[id]/tailored-resume
@@ -316,6 +316,7 @@ Daily cleanup deletes expired storage objects and rows
 | user_id      | uuid        | References profiles                        |
 | job_id       | uuid        | References jobs                            |
 | storage_key  | text        | InsForge Storage key for the generated PDF |
+| storage_url  | text        | InsForge Storage URL for the generated PDF |
 | file_name    | text        | Download filename                          |
 | generated_at | timestamptz | When the tailored PDF was generated        |
 | expires_at   | timestamptz | 15 days after generation                   |

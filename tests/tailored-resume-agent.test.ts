@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildTailoredResumeInput,
   buildTailoredResumePrompt,
+  extractFirstJsonObject,
   sanitizeTailoredResumeContent,
   type TailoredResumeJob,
 } from "../agent/tailored-resume";
@@ -86,11 +87,12 @@ test("sanitizeTailoredResumeContent removes bullets claiming missing skills", ()
   const content = sanitizeTailoredResumeContent(
     {
       professionalSummary:
-        "Full Stack Developer with React and PostgreSQL experience in healthcare tools.",
+            "Full Stack Developer with React and PostgreSQL experience in healthcare tools.",
       roles: [
         {
           bullets: [
             "Built React dashboards for care teams",
+            "Supported PostgreSQL-backed workflow tools",
             "Delivered AWS infrastructure for production systems",
           ],
         },
@@ -101,6 +103,7 @@ test("sanitizeTailoredResumeContent removes bullets claiming missing skills", ()
 
   assert.deepEqual(content.roles[0].bullets, [
     "Built React dashboards for care teams",
+    "Supported PostgreSQL-backed workflow tools",
   ]);
 });
 
@@ -111,7 +114,14 @@ test("sanitizeTailoredResumeContent rejects missing-skill claims in summary", ()
         {
           professionalSummary:
             "Frontend Engineer with React, TypeScript, and AWS experience.",
-          roles: [{ bullets: ["Built React interfaces"] }],
+          roles: [
+            {
+              bullets: [
+                "Built React interfaces",
+                "Supported TypeScript application workflows",
+              ],
+            },
+          ],
         },
         { roleCount: 1, forbiddenTerms: job.missingSkills },
       ),
@@ -130,5 +140,37 @@ test("sanitizeTailoredResumeContent requires bullets for every profile role", ()
         { roleCount: 1 },
       ),
     /role 1/,
+  );
+});
+
+test("sanitizeTailoredResumeContent rejects single-bullet roles after filtering", () => {
+  assert.throws(
+    () =>
+      sanitizeTailoredResumeContent(
+        {
+          professionalSummary: "Developer with grounded profile experience.",
+          roles: [
+            {
+              bullets: [
+                "Built React interfaces",
+                "Delivered AWS infrastructure",
+              ],
+            },
+          ],
+        },
+        { roleCount: 1, forbiddenTerms: job.missingSkills },
+      ),
+    /at least 2 bullets/,
+  );
+});
+
+test("extractFirstJsonObject skips incidental invalid braces", () => {
+  const json = extractFirstJsonObject(
+    'Draft note {not json}: {"professionalSummary":"Grounded summary","roles":[]}',
+  );
+
+  assert.equal(
+    json,
+    '{"professionalSummary":"Grounded summary","roles":[]}',
   );
 });

@@ -182,7 +182,7 @@ const { data, error } = await insforge.storage
 **Rules:**
 
 - Use the `tailored-resumes` bucket/prefix for job-specific PDFs — never overwrite `resumes/{user_id}/resume.pdf`
-- Save `storage_key`, `file_name`, `generated_at`, and `expires_at` in `tailored_resumes`
+- Save `storage_key`, `storage_url`, `file_name`, `generated_at`, and `expires_at` in `tailored_resumes`
 - `expires_at` is 15 days after generation
 - Download through an authenticated route that verifies the job and resume row belong to the current user
 - Expired rows are not downloadable

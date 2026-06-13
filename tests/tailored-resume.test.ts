@@ -24,6 +24,7 @@ function record(
     user_id: "user-1",
     job_id: "job-1",
     storage_key: `user-1/job-1/${id}.pdf`,
+    storage_url: `https://example.com/${id}.pdf`,
     file_name: TAILORED_RESUME_FILE_NAME,
     generated_at: generatedAt,
     expires_at: expiresAt,

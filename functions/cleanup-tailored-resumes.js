@@ -27,13 +27,21 @@ function json(payload, status = 200) {
   });
 }
 
-async function createAdminClientForCleanup(request) {
-  const apiKey =
-    bearerToken(request) ||
+function cleanupApiKey() {
+  return (
+    env("TAILORED_RESUME_CLEANUP_API_KEY") ||
     env("INSFORGE_API_KEY") ||
     env("INSFORGE_ADMIN_API_KEY") ||
-    env("API_KEY");
+    env("API_KEY")
+  );
+}
 
+function isAuthorizedCleanupRequest(request, apiKey) {
+  const provided = bearerToken(request);
+  return Boolean(apiKey && provided && provided === apiKey);
+}
+
+async function createAdminClientForCleanup(apiKey) {
   if (!apiKey) {
     throw new Error("INSFORGE_API_KEY is not configured.");
   }
@@ -50,9 +58,19 @@ module.exports = async function cleanupTailoredResumes(request) {
     return json({ success: false, error: "Method not allowed" }, 405);
   }
 
+  const apiKey = cleanupApiKey();
+  if (!apiKey) {
+    console.error("[cleanup-tailored-resumes] setup error: missing API key");
+    return json({ success: false, error: "Cleanup is not configured." }, 500);
+  }
+
+  if (!isAuthorizedCleanupRequest(request, apiKey)) {
+    return json({ success: false, error: "Unauthorized" }, 401);
+  }
+
   let client;
   try {
-    client = await createAdminClientForCleanup(request);
+    client = await createAdminClientForCleanup(apiKey);
   } catch (error) {
     console.error("[cleanup-tailored-resumes] setup error:", error);
     return json({ success: false, error: "Cleanup is not configured." }, 500);
@@ -73,9 +91,11 @@ module.exports = async function cleanupTailoredResumes(request) {
   const bucket = client.storage.from(BUCKET);
   let deletedFiles = 0;
   let fileWarnings = 0;
+  const deletedMetadataIds = [];
 
   for (const row of expired) {
     if (!row.storage_key) {
+      fileWarnings += 1;
       continue;
     }
 
@@ -88,10 +108,13 @@ module.exports = async function cleanupTailoredResumes(request) {
       );
     } else {
       deletedFiles += 1;
+      if (row.id) {
+        deletedMetadataIds.push(row.id);
+      }
     }
   }
 
-  const ids = expired.map((row) => row.id).filter(Boolean);
+  const ids = deletedMetadataIds;
   if (ids.length > 0) {
     const { error: deleteError } = await client.database
       .from("tailored_resumes")
