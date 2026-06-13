@@ -46,9 +46,29 @@ function insforgeBaseUrl() {
   return env("INSFORGE_BASE_URL");
 }
 
+function constantTimeEqual(left, right) {
+  if (!left || !right) {
+    return false;
+  }
+
+  const leftBytes = new TextEncoder().encode(left);
+  const rightBytes = new TextEncoder().encode(right);
+
+  if (leftBytes.length !== rightBytes.length) {
+    return false;
+  }
+
+  let difference = 0;
+  for (let i = 0; i < leftBytes.length; i += 1) {
+    difference |= leftBytes[i] ^ rightBytes[i];
+  }
+
+  return difference === 0;
+}
+
 function isAuthorizedCleanupRequest(request, apiKey) {
   const provided = bearerToken(request);
-  return Boolean(apiKey && provided && provided === apiKey);
+  return constantTimeEqual(provided, apiKey);
 }
 
 async function createAdminClientForCleanup({ apiKey, baseUrl }) {
@@ -130,12 +150,11 @@ module.exports = async function cleanupTailoredResumes(request) {
     }
   }
 
-  const ids = deletedMetadataIds;
-  if (ids.length > 0) {
+  if (deletedMetadataIds.length > 0) {
     const { error: deleteError } = await client.database
       .from("tailored_resumes")
       .delete()
-      .in("id", ids);
+      .in("id", deletedMetadataIds);
 
     if (deleteError) {
       console.error("[cleanup-tailored-resumes] metadata delete error:", deleteError);
