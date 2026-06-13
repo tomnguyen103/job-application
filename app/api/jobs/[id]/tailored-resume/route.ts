@@ -202,7 +202,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     try {
       const buffer = await renderToBuffer(
-        buildTailoredResumeDocument({ profile, content }),
+        buildTailoredResumeDocument({ profile, content, job }),
       );
       const file = new File([new Uint8Array(buffer)], TAILORED_RESUME_FILE_NAME, {
         type: "application/pdf",
