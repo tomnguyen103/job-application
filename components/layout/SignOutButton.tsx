@@ -11,7 +11,7 @@ export function SignOutButton(): ReactElement {
       <button
         type="submit"
         onClick={() => resetPostHog()}
-        className="inline-flex min-h-10 items-center justify-center rounded-md bg-overlay px-5 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90"
+        className="inline-flex min-h-10 items-center justify-center rounded-md bg-overlay px-5 text-sm font-medium text-overlay-foreground shadow-card transition-opacity hover:opacity-90"
       >
         Sign out
       </button>

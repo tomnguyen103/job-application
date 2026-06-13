@@ -18,6 +18,74 @@ After building any component - update this file with the component name, file pa
 
 ## Components
 
+## Website Modernization Overrides (2026-06-13)
+
+These entries supersede older light-only registry notes below. Keep future UI work on semantic tokens and the top navbar pattern.
+
+Primary accent CTAs use `bg-accent text-accent-foreground`. In dark mode, `text-accent-foreground` is intentionally dark teal for contrast against the bright accent background. Overlay surfaces and overlay buttons use `bg-overlay text-overlay-foreground`.
+
+### ThemeToggle
+
+- Path: `components/layout/ThemeToggle.tsx` (Client Component)
+- Button classes: `inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary focus:outline-none focus-visible:ring-accent`
+- Behavior: reads `job-application-theme` from `localStorage`, falls back to `prefers-color-scheme`, writes `document.documentElement.dataset.theme`, and persists explicit light/dark choices.
+- Root layout script: `app/layout.tsx` sets the initial `data-theme` and `colorScheme` before hydration.
+
+### Navbar Modernization
+
+- Path: `components/layout/Navbar.tsx`
+- Action wrapper: `flex shrink-0 items-center gap-2`
+- Public CTA: `inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`
+- Nav labels/routes remain Dashboard, Find Jobs, Profile. Keep the top navbar; do not add a sidebar or drawer.
+
+### Homepage Modernization
+
+- Paths: `components/homepage/Hero.tsx`, `OutcomeStrip.tsx`, `JobSearchEase.tsx`, `ApplicationConfidence.tsx`, `TrustSection.tsx`, `FinalCta.tsx`
+- Hero root: `mx-auto mt-10 max-w-[1280px] border-x border-t border-border bg-surface`
+- Hero grid: `landing-hero-gradient grid gap-10 px-6 py-14 sm:px-10 lg:grid-cols-[0.88fr_1.12fr] lg:items-center lg:px-14 lg:py-20`
+- Primary CTA: `inline-flex min-h-12 items-center justify-center rounded-md bg-accent px-7 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`
+- Secondary CTA: `inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-surface px-7 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary`
+- `Testimonial.tsx` was removed. Do not add fake testimonial/proof copy.
+
+### Login Modernization
+
+- Path: `app/(auth)/login/page.tsx`
+- Shell classes: `mx-auto grid min-h-[calc(100vh-80px)] max-w-[1120px] overflow-hidden rounded-md border border-border bg-surface shadow-card lg:grid-cols-[1fr_420px]`
+- Brand panel: `landing-hero-gradient flex flex-col gap-10 border-b border-border px-6 py-7 sm:px-8 lg:border-b-0 lg:border-r lg:px-10 lg:py-9`
+- Includes `ThemeToggle` beside the logo. OAuth provider actions and redirect behavior remain unchanged.
+
+### Dashboard Modernization
+
+- New path: `components/dashboard/TodayWorkspace.tsx`
+- Today card: `overflow-hidden rounded-md border border-border bg-surface shadow-card`
+- Today panel: `landing-hero-gradient grid gap-8 px-6 py-7 lg:grid-cols-[1fr_380px] lg:items-center lg:px-8`
+- Stats cards: `rounded-md border border-border bg-surface-elevated p-6 shadow-card`
+- Activity/chart cards now use `rounded-md border border-border bg-surface-elevated ... shadow-card` and include concise subtitles.
+
+### Find Jobs Modernization
+
+- Page intro card: `rounded-md border border-border bg-surface-elevated p-6 shadow-card`
+- `SearchControls` card: `rounded-md border border-border bg-surface-elevated p-6 shadow-card`
+- `JobFilters` wrapper: `rounded-md border border-border bg-surface-elevated p-4 shadow-card`
+- `JobsTable` root: `overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card`
+- Mobile jobs render as `MobileJobCard` cards inside `components/find-jobs/JobsTable.tsx`; desktop still renders the table.
+- Show `Jobs by Adzuna` whenever saved listings are visible.
+
+### Job Details Modernization
+
+- `JobInfo` header: `overflow-hidden rounded-md border border-border bg-surface shadow-card` with a `landing-hero-gradient` decision workspace panel.
+- Fact cards: `flex min-w-0 items-center gap-4 rounded-md border border-border bg-surface-elevated p-5 shadow-card`
+- `MatchScore`, `JobDescription`, `CompanyResearch`, `TailoredResumeAction`, and `JobActions` use `rounded-md` semantic cards.
+- Page order: JobInfo, MatchScore, CompanyResearch, TailoredResumeAction, JobActions, JobDescription.
+
+### Profile Modernization
+
+- New path: `components/profile/CareerReadinessSummary.tsx`
+- Readiness root: `overflow-hidden rounded-md border border-border bg-surface shadow-card`
+- Readiness hero: `landing-hero-gradient px-6 py-7 sm:px-8`
+- `ResumeUpload`, `ProfileForm`, `CompletionIndicator`, and `ResumePreview` use `rounded-md` semantic cards/surfaces.
+- Field order and profile save/extract/generate behavior remain unchanged.
+
 ### Navbar
 
 - Path: `components/layout/Navbar.tsx` (Server Component — auth check only)
@@ -25,8 +93,8 @@ After building any component - update this file with the component name, file pa
 - Inner classes: `mx-auto flex min-h-20 max-w-[1280px] flex-wrap items-center justify-between gap-y-3 px-4 py-3 sm:px-6 md:h-20 md:flex-nowrap md:py-0 lg:px-0`
 - Brand: `<Logo className="h-8 w-auto sm:h-10" />` wrapped in `<Link href="/" aria-label="Job Application home" className="shrink-0">` (Feature 09 — replaced the old `/logo.png` wordmark image, which had "JobPilot" baked in)
 - Nav links: rendered by `NavLinks` (see below) — do not put plain `<Link>`s back in the Navbar
-- Primary button classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-overlay px-5 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90`
-- Authenticated action classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-overlay px-5 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90`
+- Public primary button classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`
+- Authenticated Sign out action classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-overlay px-5 text-sm font-medium text-overlay-foreground shadow-card transition-opacity hover:opacity-90`
 
 ### Logo
 
@@ -59,7 +127,7 @@ After building any component - update this file with the component name, file pa
 - Hero panel classes: `landing-hero-gradient flex min-h-[420px] flex-col items-center justify-center px-6 py-20 text-center`
 - Heading classes: `max-w-[780px] text-[42px] font-bold leading-[1.02] text-text-black sm:text-[56px] lg:text-[64px]`
 - Body classes: `mt-8 max-w-[560px] text-[15px] font-medium leading-6 text-text-secondary`
-- Primary CTA classes: `inline-flex min-h-12 items-center justify-center rounded-md bg-overlay px-7 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90`
+- Primary CTA classes: `inline-flex min-h-12 items-center justify-center rounded-md bg-accent px-7 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`
 - Secondary CTA classes: `inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-surface px-7 text-sm font-medium text-text-primary shadow-card transition-colors hover:bg-surface-secondary`
 - Preview image: `/images/dashboard-demo2.png` (1920×969, intrinsics must match in `Hero.tsx`) — a real screenshot of the live `/dashboard` composed into a recreated browser frame (dark `#0b0f22` bezel, traffic-light dots, URL pill reading `jobapplication.app/dashboard`). Regenerate by re-capturing the dashboard, not by hand-editing the PNG; when regenerating, bump the filename (demo3, demo4…) — browsers cache the old URL otherwise (2026-06-10).
 
@@ -147,7 +215,7 @@ Last updated: 2026-06-08
 - Root classes: `landing-hero-gradient mx-auto flex min-h-[420px] max-w-[1280px] flex-col items-center justify-center border-x border-b border-border px-6 py-20 text-center`
 - Heading classes: `max-w-[720px] text-[38px] font-bold leading-[1.05] text-text-black sm:text-[48px] lg:text-[56px]`
 - Body classes: `mt-8 max-w-[600px] text-[15px] font-medium leading-6 text-text-secondary`
-- Primary CTA classes: `inline-flex min-h-12 items-center justify-center rounded-md bg-overlay px-7 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90`
+- Primary CTA classes: `inline-flex min-h-12 items-center justify-center rounded-md bg-accent px-7 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`
 - Secondary CTA classes: `inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-surface px-7 text-sm font-medium text-text-primary shadow-card transition-colors hover:bg-surface-secondary`
 
 ---
@@ -214,7 +282,7 @@ The profile page uses a **stacked-card layout on the page background** — not t
 - Section divider classes: `border-t border-border pt-8`
 - Field grid: `grid grid-cols-1 gap-4 sm:grid-cols-2`; full-width fields use `sm:col-span-2`
 - Tag chip classes: `flex items-center gap-1.5 rounded-full bg-accent-muted px-3 py-1 text-xs font-medium text-accent`
-- Add button (dark): `inline-flex min-h-10 shrink-0 items-center justify-center rounded-md bg-overlay px-4 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90`
+- Add button: `inline-flex min-h-10 shrink-0 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent-dark`
 - Checkbox classes: `checkbox-accent h-4 w-4`
 - Add role link classes: `inline-flex items-center gap-1 text-sm font-medium text-accent transition-opacity hover:opacity-80`
 - Work experience role card classes: `flex flex-col gap-4 rounded-xl border border-border p-4`
@@ -530,17 +598,17 @@ Last updated: 2026-06-09
 | Hover state   | `transition-opacity hover:opacity-90`                  |
 | Shadow        | `shadow-card`                                          |
 
-**Pattern notes:** ⚠️ The app now has TWO primary-button colors. **In-app actions** (Save Profile, Generate Resume) use **`bg-accent`** (purple). **Marketing/landing CTAs** (Navbar "Start for free", Hero, FinalCta) and compact inline "Add" buttons use **`bg-overlay`** (dark). Both match their respective designs — choose `bg-accent` for primary actions on authenticated app pages, `bg-overlay` on the marketing surface.
+**Pattern notes:** Use `bg-accent text-accent-foreground` for primary CTAs and primary in-app actions. `--color-accent` is teal, not purple, and its foreground changes in dark mode for contrast. Use `bg-overlay text-overlay-foreground` only for overlay-specific buttons such as Sign out or dark full-band sections.
 
-### Button — Dark (compact / inline)
+### Button — Overlay
 
-File: `components/profile/ProfileForm.tsx` (tag "Add" buttons)
-Last updated: 2026-06-09
+File: `components/layout/SignOutButton.tsx`, overlay sections such as `components/homepage/TrustSection.tsx`
+Last updated: 2026-06-13
 
 | Property      | Class                                        |
 | ------------- | -------------------------------------------- |
 | Background    | `bg-overlay`                                 |
-| Text          | `text-sm font-medium text-accent-foreground` |
+| Text          | `text-sm font-medium text-overlay-foreground` |
 | Border radius | `rounded-md`                                 |
 | Spacing       | `min-h-10 px-4`                              |
 | Hover state   | `transition-opacity hover:opacity-90`        |

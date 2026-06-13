@@ -125,7 +125,15 @@ export function SearchControls({ userId }: Props): ReactElement {
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-6 shadow-card">
+    <div className="rounded-md border border-border bg-surface-elevated p-6 shadow-card">
+      <div className="mb-5">
+        <h2 className="text-base font-semibold leading-6 text-text-primary">
+          Run a job search
+        </h2>
+        <p className="mt-1 text-xs font-medium leading-4 text-text-secondary">
+          The agent saves strong matches to this workspace.
+        </p>
+      </div>
       <form
         onSubmit={handleSubmit}
         className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end"
@@ -174,7 +182,7 @@ export function SearchControls({ userId }: Props): ReactElement {
         <button
           type="submit"
           disabled={isSearching}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark disabled:opacity-50"
         >
           {isSearching ? (
             <>
@@ -192,7 +200,7 @@ export function SearchControls({ userId }: Props): ReactElement {
               >
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
-              Searching…
+              Searching...
             </>
           ) : (
             <>

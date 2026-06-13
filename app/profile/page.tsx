@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 
 import { Navbar } from "@/components/layout/Navbar";
+import { CareerReadinessSummary } from "@/components/profile/CareerReadinessSummary";
 import { CompletionIndicator } from "@/components/profile/CompletionIndicator";
 import { ProfilePageContent } from "@/components/profile/ProfilePageContent";
 import { createInsforgeServer, requireCurrentUser } from "@/lib/insforge-server";
@@ -53,12 +54,19 @@ export default async function ProfilePage(): Promise<ReactElement> {
     : emptyProfile(user.email ?? "");
 
   const { percentage, missingFields } = computeProfileCompletion(profile);
+  const resumeUrl = row?.resume_pdf_url ?? undefined;
 
   return (
     <main className="min-h-screen bg-background">
       <Navbar />
       <section className="mx-auto w-full max-w-[1080px] px-6 py-10">
         <div className="flex flex-col gap-6">
+          <CareerReadinessSummary
+            profile={profile}
+            percentage={percentage}
+            missingFields={missingFields}
+            hasResume={Boolean(resumeUrl)}
+          />
           {missingFields.length > 0 && (
             <CompletionIndicator
               percentage={percentage}
@@ -67,7 +75,7 @@ export default async function ProfilePage(): Promise<ReactElement> {
           )}
           <ProfilePageContent
             profile={profile}
-            resumeUrl={row?.resume_pdf_url ?? undefined}
+            resumeUrl={resumeUrl}
           />
         </div>
       </section>

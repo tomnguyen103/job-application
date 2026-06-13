@@ -103,13 +103,13 @@ export function MatchScore({
 }: Props): ReactElement {
   return (
     <>
-      <section className="rounded-2xl border border-border bg-surface p-8 shadow-card">
+      <section className="rounded-md border border-border bg-surface-elevated p-8 shadow-card">
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-success-lightest text-success">
             <SparkleIcon />
           </span>
           <h2 className="text-sm font-bold uppercase leading-5 tracking-wide text-text-secondary">
-            AI Match Reasoning
+            Match reasoning
           </h2>
         </div>
         <p className="mt-6 text-[15px] font-semibold leading-7 text-text-primary">
@@ -117,9 +117,9 @@ export function MatchScore({
         </p>
       </section>
 
-      <section className="rounded-2xl border border-border bg-surface p-8 shadow-card">
+      <section className="rounded-md border border-border bg-surface-elevated p-8 shadow-card">
         <h2 className="text-sm font-bold uppercase leading-5 tracking-wide text-text-secondary">
-          Required Skills vs Your Profile
+          Required skills vs your profile
         </h2>
 
         <div className="mt-5">

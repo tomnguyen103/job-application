@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Phase 6 - Tailored Resume
-**Last completed:** 18 Job-Tailored Resume Agent
-**Next:** Manual authenticated Feature 18 verification
+**Phase:** Website Modernization - Phase 5 Ready
+**Last completed:** Core build plan through Phase 6 - Tailored Resume, website modernization Phases 1-4 through authenticated workspace polish, and the dark-mode CTA contrast review fix
+**Next:** Modernization Phase 5 - Engagement Features Without Billing
 
 ---
 
@@ -49,6 +49,15 @@ Update this file after every completed feature. Any AI agent reading this should
 ### Phase 6 - Tailored Resume
 
 - [x] 18 Job-Tailored Resume Agent
+
+### Website Modernization
+
+- [x] Phase 1 - Visual Baseline And Design System Refresh
+- [x] Phase 2 - Homepage Redesign
+- [x] Phase 3 - Login And Public Exploration
+- [x] Phase 4 - Authenticated Workspace Polish
+- [ ] Phase 5 - Engagement Features Without Billing
+- [ ] Phase 6 - SaaS Readiness Later
 
 ---
 
@@ -146,6 +155,8 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-13: Mobile navbar review fix - `NavLinks` no longer hides below `md`; it wraps into a second top-navbar row on mobile using the existing Dashboard / Find Jobs / Profile links. `Navbar` now allows wrapping and uses a smaller mobile logo so the brand/action row fits without adding a drawer or sidebar. `Logo` accepts an optional className for that responsive Navbar sizing.
 - 2026-06-13: F18 tailored resume distinction fix - verification showed the regular and tailored PDFs were separate artifacts but too visually similar when a saved Adzuna job had no structured requirements or responsibilities. The tailored agent prompt now feeds bounded `visibleJobSignals` and requires visibly job-specific wording from the target role/about-role/matched skills, while the tailored PDF body includes an ATS-safe `Target Role: {title} at {company}` line. Profile page Generate Resume remains unchanged.
 - 2026-06-13: Audit fix pass - removed generated log files from the repo root and ignored `*.log`; raised Next.js Server Action body size to 6 MB so the documented 5 MB resume upload can reach `saveResume`; documented tailored-resume cleanup env vars; wired `profiles.cover_letter_tone` through the Profile form/save path without changing completion rules; extracted tailored-resume download resolution into `lib/tailored-resume-download.ts` with route-behavior tests for unauthorized, inaccessible, expired, and latest-unexpired cases.
+- 2026-06-13: Website modernization pass started from `context/website-modernization-plan.md` through authenticated workspace polish without adding payment, admin, team, billing, or subscription features. Added semantic light/dark theme support in `app/globals.css`, pre-hydration theme application in `app/layout.tsx`, and `components/layout/ThemeToggle.tsx` in the existing top navbar. Modernized homepage/login copy and layout, added grounded homepage sections (`OutcomeStrip`, `TrustSection`), removed the fake testimonial component, polished dashboard with `TodayWorkspace`, restored visible `Jobs by Adzuna` credit plus mobile job cards, reordered job details into a decision flow, and added `CareerReadinessSummary` to Profile while preserving existing route labels, PostHog event names, auth gates, discovery/research/resume/tailored-resume endpoints, and Profile form field order.
+- 2026-06-13: Progress realignment verified the old build-plan phases are complete through Phase 6 / Feature 18. The live tree contains the tailored-resume generation and download routes, storage metadata helpers, cleanup function, migrations, and tailored-resume route/agent tests. The current product-development track is now website modernization, with Phases 1-4 implemented. Fixed the dark-mode primary CTA contrast review finding by making dark-mode `--color-accent-foreground` a dark teal for bright accent backgrounds and moving overlay text to `--color-overlay-foreground`. Next new development phase: Modernization Phase 5 - Engagement Features Without Billing.
 
 ---
 

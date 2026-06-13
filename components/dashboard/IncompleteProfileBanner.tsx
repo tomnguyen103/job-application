@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 
 export function IncompleteProfileBanner(): ReactElement {
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-card sm:flex-row sm:items-center sm:justify-between">
+    <section className="flex flex-col gap-4 rounded-md border border-border bg-surface-elevated p-6 shadow-card sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-muted text-accent">
           <svg
@@ -34,7 +34,7 @@ export function IncompleteProfileBanner(): ReactElement {
       </div>
       <Link
         href="/profile"
-        className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90"
+        className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark"
       >
         Complete Profile
       </Link>

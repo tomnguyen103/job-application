@@ -9,41 +9,45 @@ type ConfidencePoint = {
 
 const confidencePoints: ConfidencePoint[] = [
   {
-    title: "Understand your match score",
+    title: "Understand the match before you apply",
     description:
-      "See how your profile lines up with each role before you apply. Get a clear breakdown of what fits and what's missing.",
+      "See how your skills line up with the role, where you look strong, and what still needs attention.",
   },
   {
-    title: "AI-Powered Job Matching",
+    title: "Research the company in context",
     description:
-      "Stop guessing which jobs are worth applying to. Job Application scores every role against your actual skills so you focus on the ones that matter.",
+      "Keep company intelligence next to the role so your application is grounded in more than a job title.",
     active: true,
   },
   {
-    title: "Focus on the right roles",
+    title: "Tailor the resume for this job",
     description:
-      "Filter out low fit jobs and stay on the ones that actually matter. Spend less time sorting and more time applying.",
+      "Generate a job-scoped resume without changing the base resume stored on your profile.",
   },
 ];
 
 export function ApplicationConfidence(): ReactElement {
   return (
     <section className="landing-section-grid mx-auto grid max-w-[1280px] border-x border-t border-border bg-surface lg:grid-cols-2">
-      <div className="flex min-h-[690px] items-center justify-center bg-surface-muted px-8 py-16 sm:px-16">
+      <div className="flex items-center justify-center bg-surface-muted px-8 py-16 sm:px-16 lg:min-h-[620px]">
         <Image
           src="/images/agent-log3.png"
           alt="Agent log showing Job Application matching and resume actions"
           width={2144}
           height={1656}
+          loading="eager"
           sizes="(max-width: 1024px) 84vw, 540px"
           className="h-auto w-full max-w-[540px]"
         />
       </div>
 
-      <div className="flex min-h-[690px] flex-col justify-center border-t border-border bg-surface lg:border-l lg:border-t-0">
+      <div className="flex flex-col justify-center border-t border-border bg-surface lg:min-h-[620px] lg:border-l lg:border-t-0">
         <div className="px-8 py-16 sm:px-16 lg:px-[70px]">
-          <h2 className="max-w-[500px] text-[36px] font-bold leading-[1.05] text-text-slate lg:text-[44px]">
-            Apply With More Confidence, Every Time
+          <p className="text-xs font-bold uppercase leading-4 tracking-[0.2em] text-accent">
+            Decision page
+          </p>
+          <h2 className="mt-5 max-w-[520px] text-[34px] font-bold leading-[1.05] text-text-slate lg:text-[44px]">
+            Turn each promising role into a clear next step
           </h2>
         </div>
 

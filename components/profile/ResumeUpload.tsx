@@ -155,7 +155,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
   const errorMessage = clientError ?? (!state.success && state.error ? state.error : null);
 
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-card">
+    <section className="flex flex-col gap-4 rounded-md border border-border bg-surface-elevated p-6 shadow-card">
       <div className="flex flex-col gap-1">
         <h2 className="text-base font-semibold leading-6 text-text-primary">
           Resume
@@ -186,7 +186,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
               label="Replace"
             />
             {isPending && (
-              <p className="text-xs font-medium text-text-muted">Uploading…</p>
+              <p className="text-xs font-medium text-text-muted">Uploading...</p>
             )}
             {errorMessage && (
               <p className="text-xs font-medium text-error">{errorMessage}</p>
@@ -214,7 +214,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
                     >
                       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
-                    Extracting profile data…
+                    Extracting profile data...
                   </>
                 ) : (
                   <>
@@ -241,7 +241,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
               )}
               {extractSuccess && !extractError && (
                 <p className="text-xs font-medium text-success">
-                  Resume data applied to the form below — review it, then Save
+                  Resume data applied to the form below. Review it, then Save
                   Profile.
                 </p>
               )}
@@ -252,7 +252,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
+            className={`flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed px-6 py-10 text-center transition-colors ${
               isDragging ? "border-accent bg-accent-muted" : "border-border"
             }`}
           >
@@ -274,7 +274,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
             </svg>
             <div className="flex flex-col gap-1">
               <p className="text-sm font-medium leading-5 text-text-primary">
-                {isPending ? "Uploading…" : "Click to upload or drag and drop"}
+                {isPending ? "Uploading..." : "Click to upload or drag and drop"}
               </p>
               <p className="text-xs font-normal leading-4 text-text-muted">
                 PDF format only. Maximum file size 5MB.
@@ -305,7 +305,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating || isPending || isExtracting}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark disabled:opacity-50"
           >
             {isGenerating ? (
               <>
@@ -323,7 +323,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
                 >
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
-                Generating resume…
+                Generating resume...
               </>
             ) : (
               "Generate Resume from Profile"
@@ -335,7 +335,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
         )}
         {generateSuccess && !generateError && (
           <p className="text-xs font-medium text-success">
-            Resume generated — click the file above to view it.
+            Resume generated. Click the file above to view it.
           </p>
         )}
       </div>

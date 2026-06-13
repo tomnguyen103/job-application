@@ -9,30 +9,36 @@ type FeaturePoint = {
 
 const featurePoints: FeaturePoint[] = [
   {
-    title: "Find jobs that actually fit",
+    title: "Search with your target role in mind",
     description:
-      "Search by title and location or paste a job link. Get matched roles you can quickly scan.",
+      "Use a familiar search flow, then let the app score roles against your profile before you sink time into them.",
     active: true,
   },
   {
-    title: "Know the Company Before You Apply",
+    title: "Scan the list without losing context",
     description:
-      "Stop guessing what a company is about. Job Application browses their site and gives you everything you need to apply with confidence.",
+      "Compare company, salary, source, date, and match score from one compact surface built for quick decisions.",
   },
   {
-    title: "Keep track of every application",
+    title: "Open the best leads as workspaces",
     description:
-      "Keep a clear view of every job you've found, tailored. Your activity and progress all stay in one simple place.",
+      "Each saved role becomes a place for fit notes, company research, tailored resume work, and apply actions.",
   },
 ];
 
 export function JobSearchEase(): ReactElement {
   return (
-    <section className="landing-section-grid mx-auto grid max-w-[1280px] border-x border-t border-border bg-surface lg:grid-cols-2">
-      <div className="flex min-h-[690px] flex-col justify-center border-b border-border bg-surface lg:border-b-0 lg:border-r">
+    <section
+      id="workflow"
+      className="landing-section-grid mx-auto grid max-w-[1280px] border-x border-t border-border bg-surface lg:grid-cols-2"
+    >
+      <div className="flex flex-col justify-center border-b border-border bg-surface lg:min-h-[620px] lg:border-b-0 lg:border-r">
         <div className="px-8 py-16 sm:px-16 lg:px-[70px]">
-          <h2 className="max-w-[420px] text-[36px] font-bold leading-[1.05] text-text-slate lg:text-[44px]">
-            Manage Your Job Search With Ease
+          <p className="text-xs font-bold uppercase leading-4 tracking-[0.2em] text-accent">
+            Workflow
+          </p>
+          <h2 className="mt-5 max-w-[500px] text-[34px] font-bold leading-[1.05] text-text-slate lg:text-[44px]">
+            Move from search to shortlist faster
           </h2>
         </div>
 
@@ -57,7 +63,7 @@ export function JobSearchEase(): ReactElement {
         </div>
       </div>
 
-      <div className="flex min-h-[690px] items-center justify-center bg-surface-muted px-8 py-14 sm:px-16">
+      <div className="flex items-center justify-center bg-surface-muted px-8 py-14 sm:px-16 lg:min-h-[620px]">
         <Image
           src="/images/jobs-lists.png"
           alt="Job match list with companies, scores, salaries, and sources"

@@ -28,13 +28,16 @@ const AXIS_TICK = { fill: "var(--color-chart-axis)", fontSize: 12 };
 export function JobsOverTimeChart({
   data,
   yAxis,
-  emptyMessage = "No jobs found in the last 30 days — run a job search to see this chart.",
+  emptyMessage = "No jobs found in the last 30 days. Run a job search to see this chart.",
 }: Props): ReactElement {
   return (
-    <section className="h-full rounded-2xl border border-border bg-surface p-6 shadow-card">
+    <section className="h-full rounded-md border border-border bg-surface-elevated p-6 shadow-card">
       <h2 className="text-base font-semibold leading-6 text-text-primary">
         Jobs Found Over Time
       </h2>
+      <p className="mt-1 text-xs font-medium leading-4 text-text-secondary">
+        Search volume from the last 30 days.
+      </p>
       <div className="mt-6 h-[280px]">
         {data.length === 0 ? (
           <p className="flex h-full items-center justify-center px-6 text-center text-sm font-medium leading-5 text-text-muted">

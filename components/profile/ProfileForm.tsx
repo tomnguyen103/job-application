@@ -199,7 +199,7 @@ function TagInput({
         <button
           type="button"
           onClick={onAdd}
-          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md bg-overlay px-4 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
+          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent-dark"
         >
           Add
         </button>
@@ -307,7 +307,7 @@ export function ProfileForm({ profile }: Props): ReactElement {
   }));
 
   return (
-    <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
+    <section className="rounded-md border border-border bg-surface-elevated p-6 shadow-card">
       <div className="flex flex-col gap-1">
         <h2 className="text-base font-semibold leading-6 text-text-primary">
           Profile Information
@@ -493,7 +493,7 @@ export function ProfileForm({ profile }: Props): ReactElement {
               {roles.map((role) => (
                 <div
                   key={role.id}
-                  className="flex flex-col gap-4 rounded-xl border border-border p-4"
+                  className="flex flex-col gap-4 rounded-md border border-border bg-surface p-4"
                 >
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field label="Company Name">
@@ -677,9 +677,9 @@ export function ProfileForm({ profile }: Props): ReactElement {
         <button
           type="submit"
           disabled={isPending}
-          className="mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90 disabled:opacity-60"
+          className="mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark disabled:opacity-60"
         >
-          {isPending ? "Saving…" : "Save Profile"}
+          {isPending ? "Saving..." : "Save Profile"}
         </button>
       </form>
     </section>

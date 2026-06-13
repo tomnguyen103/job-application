@@ -57,8 +57,8 @@ export function JobFilters(): ReactElement {
   const debounceRef = useRef<number | null>(null);
 
   // Render-phase adjustment (the React-documented alternative to a sync
-  // effect): when the URL's q changes while the field is not focused —
-  // back/forward or an in-app link — mirror it into the input. While the
+  // effect): when the URL's q changes while the field is not focused,
+  // back/forward or an in-app link, mirror it into the input. While the
   // user is editing, their in-flight text always wins.
   if (lastUrlQuery !== urlQuery) {
     setLastUrlQuery(urlQuery);
@@ -110,7 +110,8 @@ export function JobFilters(): ReactElement {
   };
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div className="rounded-md border border-border bg-surface-elevated p-4 shadow-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
       <div className="relative flex-1">
         <svg
           width="16"
@@ -144,7 +145,7 @@ export function JobFilters(): ReactElement {
           onChange={handleFilterTextChange}
           onFocus={() => setIsEditing(true)}
           onBlur={() => setIsEditing(false)}
-          className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-4 text-sm font-medium text-text-primary shadow-card placeholder:text-text-muted focus:border-accent focus:ring-accent focus:outline-none"
+          className="w-full rounded-md border border-border bg-surface py-2.5 pl-10 pr-4 text-sm font-medium text-text-primary shadow-card placeholder:text-text-muted focus:border-accent focus:ring-accent focus:outline-none"
         />
       </div>
 
@@ -157,7 +158,7 @@ export function JobFilters(): ReactElement {
             onChange={(event: ChangeEvent<HTMLSelectElement>) =>
               applyParam("match", event.target.value)
             }
-            className="appearance-none rounded-full border border-border bg-surface py-2 pl-4 pr-9 text-sm font-medium text-text-primary shadow-card focus:border-accent focus:ring-accent focus:outline-none"
+            className="appearance-none rounded-md border border-border bg-surface py-2 pl-4 pr-9 text-sm font-medium text-text-primary shadow-card focus:border-accent focus:ring-accent focus:outline-none"
           >
             {MATCH_FILTER_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -176,7 +177,7 @@ export function JobFilters(): ReactElement {
             onChange={(event: ChangeEvent<HTMLSelectElement>) =>
               applyParam("sort", event.target.value)
             }
-            className="appearance-none rounded-full border border-border bg-surface py-2 pl-4 pr-9 text-sm font-medium text-text-primary shadow-card focus:border-accent focus:ring-accent focus:outline-none"
+            className="appearance-none rounded-md border border-border bg-surface py-2 pl-4 pr-9 text-sm font-medium text-text-primary shadow-card focus:border-accent focus:ring-accent focus:outline-none"
           >
             {SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -186,6 +187,7 @@ export function JobFilters(): ReactElement {
           </select>
           <SelectChevron />
         </div>
+      </div>
       </div>
     </div>
   );

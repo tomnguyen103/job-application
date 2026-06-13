@@ -8,6 +8,7 @@ import type { ActivityEntry } from "@/components/dashboard/RecentActivity";
 import { ResearchActivityChart } from "@/components/dashboard/ResearchActivityChart";
 import { StatsBar } from "@/components/dashboard/StatsBar";
 import type { DashboardStat } from "@/components/dashboard/StatsBar";
+import { TodayWorkspace } from "@/components/dashboard/TodayWorkspace";
 import { Navbar } from "@/components/layout/Navbar";
 import {
   buildRecentActivityItems,
@@ -101,7 +102,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
       .from("jobs")
       .select("match_score, found_at", { count: "exact" })
       .eq("user_id", user.id),
-    // Researched count = total − IS NULL count; the SDK has no documented
+    // Researched count = total minus IS NULL count; the SDK has no documented
     // IS NOT NULL filter and this avoids fetching company_research jsonb.
     insforge.database
       .from("jobs")
@@ -116,7 +117,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
       .eq("status", "completed")
       .order("completed_at", { ascending: false })
       .limit(5),
-    // PostgREST not.is.null via the or() filter tree — same SDK pathway
+    // PostgREST not.is.null via the or() filter tree, same SDK pathway
     // Feature 11 already relies on for or(ilike) search.
     insforge.database
       .from("jobs")
@@ -134,7 +135,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
     console.error("[dashboard] profile read error:", profileResult.error);
   }
 
-  // Boundary assertion on the SDK row shape — column selected above.
+  // Boundary assertion on the SDK row shape, column selected above.
   const profileRow = (profileResult.data ?? null) as ProfileCompletionRow | null;
   const showIncompleteProfileBanner =
     !profileResult.error && profileRow?.is_complete !== true;
@@ -150,13 +151,13 @@ export default async function DashboardPage(): Promise<ReactElement> {
       jobsResult.error ?? unresearchedResult.error,
     );
     stats = buildStats({
-      totalJobsFound: "—",
-      avgMatchRate: "—",
-      companiesResearched: "—",
-      jobsThisWeek: "—",
+      totalJobsFound: "-",
+      avgMatchRate: "-",
+      companiesResearched: "-",
+      jobsThisWeek: "-",
     });
   } else {
-    // Boundary assertion on the SDK row shape — columns selected above.
+    // Boundary assertion on the SDK row shape, columns selected above.
     const rows = (jobsResult.data ?? []) as DashboardJobStatRow[];
     const values = computeDashboardStatValues({
       rows,
@@ -167,7 +168,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
     stats = buildStats({
       totalJobsFound: String(values.totalJobsFound),
       avgMatchRate:
-        values.avgMatchRate === null ? "—" : `${values.avgMatchRate}%`,
+        values.avgMatchRate === null ? "-" : `${values.avgMatchRate}%`,
       companiesResearched: String(values.companiesResearched),
       jobsThisWeek: String(values.jobsThisWeek),
     });
@@ -184,7 +185,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
       runsResult.error ?? researchedResult.error,
     );
   } else {
-    // Boundary assertions on the SDK row shapes — columns selected above.
+    // Boundary assertions on the SDK row shapes, columns selected above.
     const items = buildRecentActivityItems({
       runs: (runsResult.data ?? []) as CompletedRunRow[],
       researchedJobs: (researchedResult.data ?? []) as ResearchedJobRow[],
@@ -215,6 +216,10 @@ export default async function DashboardPage(): Promise<ReactElement> {
       <Navbar />
       <section className="mx-auto w-full max-w-[1280px] px-6 py-8 lg:px-0">
         <div className="flex flex-col gap-6">
+          <TodayWorkspace
+            profileComplete={!showIncompleteProfileBanner}
+            stats={stats}
+          />
           {showIncompleteProfileBanner ? <IncompleteProfileBanner /> : null}
           <StatsBar stats={stats} />
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

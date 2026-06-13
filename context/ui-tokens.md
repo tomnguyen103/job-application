@@ -1,6 +1,8 @@
 # UI Tokens
 
-Design tokens for Job Application. All colors, typography, spacing, and component values extracted from the delivered design. Use these exact values throughout the codebase — never hardcode colors or use raw Tailwind color classes in components.
+Design tokens for Job Application. All colors, typography, spacing, and component values are semantic tokens in `app/globals.css`. Use these exact token names throughout the codebase. Never hardcode colors or use raw Tailwind color classes in components.
+
+As of the 2026-06-13 website modernization, the app supports semantic light/dark themes. Components must use tokens such as `bg-surface`, `bg-surface-elevated`, `text-text-primary`, `border-border`, and `bg-accent`; do not branch on theme in component markup. Primary accent buttons use `bg-accent text-accent-foreground`; overlay surfaces use `bg-overlay text-overlay-foreground`.
 
 ---
 
@@ -12,6 +14,8 @@ Tailwind v4 automatically generates utility classes from `@theme` variables:
 
 - `--color-accent` → `bg-accent`, `text-accent`, `border-accent`
 - `--color-surface` → `bg-surface`, `text-surface`, `border-surface`
+- `--color-surface-elevated` → `bg-surface-elevated`
+- `--color-surface-glass` → `bg-surface-glass`
 
 ```tsx
 // Correct — uses generated utility classes
@@ -44,6 +48,8 @@ className="bg-purple-500 text-gray-600"
   --color-surface-secondary: #f9fafb;
   --color-surface-tertiary: #f2f5f7;
   --color-surface-muted: #f4f5fb;
+  --color-surface-elevated: #ffffff;
+  --color-surface-glass: rgb(255 255 255 / 0.78);
 
   /* Borders */
   --color-border: #e7eaf3;
@@ -61,11 +67,11 @@ className="bg-purple-500 text-gray-600"
   --color-text-slate: #272835;
   --color-text-slate-medium: #666d80;
 
-  /* Primary accent — purple */
-  --color-accent: #7c5cfc;
-  --color-accent-dark: #5e4cff;
-  --color-accent-light: #f3e8ff;
-  --color-accent-muted: #faf5ff;
+  /* Primary accent - teal */
+  --color-accent: #0b7285;
+  --color-accent-dark: #095766;
+  --color-accent-light: #d7f2f5;
+  --color-accent-muted: #effafa;
   --color-accent-foreground: #ffffff;
 
   /* Success — green */
@@ -102,6 +108,7 @@ className="bg-purple-500 text-gray-600"
   /* Dark overlays */
   --color-overlay: #111827;
   --color-overlay-dark: #131316;
+  --color-overlay-foreground: #ffffff;
 
   /* Border radius */
   --radius-sm: 4px;
@@ -111,6 +118,10 @@ className="bg-purple-500 text-gray-600"
   --radius-full: 9999px;
 }
 ```
+
+Dark mode overrides the same semantic variables under `:root[data-theme="dark"]`, with a system-preference fallback for first-time visitors. The active theme is set before hydration by `app/layout.tsx` and persisted by `components/layout/ThemeToggle.tsx`.
+
+Dark-mode primary CTAs keep the bright teal `--color-accent`, so `--color-accent-foreground` becomes a dark teal in dark mode for readable button text. Do not use `text-accent-foreground` on `bg-overlay`; use `text-overlay-foreground` for overlay surfaces and overlay buttons.
 
 Tailwind v4 generates utility classes automatically from every `--color-*` token above:
 
@@ -142,9 +153,9 @@ Tailwind v4 generates utility classes automatically from every `--color-*` token
 | Placeholder, muted     | `text-text-muted` (#99A1AF)     |
 | Dark labels            | `text-text-dark` (#364153)      |
 
-### Accent (Primary Purple)
+### Accent (Primary Teal)
 
-Used for: primary buttons, active nav items, match score bars, tailored badge, focus rings
+Used for: primary buttons, active nav items, tailored badges, focus rings, and premium product accents.
 
 | Element                | Token                    |
 | ---------------------- | ------------------------ |
@@ -152,6 +163,8 @@ Used for: primary buttons, active nav items, match score bars, tailored badge, f
 | Button text            | `text-accent-foreground` |
 | Light badge background | `bg-accent-light`        |
 | Subtle background      | `bg-accent-muted`        |
+
+`text-accent-foreground` is white in light mode and dark teal in dark mode so accent buttons remain readable against the active accent background.
 
 ### Match Score Colors
 
@@ -233,9 +246,9 @@ Font family: **Inter** — import from Google Fonts or use next/font/google.
 ### Cards
 
 ```
-background: bg-surface
+background: bg-surface or bg-surface-elevated
 border: 1px solid var(--border)
-border-radius: 16px (rounded-2xl in Tailwind)
+border-radius: 8px (rounded-md in Tailwind)
 padding: 24px (p-6)
 box-shadow: 0px 1px 3px rgba(0,0,0,0.1), 0px 1px 2px -1px rgba(0,0,0,0.1)
 ```
@@ -326,28 +339,22 @@ Dot size: 8px inner, 16px outer with white border
 
 | Chart                            | Color                                                           |
 | -------------------------------- | --------------------------------------------------------------- |
-| Jobs Found Over Time (line)      | `#7C5CFC` stroke, 3px width, gradient fill rgba(124,92,252,0.2) |
-| Resume Tailoring Activity (bars) | `#61A8FF`                                                       |
-| Match Score Distribution (bars)  | `#10B981`                                                       |
-| Chart grid lines                 | `1px dashed #E7EAF3`                                            |
-| Chart axis labels                | `#9CA3AF`, 12px                                                 |
-
-### Logo
-
-```
-background: linear-gradient(45deg, #7C5CFC 0%, #4A2EC5 100%)
-border-radius: 10px
-size: 36x36px
-```
+| Jobs Found Over Time (line)      | `var(--color-accent)` stroke, 3px width, gradient fill          |
+| Company Research Activity (bars) | `var(--color-info)`                                             |
+| Match Score Distribution (bars)  | `var(--color-success)`                                          |
+| Chart grid lines                 | `var(--color-border)` dashed                                    |
+| Chart axis labels                | `var(--color-chart-axis)`, 12px                                 |
 
 ---
 
 ## Invariants
 
-- Never use hex values directly in components — always use CSS variables via Tailwind tokens
-- Font is Inter — always import via next/font/google, never use a fallback system font
-- Never use raw Tailwind color classes like `bg-purple-500` or `text-gray-600` — use project tokens only
-- `--accent` (#7C5CFC) is the only purple — never use Tailwind's built-in purple scale
-- Match score bars always use color tokens based on score range — never hardcoded colors
-- LinkedIn badge always uses `--linkedin` (#0A66C2) — never generic blue
-- All borders default to `--border` (#E7EAF3) — never use `border-gray-*`
+- Never use hex values directly in components. Always use CSS variables via Tailwind tokens.
+- Font is Inter. Always import via `next/font/google`, never use a fallback system font.
+- Never use raw Tailwind color classes like `bg-purple-500` or `text-gray-600`. Use project tokens only.
+- `--color-accent` is teal in light mode and brighter teal in dark mode. `--color-accent-foreground` changes with it for contrast. Never use Tailwind's built-in teal, cyan, or purple scale.
+- Use `--color-overlay-foreground` for text on `--color-overlay`; do not reuse accent foreground on overlay backgrounds.
+- Match score bars always use color tokens based on score range. Never hardcode colors.
+- LinkedIn badge always uses `--color-linkedin` tokens. Never use generic blue.
+- All borders default to `--color-border`. Never use `border-gray-*`.
+- Theme behavior belongs in `app/globals.css`, `app/layout.tsx`, and `components/layout/ThemeToggle.tsx`, not scattered through app components.

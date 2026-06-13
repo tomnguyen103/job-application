@@ -12,7 +12,7 @@ export function CompletionIndicator({
   percentage,
   missingFields,
 }: Props): ReactElement | null {
-  // A complete profile shows no card at all — the indicator only exists to
+  // A complete profile shows no card at all. The indicator only exists to
   // surface what is still missing, regardless of where it is rendered.
   if (missingFields.length === 0) {
     return null;
@@ -21,7 +21,7 @@ export function CompletionIndicator({
   const dashOffset = CIRCUMFERENCE - (percentage / 100) * CIRCUMFERENCE;
 
   return (
-    <section className="flex flex-col items-start justify-between gap-6 rounded-2xl border border-border bg-surface p-6 shadow-card sm:flex-row sm:items-center">
+    <section className="flex flex-col items-start justify-between gap-6 rounded-md border border-border bg-surface-elevated p-6 shadow-card sm:flex-row sm:items-center">
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <svg
