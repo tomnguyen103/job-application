@@ -34,6 +34,40 @@ function cleanList(value: string[]): string[] {
   return value.map(cleanText).filter(Boolean);
 }
 
+export function targetRoleLabel(job: TailoredResumeJob): string {
+  return [cleanText(job.title), cleanText(job.company)]
+    .filter(Boolean)
+    .join(" at ");
+}
+
+function uniqueList(items: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const item of cleanList(items)) {
+    const key = item.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    unique.push(item);
+  }
+
+  return unique;
+}
+
+function buildVisibleJobSignals(job: TailoredResumeJob): string[] {
+  return uniqueList([
+    job.title,
+    job.aboutRole,
+    ...job.requirements,
+    ...job.responsibilities,
+    ...job.niceToHave,
+    ...job.matchedSkills,
+  ]).slice(0, 18);
+}
+
 function termPattern(term: string): RegExp | null {
   const normalized = cleanText(term);
 
@@ -142,6 +176,7 @@ export function buildTailoredResumeInput(
       education: profile.education,
     },
     job: {
+      targetRole: targetRoleLabel(job),
       title: job.title,
       company: job.company,
       aboutRole: job.aboutRole,
@@ -150,6 +185,7 @@ export function buildTailoredResumeInput(
       niceToHave: job.niceToHave,
       matchedSkills: job.matchedSkills,
       missingSkills: job.missingSkills,
+      visibleJobSignals: buildVisibleJobSignals(job),
       descriptionNote:
         "Saved Adzuna job descriptions may be snippets. Do not infer requirements or company facts that are not visible here.",
     },
@@ -176,13 +212,16 @@ Return ONLY valid JSON with this exact shape, no markdown, no code fences, no ex
 }
 
 Rules:
+- Make the rewrite visibly job-specific, not just a generic profile polish. Use the targetRole, aboutRole snippet, visibleJobSignals, and matchedSkills to decide what to emphasize.
 - Tailor the professional summary and experience bullets to the job title, visible requirements, responsibilities, and matchedSkills.
+- professionalSummary must name or clearly point to the target role when a targetRole is provided. Do not imply the candidate already works for the target company unless that is true in candidate.workExperience.
+- When requirements and responsibilities are empty, treat aboutRole and matchedSkills as the only visible job signals and still align the wording to those signals where the profile supports it.
 - Ground every statement strictly in candidate facts. Never invent employers, technologies, tools, certifications, metrics, leadership scope, achievements, degrees, or responsibilities.
 - missingSkills are gaps only. Never present missingSkills as candidate skills, experience, keywords, learning goals, or qualifications.
 - Saved Adzuna descriptions may be snippets. Do not infer hidden requirements or company details beyond the visible saved fields.
 - professionalSummary: 2-3 concise sentences, no first-person pronouns.
 - roles: exactly ${profile.workExperience.length} entries, in the same order as candidate.workExperience.
-- Each role: ${MIN_BULLETS_PER_ROLE}-${MAX_BULLETS_PER_ROLE} ATS-friendly bullets, each starting with a strong action verb.
+- Each role: ${MIN_BULLETS_PER_ROLE}-${MAX_BULLETS_PER_ROLE} ATS-friendly bullets, each starting with a strong action verb and prioritizing profile facts that overlap with visibleJobSignals.
 - If a role has little responsibility text, write conservative bullets derivable from its title and provided responsibilities only.
 - Keep wording direct, plain, and suitable for a single-column resume.`;
 }

@@ -62,6 +62,7 @@ test("buildTailoredResumeInput keeps missing skills separate from matched eviden
   const input = buildTailoredResumeInput(profile, job);
 
   assert.deepEqual(input.job, {
+    targetRole: "Frontend Engineer at Healthware",
     title: "Frontend Engineer",
     company: "Healthware",
     aboutRole: "Build patient-facing workflow tools.",
@@ -70,6 +71,15 @@ test("buildTailoredResumeInput keeps missing skills separate from matched eviden
     niceToHave: ["GraphQL"],
     matchedSkills: ["React", "TypeScript"],
     missingSkills: ["AWS", "GraphQL"],
+    visibleJobSignals: [
+      "Frontend Engineer",
+      "Build patient-facing workflow tools.",
+      "React",
+      "TypeScript",
+      "AWS",
+      "Create accessible React interfaces",
+      "GraphQL",
+    ],
     descriptionNote:
       "Saved Adzuna job descriptions may be snippets. Do not infer requirements or company facts that are not visible here.",
   });
@@ -81,6 +91,9 @@ test("buildTailoredResumePrompt warns that Adzuna descriptions may be snippets",
   assert.match(prompt, /missingSkills are gaps only/);
   assert.match(prompt, /Saved Adzuna descriptions may be snippets/);
   assert.match(prompt, /Never invent employers, technologies/);
+  assert.match(prompt, /visibly job-specific/);
+  assert.match(prompt, /requirements and responsibilities are empty/);
+  assert.match(prompt, /visibleJobSignals/);
 });
 
 test("sanitizeTailoredResumeContent removes bullets claiming missing skills", () => {

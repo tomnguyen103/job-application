@@ -395,6 +395,7 @@ The job details page matches `context/designs/job-details.png`: a centered `max-
 - Error line classes: `border-t border-border px-8 py-4 text-sm font-medium leading-5 text-error`
 - Feature 18 wiring: Client Component with props `jobId` and `initialState`. Button calls `POST /api/jobs/[id]/tailored-resume`, disables with `aria-busy`, swaps the generate icon for the shared inline spinner (`animate-spin`, 16x16), stores the returned `downloadUrl`/`expiresAt`, then calls `router.refresh()`.
 - States: idle, generating, ready/download, expired, error.
+- Feature 18 follow-up: the generated tailored PDF now includes an ATS-safe `Target Role: {title} at {company}` line in the document body so it is visibly distinct from the profile resume; no TailoredResumeAction classes changed.
 
 ### JobsTable link update
 

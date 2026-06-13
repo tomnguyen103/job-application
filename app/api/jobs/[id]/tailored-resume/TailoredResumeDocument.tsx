@@ -2,7 +2,11 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { DocumentProps } from "@react-pdf/renderer";
 import type { ReactElement } from "react";
 
-import type { TailoredResumeContent } from "@/agent/tailored-resume";
+import {
+  targetRoleLabel,
+  type TailoredResumeContent,
+  type TailoredResumeJob,
+} from "@/agent/tailored-resume";
 import type { Profile, WorkExperience } from "@/types";
 
 // Print-document palette. React PDF cannot consume app CSS variables.
@@ -35,6 +39,12 @@ const styles = StyleSheet.create({
     lineHeight: 1.15,
   },
   title: { fontSize: 11, color: COLORS.muted, marginTop: 2 },
+  targetRole: {
+    fontSize: 9.5,
+    fontWeight: "bold",
+    color: COLORS.ink,
+    marginTop: 7,
+  },
   contactLine: { fontSize: 9, color: COLORS.muted, marginTop: 6 },
   section: { marginTop: 13 },
   sectionHeading: {
@@ -55,6 +65,7 @@ const styles = StyleSheet.create({
 type Props = {
   profile: Profile;
   content: TailoredResumeContent;
+  job: TailoredResumeJob;
 };
 
 function formatDates(role: WorkExperience): string {
@@ -62,24 +73,31 @@ function formatDates(role: WorkExperience): string {
   return [role.startDate, end].filter(Boolean).join(" - ");
 }
 
-function TailoredResumeDocument({ profile, content }: Props): ReactElement {
+function TailoredResumeDocument({ profile, content, job }: Props): ReactElement {
   const contact = [profile.email, profile.phone, profile.location]
     .filter(Boolean)
     .join(" | ");
   const links = [profile.linkedinUrl, profile.portfolioUrl]
     .filter(Boolean)
     .join(" | ");
+  const targetRole = targetRoleLabel(job);
   const { education } = profile;
   const hasEducation = Boolean(education.institution || education.fieldOfStudy);
   const degreeLabel = DEGREE_LABELS[education.degree] ?? education.degree;
 
   return (
-    <Document title={`${profile.fullName} - Tailored Resume`} author={profile.fullName}>
+    <Document
+      title={`${profile.fullName} - Tailored Resume - ${job.title}`}
+      author={profile.fullName}
+    >
       <Page size="A4" style={styles.page}>
         <View>
           <Text style={styles.name}>{profile.fullName}</Text>
           {profile.currentTitle ? (
             <Text style={styles.title}>{profile.currentTitle}</Text>
+          ) : null}
+          {targetRole ? (
+            <Text style={styles.targetRole}>{`Target Role: ${targetRole}`}</Text>
           ) : null}
           {contact ? <Text style={styles.contactLine}>{contact}</Text> : null}
           {links ? <Text style={styles.contactLine}>{links}</Text> : null}
