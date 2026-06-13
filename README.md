@@ -201,4 +201,4 @@ The test suite covers company-research URL trust rules, tech-stack evidence filt
 
 ---
 
-Job listings powered by [Adzuna](https://www.adzuna.com/). Built with [Claude Code](https://claude.com/claude-code).
+Job listings powered by [Adzuna](https://www.adzuna.com/).
