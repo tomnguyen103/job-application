@@ -72,6 +72,10 @@ function mapJobRowToTailoredResumeJob(
   };
 }
 
+function tailoredResumeDownloadUrl(jobId: string): string {
+  return `/api/jobs/${jobId}/tailored-resume/download`;
+}
+
 async function removeTailoredResumeFile(
   bucket: RemovableStorageBucket,
   key: string,
@@ -221,19 +225,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       }
 
       uploadedKey = uploadData.key ?? storageKey;
-      const uploadedUrl = uploadData.url;
-
-      if (!uploadedUrl) {
-        console.error("[tailored-resume] upload response missing URL");
-        await removeTailoredResumeFile(bucket, uploadedKey);
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Failed to save the tailored resume. Please try again.",
-          },
-          { status: 500 },
-        );
-      }
+      const downloadUrl = tailoredResumeDownloadUrl(job.id);
 
       const { error: insertError } = await insforge.database
         .from("tailored_resumes")
@@ -243,7 +235,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
             user_id: user.id,
             job_id: job.id,
             storage_key: uploadedKey,
-            storage_url: uploadedUrl,
+            storage_url: downloadUrl,
             file_name: TAILORED_RESUME_FILE_NAME,
             generated_at: generatedAt.toISOString(),
             expires_at: expiresAt.toISOString(),
@@ -307,7 +299,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
         success: true,
         data: {
           resumeId,
-          downloadUrl: `/api/jobs/${job.id}/tailored-resume/download`,
+          downloadUrl,
           expiresAt: expiresAt.toISOString(),
         },
       });

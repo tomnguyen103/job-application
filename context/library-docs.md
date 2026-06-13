@@ -183,10 +183,11 @@ const { data, error } = await insforge.storage
 
 - Use the `tailored-resumes` bucket/prefix for job-specific PDFs — never overwrite `resumes/{user_id}/resume.pdf`
 - Save `storage_key`, `storage_url`, `file_name`, `generated_at`, and `expires_at` in `tailored_resumes`
-- `expires_at` is 15 days after generation
+- `storage_url` is the authenticated app download route or a time-limited signed URL, not a public storage URL
+- `expires_at` is 15 days after generation and blocks the authenticated download route after expiry
 - Download through an authenticated route that verifies the job and resume row belong to the current user
 - Expired rows are not downloadable
-- Scheduled cleanup deletes expired storage objects first, then deletes their `tailored_resumes` rows
+- Scheduled cleanup deletes expired private storage objects first, then deletes their `tailored_resumes` rows
 
 ---
 
@@ -371,23 +372,27 @@ const page = await stagehand.context.awaitActivePage();
 ```typescript
 import { z } from "zod";
 
-const result = await stagehand.extract(
-  "Extract the company overview, main product description, and any technology mentions from this page.",
-  z.object({
-    companyOverview: z.string().optional(),
-    mainProduct: z.string().optional(),
-    techMentions: z.array(z.string()).optional(),
-    navLinks: z
-      .array(
-        z.object({
-          label: z.string(),
-          url: z.string(),
-        }),
-      )
-      .optional(),
-  }),
-  { timeout: 30_000, serverCache: false },
-);
+try {
+  const result = await stagehand.extract(
+    "Extract the company overview, main product description, and any technology mentions from this page.",
+    z.object({
+      companyOverview: z.string().optional(),
+      mainProduct: z.string().optional(),
+      techMentions: z.array(z.string()).optional(),
+      navLinks: z
+        .array(
+          z.object({
+            label: z.string(),
+            url: z.string(),
+          }),
+        )
+        .optional(),
+    }),
+    { timeout: 30_000, serverCache: false },
+  );
+} catch (error) {
+  await logAgentError(jobId, error);
+}
 ```
 
 ### act()
@@ -417,62 +422,85 @@ Browser's only job is the company website.
 
 ```typescript
 // Step 1 — Homepage extraction
-const homepageData = await stagehand.extract(
-  "This is a company's homepage. Capture what the company actually does, who it's for, and any concrete signals (funding, customers, scale, mission, recent launches). Then find the internal links most worth visiting to research them as an employer.",
-  z.object({
-    oneLiner: z.string().describe("What the company does in one sentence"),
-    productSummary: z
-      .string()
-      .describe("What they build/sell and who it's for"),
-    signals: z
-      .array(z.string())
-      .describe("Funding, notable customers, scale, mission, recent news"),
-    pageLinks: z
-      .array(
-        z.object({
-          url: z.string(),
-          kind: z.enum([
-            "about",
-            "careers",
-            "blog",
-            "engineering",
-            "product",
-            "team",
-            "other",
-          ]),
-        }),
-      )
-      .describe("Internal links worth visiting"),
-  }),
-  { timeout: 30_000, serverCache: false },
-);
+let homepageData = {
+  oneLiner: "",
+  productSummary: "",
+  signals: [],
+  pageLinks: [],
+};
+
+try {
+  homepageData = await stagehand.extract(
+    "This is a company's homepage. Capture what the company actually does, who it's for, and any concrete signals (funding, customers, scale, mission, recent launches). Then find the internal links most worth visiting to research them as an employer.",
+    z.object({
+      oneLiner: z.string().describe("What the company does in one sentence"),
+      productSummary: z
+        .string()
+        .describe("What they build/sell and who it's for"),
+      signals: z
+        .array(z.string())
+        .describe("Funding, notable customers, scale, mission, recent news"),
+      pageLinks: z
+        .array(
+          z.object({
+            url: z.string(),
+            kind: z.enum([
+              "about",
+              "careers",
+              "blog",
+              "engineering",
+              "product",
+              "team",
+              "other",
+            ]),
+          }),
+        )
+        .describe("Internal links worth visiting"),
+    }),
+    { timeout: 30_000, serverCache: false },
+  );
+} catch (error) {
+  await logAgentError(jobId, error);
+}
 
 // If oneLiner and productSummary are empty — wrong site or parked domain
 // Skip to synthesis with job description and profile only
 if (!homepageData.oneLiner && !homepageData.productSummary) {
-  await stagehand.close();
   // proceed to synthesis with empty companyResearch
 }
 
 // Step 2 — Sub-page extraction (max 3, prefer about/blog/engineering/product over careers)
-const subPageData = await stagehand.extract(
-  "Extract substance that helps a candidate understand this company before applying: what they do, their values and how they work, the specific technologies and tools they use, notable projects or customers, and how the team operates. Ignore nav, footers, cookie banners, and generic marketing copy.",
-  z.object({
-    keyPoints: z.array(z.string()),
-    technologies: z
-      .array(z.string())
-      .describe("Specific languages, frameworks, tools, platforms"),
-    valuesOrCulture: z
-      .array(z.string())
-      .describe("Stated values, working style, team norms"),
-    notable: z
-      .array(z.string())
-      .describe("Customers, funding, scale, projects, awards"),
-  }),
-  { timeout: 30_000, serverCache: false },
-);
+let subPageData = {
+  keyPoints: [],
+  technologies: [],
+  valuesOrCulture: [],
+  notable: [],
+};
+
+try {
+  subPageData = await stagehand.extract(
+    "Extract substance that helps a candidate understand this company before applying: what they do, their values and how they work, the specific technologies and tools they use, notable projects or customers, and how the team operates. Ignore nav, footers, cookie banners, and generic marketing copy.",
+    z.object({
+      keyPoints: z.array(z.string()),
+      technologies: z
+        .array(z.string())
+        .describe("Specific languages, frameworks, tools, platforms"),
+      valuesOrCulture: z
+        .array(z.string())
+        .describe("Stated values, working style, team norms"),
+      notable: z
+        .array(z.string())
+        .describe("Customers, funding, scale, projects, awards"),
+    }),
+    { timeout: 30_000, serverCache: false },
+  );
+} catch (error) {
+  await logAgentError(jobId, error);
+}
 
 // Step 3 — Gemini synthesis (after browser closes)
+await stagehand.close();
+
 // Feed three data sources: company research + job from DB + profile from DB
 const systemPrompt = `You are a sharp career strategist preparing a candidate to apply for a specific role. You are given (a) research collected from the company's own website, (b) the job posting, and (c) the candidate's profile. Produce a concise, concrete briefing that gives this specific candidate an edge for this specific role.
 
@@ -513,22 +541,38 @@ Skills: ${profile.skills.join(", ")}
 Work history: ${JSON.stringify(profile.work_experience)}`;
 
 const ai = createGeminiClient();
-const response = await ai.models.generateContent({
-  model: "gemini-2.5-flash",
-  contents: [
-    {
-      role: "user",
-      parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
-    },
-  ],
-  config: {
-    temperature: 0.4,
-    responseMimeType: "application/json",
-    thinkingConfig: { thinkingBudget: 0 },
-  },
-});
+let dossier = {
+  companyOverview: "",
+  techStack: [],
+  culture: [],
+  whyThisRole: "",
+  yourEdge: [],
+  gapsToAddress: [],
+  smartQuestions: [],
+  interviewPrep: [],
+  sources: [],
+};
 
-const dossier = JSON.parse(response.text ?? "{}");
+try {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+      },
+    ],
+    config: {
+      temperature: 0.4,
+      responseMimeType: "application/json",
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+
+  dossier = JSON.parse(response.text ?? "{}");
+} catch (error) {
+  await logAgentError(jobId, error);
+}
 ```
 
 **Dossier fields:**
@@ -571,34 +615,40 @@ import { createGeminiClient } from "@/agent/gemini";
 
 const ai = createGeminiClient();
 
-const response = await ai.models.generateContent({
-  model: "gemini-2.5-flash",
-  contents: [
-    {
-      role: "user",
-      parts: [
-        {
-          text: `Return only valid JSON matching this shape:
+let result = null;
+
+try {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: `Return only valid JSON matching this shape:
 {
   "score": number,
   "reason": string
 }
 
 Your prompt here`,
-        },
-      ],
-    },
-  ],
-  config: { temperature: 0.3 },
-});
+          },
+        ],
+      },
+    ],
+    config: { temperature: 0.3 },
+  });
 
-const text = (response.text ?? "").trim();
-const jsonMatch = text.match(/\{[\s\S]*\}/);
-if (!jsonMatch) {
-  throw new Error("No JSON object found in model response");
+  const text = (response.text ?? "").trim();
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("No JSON object found in model response");
+  }
+
+  result = JSON.parse(jsonMatch[0]);
+} catch (error) {
+  await logAgentError(jobId, error);
 }
-
-const result = JSON.parse(jsonMatch[0]);
 ```
 
 **Temperature settings:**

@@ -471,7 +471,7 @@ Generate a temporary ATS-friendly resume PDF from the job details page, tailored
 
 **Backend:**
 
-- New tailored_resumes table with user_id, job_id, storage_key, storage_url, file_name, generated_at, expires_at
+- New tailored_resumes table with user_id, job_id, storage_key, authenticated storage_url, file_name, generated_at, expires_at
 - Owner-scoped RLS policies using auth.uid()
 - Separate private tailored-resumes storage bucket/prefix
 - Regenerating for the same job removes the previous tailored file and row for that user/job

@@ -5,9 +5,7 @@ ALTER TABLE tailored_resumes
   ADD COLUMN IF NOT EXISTS storage_url text;
 
 UPDATE tailored_resumes
-SET storage_url =
-  'https://wgg8j33p.us-east.insforge.app/api/storage/buckets/tailored-resumes/objects/'
-  || replace(storage_key, '/', '%2F')
+SET storage_url = '/api/jobs/' || job_id::text || '/tailored-resume/download'
 WHERE storage_url IS NULL;
 
 ALTER TABLE tailored_resumes

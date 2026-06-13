@@ -1,5 +1,4 @@
 const BUCKET = "tailored-resumes";
-const DEFAULT_BASE_URL = "https://wgg8j33p.us-east.insforge.app";
 
 function env(name) {
   if (typeof Deno !== "undefined") {
@@ -27,13 +26,24 @@ function json(payload, status = 200) {
   });
 }
 
-function cleanupApiKey() {
+function cleanupRequestToken() {
   return (
     env("TAILORED_RESUME_CLEANUP_API_KEY") ||
     env("INSFORGE_API_KEY") ||
-    env("INSFORGE_ADMIN_API_KEY") ||
     env("API_KEY")
   );
+}
+
+function cleanupAdminApiKey() {
+  return (
+    env("INSFORGE_ADMIN_API_KEY") ||
+    env("INSFORGE_API_KEY") ||
+    env("API_KEY")
+  );
+}
+
+function insforgeBaseUrl() {
+  return env("INSFORGE_BASE_URL");
 }
 
 function isAuthorizedCleanupRequest(request, apiKey) {
@@ -41,14 +51,14 @@ function isAuthorizedCleanupRequest(request, apiKey) {
   return Boolean(apiKey && provided && provided === apiKey);
 }
 
-async function createAdminClientForCleanup(apiKey) {
-  if (!apiKey) {
-    throw new Error("INSFORGE_API_KEY is not configured.");
+async function createAdminClientForCleanup({ apiKey, baseUrl }) {
+  if (!apiKey || !baseUrl) {
+    throw new Error("InsForge cleanup credentials are not configured.");
   }
 
   const { createAdminClient } = await import("npm:@insforge/sdk");
   return createAdminClient({
-    baseUrl: env("INSFORGE_BASE_URL") || DEFAULT_BASE_URL,
+    baseUrl,
     apiKey,
   });
 }
@@ -58,19 +68,25 @@ module.exports = async function cleanupTailoredResumes(request) {
     return json({ success: false, error: "Method not allowed" }, 405);
   }
 
-  const apiKey = cleanupApiKey();
-  if (!apiKey) {
-    console.error("[cleanup-tailored-resumes] setup error: missing API key");
+  const requestToken = cleanupRequestToken();
+  const adminApiKey = cleanupAdminApiKey();
+  const baseUrl = insforgeBaseUrl();
+
+  if (!requestToken || !adminApiKey || !baseUrl) {
+    console.error("[cleanup-tailored-resumes] setup error: missing cleanup configuration");
     return json({ success: false, error: "Cleanup is not configured." }, 500);
   }
 
-  if (!isAuthorizedCleanupRequest(request, apiKey)) {
+  if (!isAuthorizedCleanupRequest(request, requestToken)) {
     return json({ success: false, error: "Unauthorized" }, 401);
   }
 
   let client;
   try {
-    client = await createAdminClientForCleanup(apiKey);
+    client = await createAdminClientForCleanup({
+      apiKey: adminApiKey,
+      baseUrl,
+    });
   } catch (error) {
     console.error("[cleanup-tailored-resumes] setup error:", error);
     return json({ success: false, error: "Cleanup is not configured." }, 500);
