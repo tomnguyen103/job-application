@@ -119,7 +119,7 @@ className="bg-purple-500 text-gray-600"
 }
 ```
 
-Dark mode overrides the same semantic variables under `:root[data-theme="dark"]`, with a system-preference fallback for first-time visitors. The active theme is set before hydration by `app/layout.tsx` and persisted by `components/layout/ThemeToggle.tsx`.
+Dark mode overrides the same semantic variables under `:root[data-theme="dark"]`, with a system-preference fallback for first-time visitors. The active theme is set before hydration by `app/layout.tsx` and persisted by `components/layout/ThemeToggle.tsx`. Keep runtime theme overrides outside Tailwind cascade layers so they win over the `@theme` defaults.
 
 Dark-mode primary CTAs keep the bright teal `--color-accent`, so `--color-accent-foreground` becomes a dark teal in dark mode for readable button text. Do not use `text-accent-foreground` on `bg-overlay`; use `text-overlay-foreground` for overlay surfaces and overlay buttons.
 

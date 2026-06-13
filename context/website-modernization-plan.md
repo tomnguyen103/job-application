@@ -13,15 +13,16 @@ returning to during an active job search.
 
 - The original product build plan is complete through Phase 6 / Feature 18
   (Job-Tailored Resume Agent).
-- Website modernization Phases 1-4 are implemented in the current worktree:
-  visual/theme refresh, homepage redesign, login polish, and authenticated
-  workspace polish.
+- Website modernization Phases 1-5 are implemented in the current worktree:
+  visual/theme refresh, homepage redesign, login polish, authenticated
+  workspace polish, and engagement features without billing.
 - The dark-mode CTA contrast review finding has been addressed by keeping
   primary buttons on `bg-accent text-accent-foreground` and making
   `--color-accent-foreground` dark in dark mode. Overlay surfaces and overlay
   buttons use `--color-overlay-foreground`.
-- The next new development phase is Phase 5 - Engagement Features Without
-  Billing.
+- Phase 5 added dashboard Today actions, repeated skill-gap insights, and
+  job-detail interview prep using existing profile, job, research, and
+  tailored-resume data only.
 - Phase 6 - SaaS Readiness Later remains future-only. Do not add payment,
   subscription, billing, team, or admin features yet.
 

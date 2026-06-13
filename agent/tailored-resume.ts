@@ -1,3 +1,5 @@
+import { Type, type Schema } from "@google/genai";
+
 import { createGeminiClient } from "@/agent/gemini";
 import type { Profile } from "@/types";
 
@@ -20,10 +22,40 @@ export type TailoredResumeContent = {
 
 const MAX_BULLETS_PER_ROLE = 4;
 const MIN_BULLETS_PER_ROLE = 2;
+const TAILORED_RESUME_RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  required: ["professionalSummary", "roles"],
+  propertyOrdering: ["professionalSummary", "roles"],
+  properties: {
+    professionalSummary: {
+      type: Type.STRING,
+      description: "A concise resume summary grounded only in profile-backed strengths.",
+    },
+    roles: {
+      type: Type.ARRAY,
+      minItems: "1",
+      items: {
+        type: Type.OBJECT,
+        required: ["bullets"],
+        properties: {
+          bullets: {
+            type: Type.ARRAY,
+            minItems: String(MIN_BULLETS_PER_ROLE),
+            maxItems: String(MAX_BULLETS_PER_ROLE),
+            items: {
+              type: Type.STRING,
+            },
+          },
+        },
+      },
+    },
+  },
+};
 
 type SanitizerOptions = {
   roleCount: number;
   forbiddenTerms?: string[];
+  fallbackProfessionalSummary?: string;
 };
 
 function cleanText(value: string): string {
@@ -86,8 +118,41 @@ function containsForbiddenTerm(text: string, forbiddenTerms: string[]): boolean 
   });
 }
 
+function safeText(value: string, forbiddenTerms: string[]): string {
+  const text = cleanText(value);
+  return text && !containsForbiddenTerm(text, forbiddenTerms) ? text : "";
+}
+
 function normalizeBullet(value: string): string {
   return cleanText(value).replace(/^[-*\u2022]\s*/, "");
+}
+
+function safeProfessionalSummary(
+  summary: string,
+  fallback: string,
+  forbiddenTerms: string[],
+): string {
+  if (!containsForbiddenTerm(summary, forbiddenTerms)) {
+    return summary;
+  }
+
+  const safeSentences = summary
+    .split(/(?<=[.!?])\s+/)
+    .map(cleanText)
+    .filter(Boolean)
+    .filter((sentence) => !containsForbiddenTerm(sentence, forbiddenTerms));
+  const repaired = cleanText(safeSentences.join(" "));
+
+  if (repaired) {
+    return repaired;
+  }
+
+  const safeFallback = safeText(fallback, forbiddenTerms);
+  if (safeFallback) {
+    return safeFallback;
+  }
+
+  throw new Error("Model response claims a missing skill in the summary");
 }
 
 function findBalancedObject(text: string, start: number): string | null {
@@ -226,6 +291,33 @@ Rules:
 - Keep wording direct, plain, and suitable for a single-column resume.`;
 }
 
+export function buildFallbackProfessionalSummary(
+  profile: Profile,
+  job: TailoredResumeJob,
+): string {
+  const forbiddenTerms = cleanList(job.missingSkills);
+  const title = safeText(profile.currentTitle, forbiddenTerms) || "Candidate";
+  const years = safeText(profile.yearsExperience, forbiddenTerms);
+  const roleLabel = safeText(targetRoleLabel(job), forbiddenTerms);
+  const matchedSkills = uniqueList(job.matchedSkills)
+    .filter((skill) => !containsForbiddenTerm(skill, forbiddenTerms))
+    .slice(0, 3);
+  const industries = uniqueList(profile.industries)
+    .filter((industry) => !containsForbiddenTerm(industry, forbiddenTerms))
+    .slice(0, 2);
+
+  const experiencePhrase = years
+    ? `${years} years of experience`
+    : "profile-backed experience";
+  const skillPhrase =
+    matchedSkills.length > 0 ? ` across ${matchedSkills.join(", ")}` : "";
+  const industryPhrase =
+    industries.length > 0 ? ` in ${industries.join(" and ")}` : "";
+  const rolePhrase = roleLabel ? ` for ${roleLabel}` : " for the saved role";
+
+  return `${title} with ${experiencePhrase}${skillPhrase}${industryPhrase}. Aligns saved profile experience with the job-specific priorities${rolePhrase}.`;
+}
+
 export function sanitizeTailoredResumeContent(
   raw: unknown,
   options: SanitizerOptions,
@@ -236,18 +328,20 @@ export function sanitizeTailoredResumeContent(
 
   const forbiddenTerms = cleanList(options.forbiddenTerms ?? []);
   const obj = raw as Record<string, unknown>;
-  const professionalSummary =
+  const rawProfessionalSummary =
     typeof obj.professionalSummary === "string"
       ? cleanText(obj.professionalSummary)
       : "";
 
-  if (!professionalSummary) {
+  if (!rawProfessionalSummary) {
     throw new Error("Model response is missing professionalSummary");
   }
 
-  if (containsForbiddenTerm(professionalSummary, forbiddenTerms)) {
-    throw new Error("Model response claims a missing skill in the summary");
-  }
+  const professionalSummary = safeProfessionalSummary(
+    rawProfessionalSummary,
+    options.fallbackProfessionalSummary ?? "",
+    forbiddenTerms,
+  );
 
   const rawRoles = Array.isArray(obj.roles) ? (obj.roles as unknown[]) : [];
   const roles: { bullets: string[] }[] = [];
@@ -293,6 +387,8 @@ export async function generateTailoredResumeContent({
     ],
     config: {
       temperature: 0.2,
+      responseMimeType: "application/json",
+      responseSchema: TAILORED_RESUME_RESPONSE_SCHEMA,
       thinkingConfig: { thinkingBudget: 0 },
     },
   });
@@ -307,5 +403,6 @@ export async function generateTailoredResumeContent({
   return sanitizeTailoredResumeContent(raw, {
     roleCount: profile.workExperience.length,
     forbiddenTerms: job.missingSkills,
+    fallbackProfessionalSummary: buildFallbackProfessionalSummary(profile, job),
   });
 }

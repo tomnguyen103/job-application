@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { ReactElement } from "react";
 
 import { CompanyResearch } from "@/components/job-details/CompanyResearch";
+import { InterviewPrepExpansion } from "@/components/job-details/InterviewPrepExpansion";
 import { JobActions } from "@/components/job-details/JobActions";
 import { JobDescription } from "@/components/job-details/JobDescription";
 import { JobInfo } from "@/components/job-details/JobInfo";
@@ -13,6 +14,7 @@ import {
 } from "@/components/job-details/TailoredResumeAction";
 import { Navbar } from "@/components/layout/Navbar";
 import { parseCompanyResearchDossier } from "@/lib/company-research";
+import { buildInterviewPrepHighlights } from "@/lib/engagement-insights";
 import {
   createInsforgeServer,
   requireCurrentUser,
@@ -241,6 +243,13 @@ export default async function JobDetailsPage({
     data.id,
     tailoredResumeData as TailoredResumeRow | null,
   );
+  const interviewPrep = buildInterviewPrepHighlights({
+    company: job.company,
+    title: job.title,
+    research: job.companyResearch,
+    matchedSkills: job.matchedSkills,
+    missingSkills: job.missingSkills,
+  });
 
   return (
     <main className="min-h-screen bg-background">
@@ -277,6 +286,7 @@ export default async function JobDetailsPage({
             company={job.company}
             initialResearch={job.companyResearch}
           />
+          <InterviewPrepExpansion prep={interviewPrep} />
           <TailoredResumeAction
             jobId={data.id}
             initialState={tailoredResumeInitialState}

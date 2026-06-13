@@ -36,6 +36,8 @@ Three nav items: Dashboard, Find Jobs, Profile.
 - Inactive item: `text-text-dark`, font-weight 500, 14px
 - Navbar always uses `bg-surface` and `border-border`
 - Navbar includes the accessible `ThemeToggle`; it persists explicit light/dark choice and falls back to system preference before a user chooses
+- `ThemeToggle` uses a neutral accessible label and CSS-controlled icons keyed off `data-theme`, preventing a server fallback label from flashing before hydration
+- Runtime light/dark token overrides in `app/globals.css` must stay outside Tailwind cascade layers so theme-aware classes such as `bg-surface` actually switch colors
 
 ---
 

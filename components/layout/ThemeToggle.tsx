@@ -58,6 +58,7 @@ function getServerThemeSnapshot(): Theme {
 function subscribeToThemeChanges(onStoreChange: () => void): () => void {
   const activeTheme = getPreferredTheme();
   applyTheme(activeTheme);
+  onStoreChange();
 
   const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
   const handleSystemThemeChange = (): void => {
@@ -131,15 +132,16 @@ function MoonIcon(): ReactElement {
 }
 
 export function ThemeToggle(): ReactElement {
-  const theme = useSyncExternalStore(
+  useSyncExternalStore(
     subscribeToThemeChanges,
     getThemeSnapshot,
     getServerThemeSnapshot,
   );
 
-  const nextTheme = theme === "dark" ? "light" : "dark";
-
   const handleToggle = (): void => {
+    const currentTheme = getThemeSnapshot();
+    const nextTheme = currentTheme === "dark" ? "light" : "dark";
+
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
     } catch {
@@ -153,13 +155,18 @@ export function ThemeToggle(): ReactElement {
   return (
     <button
       type="button"
-      aria-label={`Switch to ${nextTheme} theme`}
-      title={`Switch to ${nextTheme} theme`}
+      aria-label="Toggle color theme"
+      title="Toggle color theme"
       onClick={handleToggle}
       className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary focus:outline-none focus-visible:ring-accent"
     >
       <span className="sr-only">Toggle color theme</span>
-      {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+      <span className="theme-toggle-icon-dark">
+        <SunIcon />
+      </span>
+      <span className="theme-toggle-icon-light">
+        <MoonIcon />
+      </span>
     </button>
   );
 }

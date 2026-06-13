@@ -91,7 +91,6 @@
   color-scheme: light;
 }
 
-@layer base {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
@@ -177,7 +176,6 @@
     0 1px 2px 0 rgb(0 0 0 / 0.38),
     0 16px 36px -24px rgb(0 0 0 / 0.72);
 }
-}
 
 * {
   box-sizing: border-box;
@@ -219,6 +217,33 @@ a {
 
   :root[data-theme="dark"] .theme-logo {
     filter: invert(1) hue-rotate(180deg) brightness(1.12);
+  }
+
+}
+
+.theme-toggle-icon-dark {
+  display: none;
+}
+
+.theme-toggle-icon-light {
+  display: inline-flex;
+}
+
+:root[data-theme="dark"] .theme-toggle-icon-dark {
+  display: inline-flex;
+}
+
+:root[data-theme="dark"] .theme-toggle-icon-light {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .theme-toggle-icon-dark {
+    display: inline-flex;
+  }
+
+  :root:not([data-theme]) .theme-toggle-icon-light {
+    display: none;
   }
 }
 

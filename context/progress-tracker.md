@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Website Modernization - Phase 5 Ready
-**Last completed:** Core build plan through Phase 6 - Tailored Resume, website modernization Phases 1-4 through authenticated workspace polish, and the dark-mode CTA contrast review fix
-**Next:** Modernization Phase 5 - Engagement Features Without Billing
+**Phase:** Website Modernization - Phase 5 Complete
+**Last completed:** Modernization Phase 5 - Engagement Features Without Billing
+**Next:** Modernization Phase 6 - SaaS Readiness Later, only after explicit approval
 
 ---
 
@@ -56,7 +56,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - [x] Phase 2 - Homepage Redesign
 - [x] Phase 3 - Login And Public Exploration
 - [x] Phase 4 - Authenticated Workspace Polish
-- [ ] Phase 5 - Engagement Features Without Billing
+- [x] Phase 5 - Engagement Features Without Billing
 - [ ] Phase 6 - SaaS Readiness Later
 
 ---
@@ -157,6 +157,10 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-13: Audit fix pass - removed generated log files from the repo root and ignored `*.log`; raised Next.js Server Action body size to 6 MB so the documented 5 MB resume upload can reach `saveResume`; documented tailored-resume cleanup env vars; wired `profiles.cover_letter_tone` through the Profile form/save path without changing completion rules; extracted tailored-resume download resolution into `lib/tailored-resume-download.ts` with route-behavior tests for unauthorized, inaccessible, expired, and latest-unexpired cases.
 - 2026-06-13: Website modernization pass started from `context/website-modernization-plan.md` through authenticated workspace polish without adding payment, admin, team, billing, or subscription features. Added semantic light/dark theme support in `app/globals.css`, pre-hydration theme application in `app/layout.tsx`, and `components/layout/ThemeToggle.tsx` in the existing top navbar. Modernized homepage/login copy and layout, added grounded homepage sections (`OutcomeStrip`, `TrustSection`), removed the fake testimonial component, polished dashboard with `TodayWorkspace`, restored visible `Jobs by Adzuna` credit plus mobile job cards, reordered job details into a decision flow, and added `CareerReadinessSummary` to Profile while preserving existing route labels, PostHog event names, auth gates, discovery/research/resume/tailored-resume endpoints, and Profile form field order.
 - 2026-06-13: Progress realignment verified the old build-plan phases are complete through Phase 6 / Feature 18. The live tree contains the tailored-resume generation and download routes, storage metadata helpers, cleanup function, migrations, and tailored-resume route/agent tests. The current product-development track is now website modernization, with Phases 1-4 implemented. Fixed the dark-mode primary CTA contrast review finding by making dark-mode `--color-accent-foreground` a dark teal for bright accent backgrounds and moving overlay text to `--color-overlay-foreground`. Next new development phase: Modernization Phase 5 - Engagement Features Without Billing.
+- 2026-06-13: Navbar signout/theme visual fix - `components/layout/SignOutButton.tsx` now uses the theme-aware secondary surface pattern (`bg-surface`, `border-border`, `text-text-primary`) instead of the overlay button pattern, so the authenticated navbar action has a light surface in light mode and a dark surface in dark mode while preserving the existing PostHog reset and `signOut` server action. Also moved dark theme token overrides out of the losing cascade layer in `app/globals.css` and made `ThemeToggle` notify React after applying the preferred theme so the icon and accessible label match the active theme after hydration.
+- 2026-06-13: Tailored resume generation fix - local logs showed the job-detail tailored resume route was returning 422 because Gemini included a missing skill in the professional summary and `sanitizeTailoredResumeContent` rejected the whole response. The agent now requests JSON mode and replaces unsafe summaries with a deterministic profile/job fallback that excludes missing skills, while still filtering unsafe bullets and preserving the Profile page base resume flow.
+- 2026-06-13: Website Modernization Phase 5 complete without billing, payments, admin, team, or plan-management changes. Resolved the saved ThemeToggle caveat by making the button label neutral and switching visible icons with `data-theme` CSS before hydration. Added pure engagement helpers in `lib/engagement-insights.ts` plus tests in `tests/engagement-insights.test.ts`. Dashboard now shows data-derived Today actions from profile completeness, resume availability, saved jobs, company research status, and tailored-resume freshness; it also shows repeated missing-skill insights from saved jobs. Job details now includes `InterviewPrepExpansion`, turning existing company research, match strengths, and gap skills into interview focus areas, lead-with points, gap framing, and questions to ask.
+- 2026-06-13: Phase 5 review findings fixed - dashboard engagement error handling now separates profile, engagement-job, and tailored-resume read failures. Today actions no longer guess profile completion or resume readiness when profile/tailored-resume data is unavailable, and skill-gap insights remain visible when jobs data succeeds even if tailored-resume reads fail.
 
 ---
 

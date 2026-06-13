@@ -22,13 +22,13 @@ After building any component - update this file with the component name, file pa
 
 These entries supersede older light-only registry notes below. Keep future UI work on semantic tokens and the top navbar pattern.
 
-Primary accent CTAs use `bg-accent text-accent-foreground`. In dark mode, `text-accent-foreground` is intentionally dark teal for contrast against the bright accent background. Overlay surfaces and overlay buttons use `bg-overlay text-overlay-foreground`.
+Primary accent CTAs use `bg-accent text-accent-foreground`. In dark mode, `text-accent-foreground` is intentionally dark teal for contrast against the bright accent background. Overlay surfaces and overlay buttons use `bg-overlay text-overlay-foreground`. Navbar secondary actions such as Sign out use `bg-surface text-text-primary` so they follow the active light/dark theme.
 
 ### ThemeToggle
 
 - Path: `components/layout/ThemeToggle.tsx` (Client Component)
 - Button classes: `inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary focus:outline-none focus-visible:ring-accent`
-- Behavior: reads `job-application-theme` from `localStorage`, falls back to `prefers-color-scheme`, writes `document.documentElement.dataset.theme`, and persists explicit light/dark choices.
+- Behavior: reads `job-application-theme` from `localStorage`, falls back to `prefers-color-scheme`, writes `document.documentElement.dataset.theme`, and persists explicit light/dark choices. The button uses a neutral `aria-label="Toggle color theme"` and CSS-controlled sun/moon icons (`theme-toggle-icon-dark` / `theme-toggle-icon-light`) so the server fallback never exposes the wrong switch label before hydration.
 - Root layout script: `app/layout.tsx` sets the initial `data-theme` and `colorScheme` before hydration.
 
 ### Navbar Modernization
@@ -59,8 +59,13 @@ Primary accent CTAs use `bg-accent text-accent-foreground`. In dark mode, `text-
 - New path: `components/dashboard/TodayWorkspace.tsx`
 - Today card: `overflow-hidden rounded-md border border-border bg-surface shadow-card`
 - Today panel: `landing-hero-gradient grid gap-8 px-6 py-7 lg:grid-cols-[1fr_380px] lg:items-center lg:px-8`
+- Phase 5 Today actions: the right panel uses `rounded-md border border-border bg-surface-glass p-4`; action links use `block rounded-md border border-border bg-surface px-4 py-3 transition-colors hover:border-accent hover:bg-surface-secondary`; action labels use `rounded-full` tone badges from `bg-accent-muted text-accent`, `bg-info-lightest text-info-foreground`, or `bg-success-lightest text-success-foreground`. If profile, engagement-job, or tailored-resume reads fail, the action list shows its scoped unavailable state instead of guessing profile or resume readiness.
 - Stats cards: `rounded-md border border-border bg-surface-elevated p-6 shadow-card`
 - Activity/chart cards now use `rounded-md border border-border bg-surface-elevated ... shadow-card` and include concise subtitles.
+- New path: `components/dashboard/SkillGapInsights.tsx`
+- Skill gap card: `rounded-md border border-border bg-surface-elevated p-6 shadow-card`
+- Skill insight cards: `rounded-md border border-border bg-surface px-4 py-4`; count badge `rounded-full bg-accent-muted px-2.5 py-1 text-xs font-semibold leading-4 text-accent`; empty state CTA reuses `bg-accent text-accent-foreground`.
+- Skill gap insights depend only on the engagement jobs read. Tailored-resume read failures must not hide this card when jobs data is available.
 
 ### Find Jobs Modernization
 
@@ -75,8 +80,10 @@ Primary accent CTAs use `bg-accent text-accent-foreground`. In dark mode, `text-
 
 - `JobInfo` header: `overflow-hidden rounded-md border border-border bg-surface shadow-card` with a `landing-hero-gradient` decision workspace panel.
 - Fact cards: `flex min-w-0 items-center gap-4 rounded-md border border-border bg-surface-elevated p-5 shadow-card`
-- `MatchScore`, `JobDescription`, `CompanyResearch`, `TailoredResumeAction`, and `JobActions` use `rounded-md` semantic cards.
-- Page order: JobInfo, MatchScore, CompanyResearch, TailoredResumeAction, JobActions, JobDescription.
+- `MatchScore`, `JobDescription`, `CompanyResearch`, `InterviewPrepExpansion`, `TailoredResumeAction`, and `JobActions` use `rounded-md` semantic cards.
+- New path: `components/job-details/InterviewPrepExpansion.tsx`
+- Interview prep card: `rounded-md border border-border bg-surface-elevated p-6 shadow-card`; prep sections use `rounded-md border border-border bg-surface p-5`; source badge uses the secondary button surface `border border-border bg-surface text-text-primary`.
+- Page order: JobInfo, MatchScore, CompanyResearch, InterviewPrepExpansion, TailoredResumeAction, JobActions, JobDescription.
 
 ### Profile Modernization
 
@@ -94,7 +101,7 @@ Primary accent CTAs use `bg-accent text-accent-foreground`. In dark mode, `text-
 - Brand: `<Logo className="h-8 w-auto sm:h-10" />` wrapped in `<Link href="/" aria-label="Job Application home" className="shrink-0">` (Feature 09 — replaced the old `/logo.png` wordmark image, which had "JobPilot" baked in)
 - Nav links: rendered by `NavLinks` (see below) — do not put plain `<Link>`s back in the Navbar
 - Public primary button classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`
-- Authenticated Sign out action classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-overlay px-5 text-sm font-medium text-overlay-foreground shadow-card transition-opacity hover:opacity-90`
+- Authenticated Sign out action classes: `inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary`
 
 ### Logo
 
@@ -598,11 +605,25 @@ Last updated: 2026-06-09
 | Hover state   | `transition-opacity hover:opacity-90`                  |
 | Shadow        | `shadow-card`                                          |
 
-**Pattern notes:** Use `bg-accent text-accent-foreground` for primary CTAs and primary in-app actions. `--color-accent` is teal, not purple, and its foreground changes in dark mode for contrast. Use `bg-overlay text-overlay-foreground` only for overlay-specific buttons such as Sign out or dark full-band sections.
+**Pattern notes:** Use `bg-accent text-accent-foreground` for primary CTAs and primary in-app actions. `--color-accent` is teal, not purple, and its foreground changes in dark mode for contrast. Use `bg-surface text-text-primary` for navbar secondary actions such as Sign out. Use `bg-overlay text-overlay-foreground` only for overlay-specific buttons in dark full-band sections.
+
+### Button — Navbar Secondary
+
+File: `components/layout/SignOutButton.tsx`
+Last updated: 2026-06-13
+
+| Property      | Class                                                              |
+| ------------- | ------------------------------------------------------------------ |
+| Background    | `bg-surface`                                                       |
+| Border        | `border border-border`                                             |
+| Text          | `text-sm font-medium text-text-primary`                            |
+| Border radius | `rounded-md`                                                       |
+| Spacing       | `min-h-10 px-5`                                                    |
+| Hover state   | `transition-colors hover:border-accent hover:bg-surface-secondary` |
 
 ### Button — Overlay
 
-File: `components/layout/SignOutButton.tsx`, overlay sections such as `components/homepage/TrustSection.tsx`
+File: overlay sections such as `components/homepage/TrustSection.tsx`
 Last updated: 2026-06-13
 
 | Property      | Class                                        |
