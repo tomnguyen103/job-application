@@ -408,20 +408,10 @@ const data = await response.json();
 
 ```typescript
 // Single session — visits company homepage and sub pages sequentially
-const stagehand = new Stagehand({
-  env: "BROWSERBASE",
-  apiKey: process.env.BROWSERBASE_API_KEY!,
-  projectId: process.env.BROWSERBASE_PROJECT_ID!,
-  browserbaseSessionID: session.id,
-  model: {
-    modelName: "google/gemini-2.5-flash",
-    apiKey: process.env.GEMINI_API_KEY!,
-  },
-  disableAPI: true,
-});
+const stagehand = createCompanyResearchStagehand(session.sessionId);
 
 await stagehand.init();
-const page = stagehand.page;
+const page = await stagehand.context.awaitActivePage();
 
 // Clean company name and construct homepage URL
 const cleanName = companyName
@@ -434,9 +424,12 @@ const homepageUrl = `https://www.${cleanName}.com`;
 
 // Navigate and extract — graceful fallback if page not found
 try {
-  await page.goto(homepageUrl);
-  await page.waitForLoadState("networkidle");
-  const content = await stagehand.extract({ instruction: "..." });
+  await page.goto(homepageUrl, { waitUntil: "networkidle", timeoutMs: 30_000 });
+  const content = await stagehand.extract(
+    "Extract company research signals from this page.",
+    companyResearchSchema,
+    { timeout: 30_000, serverCache: false },
+  );
 } catch (error) {
   // Log and continue — Gemini will synthesize from what was found
   await logAgentError(jobId, error);

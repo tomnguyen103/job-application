@@ -259,10 +259,9 @@ Agent researches the company using their public website and builds a structured 
   **Stagehand homepage extraction:**
 
 ```typescript
-const homepage = await stagehand.extract({
-  instruction:
-    "This is a company's homepage. Capture what the company actually does, who it's for, and any concrete signals (funding, customers, scale, mission, recent launches). Then find the internal links most worth visiting to research them as an employer.",
-  schema: z.object({
+const homepage = await stagehand.extract(
+  "This is a company's homepage. Capture what the company actually does, who it's for, and any concrete signals (funding, customers, scale, mission, recent launches). Then find the internal links most worth visiting to research them as an employer.",
+  z.object({
     oneLiner: z.string().describe("What the company does in one sentence"),
     productSummary: z
       .string()
@@ -287,7 +286,8 @@ const homepage = await stagehand.extract({
       )
       .describe("Internal links worth visiting"),
   }),
-});
+  { timeout: 30_000, serverCache: false },
+);
 ```
 
 If oneLiner and productSummary are empty — bail to synthesis with job description and profile only.
@@ -295,10 +295,9 @@ If oneLiner and productSummary are empty — bail to synthesis with job descript
 **Stagehand sub-page extraction (max 3 pages — prefer about/blog/engineering/product over careers):**
 
 ```typescript
-const page = await stagehand.extract({
-  instruction:
-    "Extract substance that helps a candidate understand this company before applying: what they do, their values and how they work, the specific technologies and tools they use, notable projects or customers, and how the team operates. Ignore nav, footers, cookie banners, and generic marketing copy.",
-  schema: z.object({
+const page = await stagehand.extract(
+  "Extract substance that helps a candidate understand this company before applying: what they do, their values and how they work, the specific technologies and tools they use, notable projects or customers, and how the team operates. Ignore nav, footers, cookie banners, and generic marketing copy.",
+  z.object({
     keyPoints: z.array(z.string()),
     technologies: z
       .array(z.string())
@@ -310,7 +309,8 @@ const page = await stagehand.extract({
       .array(z.string())
       .describe("Customers, funding, scale, projects, awards"),
   }),
-});
+  { timeout: 30_000, serverCache: false },
+);
 ```
 
 - Close Browserbase session after homepage + max 3 sub-pages
