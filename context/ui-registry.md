@@ -208,6 +208,7 @@ The profile page uses a **stacked-card layout on the page background** — not t
 - Field label classes: `text-[11px] font-medium uppercase tracking-wide text-text-secondary`
 - Input/textarea classes: `w-full rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-text-primary placeholder:text-text-muted focus:border-accent focus:ring-accent focus:outline-none`
 - Select: input classes + `appearance-none pr-9`, with absolute chevron SVG `text-text-muted`
+- Job Preferences now includes a Cover Letter Tone select using the same Select Field primitive and profile save wiring; it persists `profiles.cover_letter_tone` but does not affect profile completion while cover-letter generation remains out of scope.
 - Disabled input adds: `disabled:bg-surface-secondary`
 - Section heading classes: `text-sm font-semibold leading-5 text-text-primary`
 - Section divider classes: `border-t border-border pt-8`

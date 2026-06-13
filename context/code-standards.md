@@ -255,6 +255,9 @@ All environment variables defined in `.env.local` for development. Never hardcod
 | `POSTHOG_PERSONAL_API_KEY`      | lib/posthog-query.ts   |
 | `POSTHOG_PROJECT_ID`            | lib/posthog-query.ts   |
 | `POSTHOG_API_HOST`              | lib/posthog-query.ts   |
+| `TAILORED_RESUME_CLEANUP_API_KEY` | functions/cleanup-tailored-resumes.js |
+| `INSFORGE_ADMIN_API_KEY`        | functions/cleanup-tailored-resumes.js |
+| `INSFORGE_BASE_URL`             | functions/cleanup-tailored-resumes.js |
 
 `NEXT_PUBLIC_` prefix means the variable is exposed to the browser. Never add `NEXT_PUBLIC_` to secret keys. `POSTHOG_PERSONAL_API_KEY` is a secret (`phx_`, scope `query:read`) — server-side only; the query host `POSTHOG_API_HOST` (`us.posthog.com`) is not the ingestion host (`us.i.posthog.com`).
 

@@ -20,6 +20,11 @@ type SaveResumeState = {
 
 const VALID_EXPERIENCE_LEVELS = new Set(["junior", "mid", "senior", "lead"]);
 const VALID_REMOTE_PREFERENCES = new Set(["remote", "onsite", "hybrid", "any"]);
+const VALID_COVER_LETTER_TONES = new Set([
+  "formal",
+  "casual",
+  "enthusiastic",
+]);
 const VALID_WORK_AUTHORIZATIONS = new Set([
   "citizen",
   "permanent_resident",
@@ -97,6 +102,14 @@ export async function saveProfile(
     }
     const workAuthorization = rawWorkAuthorization || null;
 
+    const rawCoverLetterTone = formData.get("cover_letter_tone") as
+      | string
+      | null;
+    if (rawCoverLetterTone && !VALID_COVER_LETTER_TONES.has(rawCoverLetterTone)) {
+      return { success: false, error: "Invalid cover letter tone." };
+    }
+    const coverLetterTone = rawCoverLetterTone || null;
+
     const rawYearsExperience = formData.get("years_experience");
     // FormData text inputs always yield string | null; never File.
     const parsedYears =
@@ -162,6 +175,7 @@ export async function saveProfile(
       jobTitlesSeeking: jobTitlesSeeking.join(", "),
       remotePreference: remotePreference ?? "",
       salaryExpectation,
+      coverLetterTone: coverLetterTone ?? "",
       preferredLocations: preferredLocations.join(", "),
     };
 
@@ -189,6 +203,7 @@ export async function saveProfile(
           remote_preference: remotePreference,
           preferred_locations: preferredLocations,
           salary_expectation: salaryExpectation,
+          cover_letter_tone: coverLetterTone,
           work_authorization: workAuthorization,
           is_complete: isComplete,
           updated_at: new Date().toISOString(),

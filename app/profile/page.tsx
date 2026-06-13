@@ -33,6 +33,7 @@ function emptyProfile(email: string): Profile {
     jobTitlesSeeking: "",
     remotePreference: "any",
     salaryExpectation: "",
+    coverLetterTone: "formal",
     preferredLocations: "",
   };
 }
