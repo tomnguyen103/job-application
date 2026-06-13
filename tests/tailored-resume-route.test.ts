@@ -276,63 +276,51 @@ test("resolveTailoredResumeDownload streams the latest unexpired resume", async 
   );
 });
 
-test("resolveTailoredResumeDownload returns 500 for storage download errors", async () => {
-  const originalConsoleError = console.error;
-  console.error = () => {};
+test("resolveTailoredResumeDownload returns 500 for storage download errors", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const { client, calls } = fakeClient({
+    downloadError: new Error("storage unavailable"),
+  });
 
-  try {
-    const { client, calls } = fakeClient({
-      downloadError: new Error("storage unavailable"),
-    });
+  const result = await resolveTailoredResumeDownload({
+    user: { id: "user-1" },
+    jobId: "job-1",
+    insforge: client,
+    now: new Date("2026-06-13T12:00:00.000Z"),
+  });
 
-    const result = await resolveTailoredResumeDownload({
-      user: { id: "user-1" },
-      jobId: "job-1",
-      insforge: client,
-      now: new Date("2026-06-13T12:00:00.000Z"),
-    });
-
-    assert.equal(result.status, 500);
-    if (result.status === 200) {
-      throw new Error("expected an error result");
-    }
-    assert.equal(
-      result.body.error,
-      "Failed to download the tailored resume. Please try again.",
-    );
-    assert.ok(
-      calls.some(
-        (call) =>
-          call.method === "from" &&
-          call.table === "storage" &&
-          call.value === TAILORED_RESUME_BUCKET,
-      ),
-    );
-  } finally {
-    console.error = originalConsoleError;
+  assert.equal(result.status, 500);
+  if (result.status === 200) {
+    throw new Error("expected an error result");
   }
+  assert.equal(
+    result.body.error,
+    "Failed to download the tailored resume. Please try again.",
+  );
+  assert.ok(
+    calls.some(
+      (call) =>
+        call.method === "from" &&
+        call.table === "storage" &&
+        call.value === TAILORED_RESUME_BUCKET,
+    ),
+  );
 });
 
-test("resolveTailoredResumeDownload returns 404 for missing storage blobs", async () => {
-  const originalConsoleError = console.error;
-  console.error = () => {};
+test("resolveTailoredResumeDownload returns 404 for missing storage blobs", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const { client } = fakeClient({ blob: null });
 
-  try {
-    const { client } = fakeClient({ blob: null });
+  const result = await resolveTailoredResumeDownload({
+    user: { id: "user-1" },
+    jobId: "job-1",
+    insforge: client,
+    now: new Date("2026-06-13T12:00:00.000Z"),
+  });
 
-    const result = await resolveTailoredResumeDownload({
-      user: { id: "user-1" },
-      jobId: "job-1",
-      insforge: client,
-      now: new Date("2026-06-13T12:00:00.000Z"),
-    });
-
-    assert.equal(result.status, 404);
-    if (result.status === 200) {
-      throw new Error("expected an error result");
-    }
-    assert.equal(result.body.error, "No unexpired tailored resume found.");
-  } finally {
-    console.error = originalConsoleError;
+  assert.equal(result.status, 404);
+  if (result.status === 200) {
+    throw new Error("expected an error result");
   }
+  assert.equal(result.body.error, "No unexpired tailored resume found.");
 });
