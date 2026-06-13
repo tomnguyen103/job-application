@@ -5,6 +5,7 @@ import {
   resolveTailoredResumeDownload,
   type TailoredResumeDownloadClient,
 } from "../lib/tailored-resume-download";
+import { TAILORED_RESUME_BUCKET } from "../lib/tailored-resume";
 
 type JobRow = {
   id: string;
@@ -34,6 +35,7 @@ type Call =
     }
   | { table: "tailored_resumes"; method: "limit"; value: number }
   | { table: "jobs" | "tailored_resumes"; method: "maybeSingle" }
+  | { table: "storage"; method: "from"; value: string }
   | { table: "storage"; method: "download"; value: string };
 
 type Scenario = {
@@ -149,7 +151,8 @@ function fakeClient(
         },
       },
       storage: {
-        from() {
+        from(bucket: typeof TAILORED_RESUME_BUCKET) {
+          calls.push({ table: "storage", method: "from", value: bucket });
           return {
             async download(key: string) {
               calls.push({ table: "storage", method: "download", value: key });
@@ -258,9 +261,78 @@ test("resolveTailoredResumeDownload streams the latest unexpired resume", async 
   assert.ok(
     calls.some(
       (call) =>
+        call.method === "from" &&
+        call.table === "storage" &&
+        call.value === TAILORED_RESUME_BUCKET,
+    ),
+  );
+  assert.ok(
+    calls.some(
+      (call) =>
         call.method === "download" &&
         call.table === "storage" &&
         call.value === "user-1/job-1/resume-new.pdf",
     ),
   );
+});
+
+test("resolveTailoredResumeDownload returns 500 for storage download errors", async () => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+
+  try {
+    const { client, calls } = fakeClient({
+      downloadError: new Error("storage unavailable"),
+    });
+
+    const result = await resolveTailoredResumeDownload({
+      user: { id: "user-1" },
+      jobId: "job-1",
+      insforge: client,
+      now: new Date("2026-06-13T12:00:00.000Z"),
+    });
+
+    assert.equal(result.status, 500);
+    if (result.status === 200) {
+      throw new Error("expected an error result");
+    }
+    assert.equal(
+      result.body.error,
+      "Failed to download the tailored resume. Please try again.",
+    );
+    assert.ok(
+      calls.some(
+        (call) =>
+          call.method === "from" &&
+          call.table === "storage" &&
+          call.value === TAILORED_RESUME_BUCKET,
+      ),
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+});
+
+test("resolveTailoredResumeDownload returns 404 for missing storage blobs", async () => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+
+  try {
+    const { client } = fakeClient({ blob: null });
+
+    const result = await resolveTailoredResumeDownload({
+      user: { id: "user-1" },
+      jobId: "job-1",
+      insforge: client,
+      now: new Date("2026-06-13T12:00:00.000Z"),
+    });
+
+    assert.equal(result.status, 404);
+    if (result.status === 200) {
+      throw new Error("expected an error result");
+    }
+    assert.equal(result.body.error, "No unexpired tailored resume found.");
+  } finally {
+    console.error = originalConsoleError;
+  }
 });

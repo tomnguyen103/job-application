@@ -144,11 +144,22 @@ export async function resolveTailoredResumeDownload({
     .from(TAILORED_RESUME_BUCKET)
     .download(resumeRow.storage_key);
 
-  if (downloadError || !blob) {
+  if (downloadError) {
     console.error(
       "[tailored-resume/download] storage download error:",
       downloadError,
     );
+    return {
+      status: 500,
+      body: {
+        success: false,
+        error: "Failed to download the tailored resume. Please try again.",
+      },
+    };
+  }
+
+  if (!blob) {
+    console.error("[tailored-resume/download] missing storage blob");
     return {
       status: 404,
       body: {
