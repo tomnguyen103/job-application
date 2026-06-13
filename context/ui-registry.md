@@ -22,8 +22,8 @@ After building any component - update this file with the component name, file pa
 
 - Path: `components/layout/Navbar.tsx` (Server Component — auth check only)
 - Root classes: `border-b border-border bg-surface`
-- Inner classes: `mx-auto flex h-20 max-w-[1280px] items-center justify-between px-6 lg:px-0`
-- Brand: `<Logo />` wrapped in `<Link href="/" aria-label="Job Application home">` (Feature 09 — replaced the old `/logo.png` wordmark image, which had "JobPilot" baked in)
+- Inner classes: `mx-auto flex min-h-20 max-w-[1280px] flex-wrap items-center justify-between gap-y-3 px-4 py-3 sm:px-6 md:h-20 md:flex-nowrap md:py-0 lg:px-0`
+- Brand: `<Logo className="h-8 w-auto sm:h-10" />` wrapped in `<Link href="/" aria-label="Job Application home" className="shrink-0">` (Feature 09 — replaced the old `/logo.png` wordmark image, which had "JobPilot" baked in)
 - Nav links: rendered by `NavLinks` (see below) — do not put plain `<Link>`s back in the Navbar
 - Primary button classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-overlay px-5 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90`
 - Authenticated action classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-overlay px-5 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90`
@@ -31,6 +31,7 @@ After building any component - update this file with the component name, file pa
 ### Logo
 
 - Path: `components/layout/Logo.tsx` (Server Component, presentational)
+- Optional `className` prop defaults to `h-10 w-auto`; Navbar overrides it to `h-8 w-auto sm:h-10` for mobile fit.
 - Renders `next/image` `src="/logo2.png"` — 894×168 transparent PNG (teal document/magnifier app-icon mark + single-line navy "Job Application" wordmark), intrinsic `width={894} height={168}`, display classes `h-10 w-auto`, `alt="Job Application"`
 - `/logo2.png` (2026-06-10 brand artwork) follows the legacy `/logo.png` format: 168px-tall content-hugging transparent canvas, icon-left/wordmark-right single-line lockup, no tagline (the stacked two-line wordmark was rejected by the user — keep it horizontal). The favicon (`app/favicon.ico`, 16/32/48 PNG entries, ~11KB) is the icon mark alone.
 - Used by: Navbar, Footer, Login brand panel (gradient background — keep the PNG background transparent). The legacy `/logo.png` (JobPilot wordmark baked in) was deleted from the repo on 2026-06-10 — there is no logo asset other than `/logo2.png`. The old CSS mark (`.brand-logo-mark`) was removed with this change.
@@ -38,8 +39,8 @@ After building any component - update this file with the component name, file pa
 ### NavLinks
 
 - Path: `components/layout/NavLinks.tsx` (Client Component — `usePathname` for active state)
-- Nav classes: `hidden items-stretch gap-10 self-stretch md:flex` (items stretch so the active underline can sit on the navbar's bottom edge)
-- Link classes: `relative flex items-center gap-2 text-sm font-medium transition-colors` + active `text-accent` / inactive `text-text-dark hover:text-accent`
+- Nav classes: `order-3 flex w-full items-stretch justify-center gap-1 self-auto border-t border-border pt-3 md:order-none md:w-auto md:gap-10 md:self-stretch md:border-t-0 md:pt-0` (mobile wraps into a second navbar row; desktop items stretch so the active underline can sit on the navbar's bottom edge)
+- Link classes: `relative flex min-h-10 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium transition-colors sm:gap-2 sm:px-3 md:min-h-0 md:justify-start md:rounded-none md:px-0` + active `text-accent` / inactive `text-text-dark hover:text-accent`
 - Active underline: `absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-accent` (+ `aria-current="page"`) — DEVIATION from ui-rules.md "no underline", matching `find-jobs.png` per explicit user instruction
 - Item icons: inline SVG 16px, `stroke="currentColor"`, strokeWidth 1.5 (grid / search / person)
 - Active match: `pathname === href || pathname.startsWith(href + "/")` so `/find-jobs/[id]` keeps Find Jobs active

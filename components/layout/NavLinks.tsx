@@ -116,7 +116,7 @@ export function NavLinks(): ReactElement {
   return (
     <nav
       aria-label="Primary navigation"
-      className="hidden items-stretch gap-10 self-stretch md:flex"
+      className="order-3 flex w-full items-stretch justify-center gap-1 self-auto border-t border-border pt-3 md:order-none md:w-auto md:gap-10 md:self-stretch md:border-t-0 md:pt-0"
     >
       {NAV_ITEMS.map((item) => {
         const isActive =
@@ -127,7 +127,7 @@ export function NavLinks(): ReactElement {
             key={item.href}
             href={item.href}
             aria-current={isActive ? "page" : undefined}
-            className={`relative flex items-center gap-2 text-sm font-medium transition-colors ${
+            className={`relative flex min-h-10 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium transition-colors sm:gap-2 sm:px-3 md:min-h-0 md:justify-start md:rounded-none md:px-0 ${
               isActive ? "text-accent" : "text-text-dark hover:text-accent"
             }`}
           >

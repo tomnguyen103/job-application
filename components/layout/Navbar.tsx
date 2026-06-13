@@ -11,9 +11,9 @@ export async function Navbar(): Promise<ReactElement> {
 
   return (
     <header className="border-b border-border bg-surface">
-      <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-6 lg:px-0">
-        <Link href="/" aria-label="Job Application home">
-          <Logo />
+      <div className="mx-auto flex min-h-20 max-w-[1280px] flex-wrap items-center justify-between gap-y-3 px-4 py-3 sm:px-6 md:h-20 md:flex-nowrap md:py-0 lg:px-0">
+        <Link href="/" aria-label="Job Application home" className="shrink-0">
+          <Logo className="h-8 w-auto sm:h-10" />
         </Link>
 
         <NavLinks />
