@@ -4,7 +4,8 @@ import { ApplicationConfidence } from "@/components/homepage/ApplicationConfiden
 import { FinalCta } from "@/components/homepage/FinalCta";
 import { Hero } from "@/components/homepage/Hero";
 import { JobSearchEase } from "@/components/homepage/JobSearchEase";
-import { Testimonial } from "@/components/homepage/Testimonial";
+import { OutcomeStrip } from "@/components/homepage/OutcomeStrip";
+import { TrustSection } from "@/components/homepage/TrustSection";
 import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
 
@@ -15,13 +16,11 @@ export default function Home(): ReactElement {
     <main className="min-h-screen bg-background">
       <Navbar />
       <Hero />
+      <OutcomeStrip />
       <JobSearchEase />
       <ApplicationConfidence />
-      <div className="landing-diagonal-band mx-auto h-20 max-w-[1280px] border-x border-b border-border" />
-      <Testimonial />
-      <div className="landing-diagonal-band mx-auto h-20 max-w-[1280px] border-x border-b border-border" />
+      <TrustSection />
       <FinalCta />
-      <div className="landing-diagonal-band mx-auto h-20 max-w-[1280px] border-x border-b border-border" />
       <Footer />
     </main>
   );

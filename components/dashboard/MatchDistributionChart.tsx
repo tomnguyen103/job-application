@@ -28,13 +28,16 @@ const AXIS_TICK = { fill: "var(--color-chart-axis)", fontSize: 12 };
 export function MatchDistributionChart({
   data,
   yAxis,
-  emptyMessage = "No match data yet — run a job search to see this chart.",
+  emptyMessage = "No match data yet. Run a job search to see this chart.",
 }: Props): ReactElement {
   return (
-    <section className="h-full rounded-2xl border border-border bg-surface p-6 shadow-card">
+    <section className="h-full rounded-md border border-border bg-surface-elevated p-6 shadow-card">
       <h2 className="text-base font-semibold leading-6 text-text-primary">
         Match Score Distribution
       </h2>
+      <p className="mt-1 text-xs font-medium leading-4 text-text-secondary">
+        Saved roles grouped by fit.
+      </p>
       <div className="mt-6 h-[280px]">
         {data.length === 0 ? (
           <p className="flex h-full items-center justify-center px-6 text-center text-sm font-medium leading-5 text-text-muted">

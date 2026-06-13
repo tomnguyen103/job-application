@@ -224,7 +224,7 @@ export function TailoredResumeAction({
   const ready = status === "ready" && resume;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
+    <section className="overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card">
       <div className="flex flex-col gap-4 border-b border-border px-8 py-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-muted text-accent">
@@ -240,7 +240,7 @@ export function TailoredResumeAction({
             href={resume.downloadUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-5 text-base font-semibold text-text-primary shadow-card transition-colors hover:bg-surface-secondary"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-border bg-surface px-5 text-base font-semibold text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary"
           >
             <DownloadIcon />
             Download Tailored Resume
@@ -251,7 +251,7 @@ export function TailoredResumeAction({
             onClick={handleGenerate}
             disabled={isGenerating}
             aria-busy={isGenerating}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-base font-semibold text-accent-foreground shadow-card transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-5 text-base font-semibold text-accent-foreground shadow-card transition-colors hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isGenerating ? <SpinnerIcon /> : <GenerateIcon />}
             {isGenerating ? "Generating..." : "Generate Tailored Resume"}

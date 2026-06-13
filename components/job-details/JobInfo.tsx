@@ -202,9 +202,9 @@ function iconClassByTone(tone: InfoCardProps["tone"]): string {
 
 function InfoCard({ label, value, tone }: InfoCardProps): ReactElement {
   return (
-    <article className="flex min-w-0 items-center gap-4 rounded-2xl border border-border bg-surface p-5 shadow-card">
+    <article className="flex min-w-0 items-center gap-4 rounded-md border border-border bg-surface-elevated p-5 shadow-card">
       <span
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconClassByTone(tone)}`}
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${iconClassByTone(tone)}`}
       >
         {iconByTone(tone)}
       </span>
@@ -232,14 +232,18 @@ export function JobInfo({
 }: Props): ReactElement {
   return (
     <>
-      <section className="rounded-2xl border border-border bg-surface p-6 shadow-card">
+      <section className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
+        <div className="landing-hero-gradient p-6 sm:p-8">
+          <p className="text-xs font-bold uppercase leading-4 tracking-[0.2em] text-accent">
+            Decision workspace
+          </p>
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div className="flex min-w-0 items-center gap-5">
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface-secondary text-text-muted">
+          <div className="mt-5 flex min-w-0 items-center gap-5">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-border bg-surface-glass text-text-muted">
               <CompanyIcon />
             </span>
             <div className="min-w-0">
-              <h1 className="truncate text-[30px] font-bold leading-9 text-text-primary">
+              <h1 className="break-words text-[30px] font-bold leading-9 text-text-black sm:text-[36px] sm:leading-[1.12]">
                 {title}
               </h1>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-base font-semibold leading-6 text-text-secondary">
@@ -249,7 +253,7 @@ export function JobInfo({
                   aria-hidden="true"
                 />
                 <span className="rounded-full bg-success-lightest px-3 py-1 text-sm font-semibold leading-5 text-success-foreground">
-                  {matchScore}% Match Score
+                  {matchScore}% match
                 </span>
               </div>
             </div>
@@ -260,17 +264,18 @@ export function JobInfo({
               href={postUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-5 text-sm font-semibold text-text-primary shadow-card transition-colors hover:bg-surface-secondary"
+              className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-surface px-5 text-sm font-semibold text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary"
             >
               <ExternalLinkIcon />
-              View Job Post
+              View original post
             </a>
           ) : (
-            <span className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-5 text-sm font-semibold text-text-muted shadow-card">
+            <span className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-surface px-5 text-sm font-semibold text-text-muted shadow-card">
               <ExternalLinkIcon />
-              View Job Post
+              Original post unavailable
             </span>
           )}
+          </div>
         </div>
       </section>
 

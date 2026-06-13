@@ -8,6 +8,7 @@ import {
 } from "@/actions/auth";
 import { OAuthProviderButton } from "@/components/auth/OAuthProviderButton";
 import { Logo } from "@/components/layout/Logo";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { loginProviderDetails } from "@/lib/auth";
 import type { SupportedOAuthProvider } from "@/lib/auth";
 import {
@@ -68,24 +69,39 @@ export default async function LoginPage({
   const hasEnabledProviders = enabledProviders.length > 0;
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10">
-      <section className="mx-auto grid min-h-[calc(100vh-80px)] max-w-[1120px] overflow-hidden rounded-xl border border-border bg-surface shadow-card lg:grid-cols-[1fr_420px]">
-        <div className="landing-hero-gradient flex min-h-[520px] flex-col justify-between border-b border-border px-8 py-8 lg:border-b-0 lg:border-r">
-          <Link href="/" aria-label="Job Application home" className="w-fit">
-            <Logo />
-          </Link>
+    <main className="min-h-screen bg-background px-4 py-6 sm:px-6 sm:py-10">
+      <section className="mx-auto grid min-h-[calc(100vh-80px)] max-w-[1120px] overflow-hidden rounded-md border border-border bg-surface shadow-card lg:grid-cols-[1fr_420px]">
+        <div className="landing-hero-gradient flex flex-col gap-10 border-b border-border px-6 py-7 sm:px-8 lg:border-b-0 lg:border-r lg:px-10 lg:py-9">
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/" aria-label="Job Application home" className="w-fit">
+              <Logo />
+            </Link>
+            <ThemeToggle />
+          </div>
 
-          <div>
-            <p className="text-xs font-bold uppercase leading-4 text-accent">
+          <div className="flex flex-1 flex-col justify-center">
+            <p className="text-xs font-bold uppercase leading-4 tracking-[0.2em] text-accent">
               Job Application
             </p>
-            <h1 className="mt-4 max-w-[560px] text-[38px] font-bold leading-[1.05] text-text-black sm:text-[48px]">
-              Sign in and bring your job search into focus
+            <h1 className="mt-5 max-w-[560px] text-[36px] font-bold leading-[1.05] text-text-black sm:text-[48px]">
+              Sign in to your job search workspace
             </h1>
             <p className="mt-6 max-w-[500px] text-[15px] font-medium leading-6 text-text-secondary">
-              Use your existing Google or GitHub account to keep your profile,
-              matches, and company research tied to one workspace.
+              Keep your profile, matches, company research, and tailored
+              resumes connected to one secure account.
             </p>
+          </div>
+
+          <div className="grid gap-3 text-sm font-medium text-text-secondary sm:grid-cols-3 lg:grid-cols-1">
+            <div className="rounded-md border border-border bg-surface-glass px-4 py-3">
+              Upload once, reuse your career context.
+            </div>
+            <div className="rounded-md border border-border bg-surface-glass px-4 py-3">
+              Return to your saved roles and research.
+            </div>
+            <div className="rounded-md border border-border bg-surface-glass px-4 py-3">
+              Pick up tailored resume work where you left it.
+            </div>
           </div>
         </div>
 

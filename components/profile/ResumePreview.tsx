@@ -45,7 +45,7 @@ export function ResumePreview({
   );
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-secondary px-4 py-3">
+    <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-surface-secondary px-4 py-3">
       {href ? (
         <a
           href={href}

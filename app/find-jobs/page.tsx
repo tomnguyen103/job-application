@@ -88,8 +88,8 @@ function mapJobRowToListItem(row: JobRow): JobListItem {
     company: row.company ?? "Unknown company",
     role: row.title ?? "Untitled role",
     matchScore: row.match_score ?? 0,
-    salary: row.salary ?? "—",
-    dateFound: row.found_at ? formatRelativeTime(row.found_at) : "—",
+    salary: row.salary ?? "-",
+    dateFound: row.found_at ? formatRelativeTime(row.found_at) : "-",
   };
 }
 
@@ -107,7 +107,7 @@ export default async function FindJobsPage({
   const currentPage = parsePage(firstValue(params.page));
   const term = sanitizeSearchTerm(rawQuery);
 
-  // A filter that sanitizes to nothing (e.g. "%%%") cannot match anything —
+  // A filter that sanitizes to nothing (e.g. "%%%") cannot match anything,
   // clamp to zero results instead of silently filtering nothing.
   const isUnsearchableQuery = rawQuery !== "" && term === "";
 
@@ -154,7 +154,7 @@ export default async function FindJobsPage({
       console.error("[find-jobs] jobs read error:", error);
       loadFailed = true;
     } else {
-      // Boundary assertion on the SDK row shape — columns selected above.
+      // Boundary assertion on the SDK row shape, columns selected above.
       rows = (data ?? []) as JobRow[];
       totalResults = count ?? 0;
     }
@@ -168,13 +168,25 @@ export default async function FindJobsPage({
     ? "Could not load your jobs. Refresh the page to try again."
     : hasActiveFilters || totalResults > 0
       ? "No jobs match your filters."
-      : "No jobs yet — search above to find your first matches.";
+      : "No jobs yet. Search above to find your first matches.";
 
   return (
     <main className="min-h-screen bg-background">
       <Navbar />
       <section className="mx-auto w-full max-w-[1280px] px-6 py-8 lg:px-0">
         <div className="flex flex-col gap-6">
+          <div className="rounded-md border border-border bg-surface-elevated p-6 shadow-card">
+            <p className="text-xs font-bold uppercase leading-4 tracking-[0.2em] text-accent">
+              Find Jobs
+            </p>
+            <h1 className="mt-3 text-[30px] font-bold leading-9 text-text-black">
+              Search, score, and shortlist roles
+            </h1>
+            <p className="mt-3 max-w-[720px] text-sm font-medium leading-6 text-text-secondary">
+              Start a new Adzuna discovery run, then filter saved roles by
+              company, title, match score, and recency.
+            </p>
+          </div>
           <SearchControls userId={user.id} />
           <JobFilters />
           <JobsTable

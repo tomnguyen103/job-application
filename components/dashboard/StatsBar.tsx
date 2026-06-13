@@ -1,7 +1,17 @@
 import type { ReactElement } from "react";
 
+export const DASHBOARD_STAT_LABELS = {
+  TOTAL_JOBS: "Total Jobs Found",
+  AVG_MATCH: "Avg. Match Rate",
+  COMPANIES: "Companies Researched",
+  JOBS_WEEK: "Jobs This Week",
+} as const;
+
+export type DashboardStatLabel =
+  (typeof DASHBOARD_STAT_LABELS)[keyof typeof DASHBOARD_STAT_LABELS];
+
 export type DashboardStat = {
-  label: string;
+  label: DashboardStatLabel;
   value: string;
   badge?: string;
   caption: string;
@@ -17,12 +27,12 @@ export function StatsBar({ stats }: Props): ReactElement {
       {stats.map((stat) => (
         <section
           key={stat.label}
-          className="rounded-2xl border border-border bg-surface p-6 shadow-card"
+          className="rounded-md border border-border bg-surface-elevated p-6 shadow-card"
         >
           <p className="text-sm font-medium leading-5 text-text-secondary">
             {stat.label}
           </p>
-          <p className="mt-2 text-[30px] font-semibold leading-9 text-text-primary">
+          <p className="mt-2 text-[30px] font-semibold leading-9 text-text-black">
             {stat.value}
           </p>
           <p className="mt-2 flex items-center gap-2 text-xs font-normal leading-4 text-text-muted">

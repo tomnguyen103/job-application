@@ -87,7 +87,7 @@ function formatJobType(value: string | null): string {
   const normalized = value?.replace(/[_-]/g, " ").trim().toLowerCase();
 
   if (!normalized) {
-    return "—";
+    return "-";
   }
 
   if (normalized === "fulltime" || normalized === "full time") {
@@ -114,7 +114,7 @@ function clampScore(score: number | null): number {
 
 // The stored dossier's techStack was already evidence-filtered against the
 // browser research and job posting when the agent saved it (agent/research.ts)
-// — re-filtering here with no research evidence would strip researched tech.
+// Re-filtering here with no research evidence would strip researched tech.
 function companyResearchForDisplay(
   row: JobDetailsRow,
 ): CompanyResearchDossier | null {
@@ -127,8 +127,8 @@ function mapJobRowToDetails(row: JobDetailsRow): JobDetails {
   return {
     title: cleanText(row.title, "Untitled role"),
     company: cleanText(row.company, "Unknown company"),
-    location: cleanText(row.location, "—"),
-    salary: cleanText(row.salary, "—"),
+    location: cleanText(row.location, "-"),
+    salary: cleanText(row.salary, "-"),
     jobType: formatJobType(row.job_type),
     postUrl: row.external_apply_url ?? row.source_url,
     description,
@@ -145,7 +145,7 @@ function mapJobRowToDetails(row: JobDetailsRow): JobDetails {
     matchedSkills: cleanList(row.matched_skills),
     missingSkills: cleanList(row.missing_skills),
     companyResearch: companyResearchForDisplay(row),
-    dateFound: row.found_at ? formatRelativeTime(row.found_at) : "—",
+    dateFound: row.found_at ? formatRelativeTime(row.found_at) : "-",
   };
 }
 
@@ -272,16 +272,6 @@ export default async function JobDetailsPage({
             missingSkills={job.missingSkills}
           />
 
-          <JobDescription
-            description={job.description}
-            postUrl={job.postUrl}
-            responsibilities={job.responsibilities}
-            requirements={job.requirements}
-            niceToHave={job.niceToHave}
-            benefits={job.benefits}
-            aboutCompany={job.aboutCompany}
-          />
-
           <CompanyResearch
             jobId={data.id}
             company={job.company}
@@ -292,6 +282,15 @@ export default async function JobDetailsPage({
             initialState={tailoredResumeInitialState}
           />
           <JobActions company={job.company} applyUrl={job.postUrl} />
+          <JobDescription
+            description={job.description}
+            postUrl={job.postUrl}
+            responsibilities={job.responsibilities}
+            requirements={job.requirements}
+            niceToHave={job.niceToHave}
+            benefits={job.benefits}
+            aboutCompany={job.aboutCompany}
+          />
         </div>
       </section>
     </main>

@@ -110,7 +110,7 @@ export function JobDescription({
   const isPreview = hasDescription && isTruncatedPreview(description);
 
   return (
-    <section className="rounded-2xl border border-border bg-surface p-8 shadow-card">
+    <section className="rounded-md border border-border bg-surface-elevated p-8 shadow-card">
       <div className="flex items-center gap-4">
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-secondary text-text-secondary">
           <DocumentIcon />
@@ -130,7 +130,7 @@ export function JobDescription({
         )}
 
         {isPreview ? (
-          <aside className="rounded-xl border border-border bg-surface-secondary p-4 text-sm font-medium leading-6 text-text-secondary">
+          <aside className="rounded-md border border-border bg-surface-secondary p-4 text-sm font-medium leading-6 text-text-secondary">
             <p>
               This saved description is the preview returned by the job source,
               so it may end before the full posting does.

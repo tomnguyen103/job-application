@@ -22,14 +22,17 @@ const DOT_TONE_CLASSES: Record<ActivityTone, { ring: string; dot: string }> = {
 
 export function RecentActivity({
   entries,
-  emptyMessage = "No activity yet — run your first job search to see it here.",
+  emptyMessage = "No activity yet. Run your first job search to see it here.",
 }: Props): ReactElement {
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
+    <section className="overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card">
       <header className="border-b border-border px-6 py-5">
         <h2 className="text-base font-semibold leading-6 text-text-primary">
           Recent Activity
         </h2>
+        <p className="mt-1 text-xs font-medium leading-4 text-text-secondary">
+          Searches and company research from your account.
+        </p>
       </header>
       {entries.length === 0 ? (
         <p className="px-6 py-12 text-center text-sm font-medium leading-5 text-text-muted">
@@ -50,7 +53,10 @@ export function RecentActivity({
                     <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
                   </span>
                   {isLast ? null : (
-                    <span aria-hidden="true" className="mt-1 w-px flex-1 bg-border" />
+                    <span
+                      aria-hidden="true"
+                      className="mt-1 w-px flex-1 bg-border"
+                    />
                   )}
                 </div>
                 <div className={isLast ? "" : "pb-5"}>

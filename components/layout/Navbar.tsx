@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { Logo } from "@/components/layout/Logo";
 import { NavLinks } from "@/components/layout/NavLinks";
 import { SignOutButton } from "@/components/layout/SignOutButton";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { getCurrentUser } from "@/lib/insforge-server";
 
 export async function Navbar(): Promise<ReactElement> {
@@ -18,16 +19,19 @@ export async function Navbar(): Promise<ReactElement> {
 
         <NavLinks />
 
-        {user ? (
-          <SignOutButton />
-        ) : (
-          <Link
-            href="/login"
-            className="inline-flex min-h-10 items-center justify-center rounded-md bg-overlay px-5 text-sm font-medium text-accent-foreground shadow-card transition-opacity hover:opacity-90"
-          >
-            Start for free
-          </Link>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          <ThemeToggle />
+          {user ? (
+            <SignOutButton />
+          ) : (
+            <Link
+              href="/login"
+              className="inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark"
+            >
+              Start for free
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );

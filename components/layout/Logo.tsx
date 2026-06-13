@@ -12,7 +12,7 @@ export function Logo({ className = "h-10 w-auto" }: LogoProps): ReactElement {
       alt="Job Application"
       width={894}
       height={168}
-      className={className}
+      className={`theme-logo ${className}`}
     />
   );
 }
