@@ -26,14 +26,36 @@ type SanitizerOptions = {
   forbiddenTerms?: string[];
 };
 
+/**
+ * Collapse consecutive whitespace into single spaces and remove leading/trailing whitespace.
+ *
+ * @param value - The input string to normalize
+ * @returns The input string with consecutive whitespace collapsed to single spaces and trimmed
+ */
 function cleanText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Normalizes each string in an array and removes empty entries.
+ *
+ * @param value - The array of strings to normalize
+ * @returns An array where each string has collapsed internal whitespace and trimmed edges, with falsy/empty results removed
+ */
 function cleanList(value: string[]): string[] {
   return value.map(cleanText).filter(Boolean);
 }
 
+/**
+ * Creates a case-insensitive regular expression that matches `term` as a standalone token
+ * with non-alphanumeric boundaries.
+ *
+ * The pattern matches occurrences of the cleaned `term` that are either at the start/end of the
+ * string or bordered by non-alphanumeric characters, ignoring letter case.
+ *
+ * @param term - The raw term to build a boundary-aware pattern for
+ * @returns A `RegExp` that matches the term with non-alphanumeric boundaries, or `null` if the cleaned term is empty
+ */
 function termPattern(term: string): RegExp | null {
   const normalized = cleanText(term);
 
@@ -45,6 +67,11 @@ function termPattern(term: string): RegExp | null {
   return new RegExp(`(^|[^A-Za-z0-9])${escaped}([^A-Za-z0-9]|$)`, "i");
 }
 
+/**
+ * Checks whether any forbidden term appears in the given text.
+ *
+ * @returns `true` if any forbidden term matches the text, `false` otherwise.
+ */
 function containsForbiddenTerm(text: string, forbiddenTerms: string[]): boolean {
   return forbiddenTerms.some((term) => {
     const pattern = termPattern(term);
@@ -52,10 +79,25 @@ function containsForbiddenTerm(text: string, forbiddenTerms: string[]): boolean 
   });
 }
 
+/**
+ * Normalizes a single bullet line for resume output.
+ *
+ * @param value - The input bullet text to normalize
+ * @returns The cleaned bullet with internal whitespace collapsed, trimmed, and any leading bullet marker (`-`, `*`, `•`) removed
+ */
 function normalizeBullet(value: string): string {
   return cleanText(value).replace(/^[-*\u2022]\s*/, "");
 }
 
+/**
+ * Extracts the smallest balanced JSON object substring starting at the specified opening brace.
+ *
+ * Handles nested braces, quoted string regions, and escaped quotes so braces inside strings do not affect balancing.
+ *
+ * @param text - The string to scan.
+ * @param start - Index of the opening `{` from which to begin scanning.
+ * @returns The substring from `start` through the matching `}` (inclusive) when a balanced object is found, or `null` if no balanced object is present.
+ */
 function findBalancedObject(text: string, start: number): string | null {
   let depth = 0;
   let inString = false;
@@ -96,6 +138,12 @@ function findBalancedObject(text: string, start: number): string | null {
   return null;
 }
 
+/**
+ * Finds the first substring of `text` that is a balanced JSON object and parses as valid JSON.
+ *
+ * @param text - The string to search for a JSON object
+ * @returns The first substring (including its surrounding braces) that parses as a JSON object, or `null` if none is found
+ */
 export function extractFirstJsonObject(text: string): string | null {
   for (let i = 0; i < text.length; i++) {
     if (text[i] !== "{") {
@@ -118,6 +166,13 @@ export function extractFirstJsonObject(text: string): string | null {
   return null;
 }
 
+/**
+ * Create the model input payload containing `candidate` and `job` fields used for tailored resume generation.
+ *
+ * @param profile - Candidate profile: used to populate candidate metadata (current title, experience, location, skills, industries, target roles, education) and a mapped `workExperience` array (company, title, start/end dates with `"Present"` for current roles, and responsibilities).
+ * @param job - Saved job data: used to populate job fields including title, company, visible role text (aboutRole, responsibilities, requirements, niceToHave), and skill lists (`matchedSkills`, `missingSkills`). A `descriptionNote` is included to indicate saved job text may be a snippet.
+ * @returns The payload object with `candidate` and `job` properties matching the model's expected input shape for prompt construction.
+ */
 export function buildTailoredResumeInput(
   profile: Profile,
   job: TailoredResumeJob,
@@ -156,6 +211,14 @@ export function buildTailoredResumeInput(
   };
 }
 
+/**
+ * Builds the instruction prompt that requests a strictly formatted, job‑tailored resume JSON for the given candidate.
+ *
+ * The prompt embeds structured candidate and job input and enumerates rules the model must follow (required JSON shape, grounding constraints, forbidden terms, role/bullet counts, and style requirements).
+ *
+ * @param profile - Candidate profile used to populate the prompt (work history, skills, education, etc.)
+ * @param job - Saved job details used to tailor output and determine forbidden/missing skills
+ * @returns The complete instruction string to send to the model, which directs it to return only a valid JSON object with `professionalSummary` and `roles` in the exact prescribed shape.
 export function buildTailoredResumePrompt(
   profile: Profile,
   job: TailoredResumeJob,
@@ -187,6 +250,17 @@ Rules:
 - Keep wording direct, plain, and suitable for a single-column resume.`;
 }
 
+/**
+ * Validate and normalize a parsed model response into TailoredResumeContent.
+ *
+ * @param raw - The parsed JSON value produced by the model; expected to be an object containing `professionalSummary` and `roles`.
+ * @param options - Sanitization options including `roleCount` (number of roles to extract) and optional `forbiddenTerms` to filter out.
+ * @returns A normalized object with `professionalSummary` (cleaned string) and `roles` (array of objects each with `bullets` limited and normalized).
+ * @throws Error - If `raw` is not an object.
+ * @throws Error - If `professionalSummary` is missing or empty.
+ * @throws Error - If `professionalSummary` contains any forbidden term.
+ * @throws Error - If any role does not contain at least the required number of bullets (minimum enforced per role).
+ */
 export function sanitizeTailoredResumeContent(
   raw: unknown,
   options: SanitizerOptions,
@@ -239,6 +313,14 @@ export function sanitizeTailoredResumeContent(
   return { professionalSummary, roles };
 }
 
+/**
+ * Generates tailored resume content (professional summary and role bullets) for a candidate and a saved job by calling the AI content generator and sanitizing the response.
+ *
+ * @param profile - Candidate profile used to ground the generated content and determine expected role count
+ * @param job - Saved job data used to guide role-specific bullets and forbidden terms filtering
+ * @returns A TailoredResumeContent object containing `professionalSummary` and an array of role entries with `bullets`
+ * @throws Error if the model response contains no parseable JSON or if the sanitized content fails validation
+ */
 export async function generateTailoredResumeContent({
   profile,
   job,

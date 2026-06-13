@@ -20,6 +20,12 @@ type TailoredResumeDownloadRow = {
   expires_at: string;
 };
 
+/**
+ * Serve the latest unexpired tailored resume PDF for the specified job when the requester is authorized.
+ *
+ * @param params - Route parameters promise resolving to an object containing `id`, the job identifier to fetch the tailored resume for
+ * @returns An HTTP response containing the PDF file when successful; otherwise a JSON error object with an appropriate HTTP status
+ */
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const user = await getCurrentUser();

@@ -57,11 +57,24 @@ type Props = {
   content: TailoredResumeContent;
 };
 
+/**
+ * Build a display date range for a work role.
+ *
+ * @param role - The work experience entry whose start/end dates are formatted
+ * @returns A string combining available `startDate` and `endDate` separated by ` - `. If `role.currentlyWorking` is truthy the end value is `Present`. Missing dates are omitted (empty string if both are absent).
+ */
 function formatDates(role: WorkExperience): string {
   const end = role.currentlyWorking ? "Present" : role.endDate;
   return [role.startDate, end].filter(Boolean).join(" - ");
 }
 
+/**
+ * Render a React-PDF resume Document for the given profile and tailored content.
+ *
+ * @param profile - Profile data (name, contact, skills, work experience, education) used to populate the resume
+ * @param content - Tailored resume content (professional summary and role-specific bullets)
+ * @returns A React-PDF Document element containing the formatted, printable resume
+ */
 function TailoredResumeDocument({ profile, content }: Props): ReactElement {
   const contact = [profile.email, profile.phone, profile.location]
     .filter(Boolean)
@@ -132,6 +145,12 @@ function TailoredResumeDocument({ profile, content }: Props): ReactElement {
   );
 }
 
+/**
+ * Create a React-PDF Document element that renders a tailored resume.
+ *
+ * @param props - Component props containing `profile` (personal details) and `content` (tailored resume sections)
+ * @returns A ReactElement representing a React-PDF `Document` configured with the provided profile and tailored content
+ */
 export function buildTailoredResumeDocument(
   props: Props,
 ): ReactElement<DocumentProps> {

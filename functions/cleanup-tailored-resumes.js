@@ -1,6 +1,11 @@
 const BUCKET = "tailored-resumes";
 const DEFAULT_BASE_URL = "https://wgg8j33p.us-east.insforge.app";
 
+/**
+ * Retrieve the value of an environment variable by name.
+ * @param {string} name - The environment variable name to read.
+ * @returns {string|undefined} The environment variable's value if present, otherwise `undefined`.
+ */
 function env(name) {
   if (typeof Deno !== "undefined") {
     return Deno.env.get(name);
@@ -13,6 +18,11 @@ function env(name) {
   return undefined;
 }
 
+/**
+ * Extracts a Bearer token from the request Authorization header.
+ * @param {Request} request - HTTP request whose `Authorization` header will be inspected.
+ * @returns {string} The token value if the `Authorization` header starts with `Bearer ` (case-insensitive), otherwise an empty string.
+ */
 function bearerToken(request) {
   const header = request.headers.get("authorization") ?? "";
   return header.toLowerCase().startsWith("bearer ")
@@ -20,6 +30,12 @@ function bearerToken(request) {
     : "";
 }
 
+/**
+ * Create an HTTP Response whose body is the JSON serialization of the given payload and with Content-Type set to application/json.
+ * @param {*} payload - Value to serialize as JSON for the response body.
+ * @param {number} [status=200] - HTTP status code to use for the response.
+ * @return {Response} The constructed Response containing the JSON body and headers.
+ */
 function json(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
@@ -27,6 +43,11 @@ function json(payload, status = 200) {
   });
 }
 
+/**
+ * Select the API key used for cleanup operations from environment variables, checking keys in priority order.
+ *
+ * @returns {string|undefined} The first non-empty value found from `TAILORED_RESUME_CLEANUP_API_KEY`, `INSFORGE_API_KEY`, `INSFORGE_ADMIN_API_KEY`, or `API_KEY`, or `undefined` if none are configured.
+ */
 function cleanupApiKey() {
   return (
     env("TAILORED_RESUME_CLEANUP_API_KEY") ||
@@ -36,11 +57,23 @@ function cleanupApiKey() {
   );
 }
 
+/**
+ * Check whether the request provides a Bearer token that exactly matches the configured cleanup API key.
+ * @param {Request} request - Incoming HTTP request whose `Authorization` header is inspected for a Bearer token.
+ * @param {string|undefined} apiKey - Expected API key to validate against; if not set, authorization fails.
+ * @returns {boolean} `true` if `apiKey` is set and the request's Bearer token exactly equals `apiKey`, `false` otherwise.
+ */
 function isAuthorizedCleanupRequest(request, apiKey) {
   const provided = bearerToken(request);
   return Boolean(apiKey && provided && provided === apiKey);
 }
 
+/**
+ * Create and return an InSForge admin client configured for cleanup operations.
+ * @param {string} apiKey - API key used to authenticate the admin client.
+ * @returns {import('@insforge/sdk').AdminClient} The configured admin client.
+ * @throws {Error} If `apiKey` is not provided.
+ */
 async function createAdminClientForCleanup(apiKey) {
   if (!apiKey) {
     throw new Error("INSFORGE_API_KEY is not configured.");

@@ -47,15 +47,34 @@ type RemovableStorageBucket = {
   remove(path: string): Promise<{ error: unknown }>;
 };
 
+/**
+ * Return a trimmed string or a fallback when the input is missing or empty.
+ *
+ * @param value - The input string to trim; may be `null` or `undefined`
+ * @param fallback - Value to return when `value` is `null`, `undefined`, or empty after trimming
+ * @returns The trimmed `value` if it contains characters, otherwise `fallback`
+ */
 function cleanText(value: string | null | undefined, fallback = ""): string {
   const text = value?.trim();
   return text ? text : fallback;
 }
 
+/**
+ * Normalizes a list of strings by trimming each entry and removing empty values.
+ *
+ * @param value - The input array; `null` or `undefined` are treated as an empty array
+ * @returns An array containing trimmed, non-empty strings from the input
+ */
 function cleanList(value: string[] | null | undefined): string[] {
   return (value ?? []).map((item) => item.trim()).filter(Boolean);
 }
 
+/**
+ * Convert a TailoredResumeJobRow from the database into a normalized TailoredResumeJob used for tailored resume generation.
+ *
+ * @param row - The database row containing job fields (snake_case) and optional lists
+ * @returns A TailoredResumeJob where text fields are trimmed with sensible defaults for title and company, and list fields are cleaned and normalized to arrays of strings
+ */
 function mapJobRowToTailoredResumeJob(
   row: TailoredResumeJobRow,
 ): TailoredResumeJob {
@@ -72,6 +91,12 @@ function mapJobRowToTailoredResumeJob(
   };
 }
 
+/**
+ * Remove a tailored resume file from the provided storage bucket.
+ *
+ * @param key - The storage key or path of the file to remove
+ * @returns An object `{ error }` where `error` contains the removal error if the operation failed, or `undefined`/`null` when successful
+ */
 async function removeTailoredResumeFile(
   bucket: RemovableStorageBucket,
   key: string,
@@ -79,6 +104,13 @@ async function removeTailoredResumeFile(
   return bucket.remove(key);
 }
 
+/**
+ * Handle POST requests to generate, store, and register a tailored resume PDF for the authenticated user.
+ *
+ * @param _request - Incoming Request object (unused)
+ * @param params - Route context whose `params` promise resolves to an object containing the job `id`
+ * @returns JSON response: on success `{ success: true, data: { resumeId, downloadUrl, expiresAt } }`; on failure `{ success: false, error }` with an appropriate HTTP status code
+ */
 export async function POST(_request: Request, { params }: RouteContext) {
   try {
     const user = await getCurrentUser();

@@ -27,6 +27,14 @@ type TailoredResumeResult = {
   expiresAt: string;
 };
 
+/**
+ * Renders an 18x18 SVG document icon used as a decorative visual indicator.
+ *
+ * The SVG is marked as decorative (`aria-hidden="true"`) and is intended for use
+ * in UI elements that represent a document or resume.
+ *
+ * @returns A React element containing the document SVG
+ */
 function DocumentIcon(): ReactElement {
   return (
     <svg
@@ -54,6 +62,11 @@ function DocumentIcon(): ReactElement {
   );
 }
 
+/**
+ * Renders a decorative "generate" SVG icon used to indicate generation actions.
+ *
+ * @returns An SVG React element representing a generate/action icon. The SVG is decorative and marked with `aria-hidden="true"`.
+ */
 function GenerateIcon(): ReactElement {
   return (
     <svg
@@ -75,6 +88,11 @@ function GenerateIcon(): ReactElement {
   );
 }
 
+/**
+ * Renders an inline SVG download icon.
+ *
+ * @returns An SVG React element representing a 16×16 download icon with accessible hidden state (`aria-hidden="true"`).
+ */
 function DownloadIcon(): ReactElement {
   return (
     <svg
@@ -96,6 +114,11 @@ function DownloadIcon(): ReactElement {
   );
 }
 
+/**
+ * Renders an animated spinner SVG used to indicate loading or in-progress states.
+ *
+ * @returns A 16×16 SVG ReactElement representing a spinning circle (visual only, `aria-hidden="true"`).
+ */
 function SpinnerIcon(): ReactElement {
   return (
     <svg
@@ -125,6 +148,13 @@ function SpinnerIcon(): ReactElement {
   );
 }
 
+/**
+ * Safely retrieves a property from `value` when `value` is a non-null object.
+ *
+ * @param value - The value to read the property from.
+ * @param key - The property key to read.
+ * @returns The property value at `key` if `value` is an object, `undefined` otherwise.
+ */
 function valueFor(value: unknown, key: string): unknown {
   if (!value || typeof value !== "object") {
     return undefined;
@@ -133,6 +163,12 @@ function valueFor(value: unknown, key: string): unknown {
   return Reflect.get(value, key);
 }
 
+/**
+ * Extracts a user-facing error message from an API payload.
+ *
+ * @param payload - The parsed response payload to read an `error` message from.
+ * @returns The trimmed `error` string from `payload` when present and non-empty, otherwise a generic tailored-resume failure message.
+ */
 function errorFromPayload(payload: unknown): string {
   const error = valueFor(payload, "error");
   return typeof error === "string" && error.trim()
@@ -140,6 +176,12 @@ function errorFromPayload(payload: unknown): string {
     : "Could not generate a tailored resume. Please try again.";
 }
 
+/**
+ * Extracts the `downloadUrl` and `expiresAt` fields from an API response payload.
+ *
+ * @param payload - The parsed API response payload (expected to contain a `data` object)
+ * @returns A `TailoredResumeResult` containing `downloadUrl` and `expiresAt` when both are strings, `null` otherwise
+ */
 function resultFromPayload(payload: unknown): TailoredResumeResult | null {
   const data = valueFor(payload, "data");
   const downloadUrl = valueFor(data, "downloadUrl");
@@ -152,6 +194,12 @@ function resultFromPayload(payload: unknown): TailoredResumeResult | null {
   return { downloadUrl, expiresAt };
 }
 
+/**
+ * Format an ISO date/time string into a short U.S. date (e.g., "Jan 2, 2006").
+ *
+ * @param value - An ISO date/time string or `null`; empty or invalid values produce an empty string
+ * @returns The formatted date like `"Jan 2, 2006"`, or `""` if `value` is null, empty, or not a valid date
+ */
 function formatDate(value: string | null): string {
   if (!value) {
     return "";
@@ -169,6 +217,15 @@ function formatDate(value: string | null): string {
   });
 }
 
+/**
+ * Renders a card that lets the user generate and download a tailored resume for a specific job.
+ *
+ * Displays generate/download controls, progress/error states, and an expiry notice for the generated file.
+ *
+ * @param jobId - The identifier of the job for which to generate a tailored resume.
+ * @param initialState - Initial status and optional existing download URL and expiry for a previously generated resume.
+ * @returns A React element containing the Tailored Resume UI.
+ */
 export function TailoredResumeAction({
   jobId,
   initialState,

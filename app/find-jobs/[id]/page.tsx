@@ -121,6 +121,12 @@ function companyResearchForDisplay(
   return parseCompanyResearchDossier(row.company_research);
 }
 
+/**
+ * Convert a raw job database row into a normalized, display-ready JobDetails object.
+ *
+ * @param row - Raw job row from the database (may contain nullable fields and unparsed company research)
+ * @returns A JobDetails object with trimmed text, normalized lists, formatted job type and date, clamped match score, resolved post URL, parsed company research (or `null`), and sensible defaults for missing values
+ */
 function mapJobRowToDetails(row: JobDetailsRow): JobDetails {
   const description = cleanText(row.about_role, "");
 
@@ -149,6 +155,16 @@ function mapJobRowToDetails(row: JobDetailsRow): JobDetails {
   };
 }
 
+/**
+ * Derives the initial UI state for a job's tailored-resume flow from the most recent tailored_resumes row.
+ *
+ * @param jobId - The job's id used to build the download URL when a ready resume is available.
+ * @param row - The latest `tailored_resumes` row for the job, or `null` if none exists; `row.expires_at` is expected to be an ISO timestamp string.
+ * @returns The initial `TailoredResumeInitialState`:
+ * - `status: "idle"` when no row or no `expires_at` is present.
+ * - `status: "expired"` when `expires_at` is invalid or represents a past time; `expiresAt` contains the original string.
+ * - `status: "ready"` when `expires_at` is a future time; `downloadUrl` is set to `/api/jobs/{jobId}/tailored-resume/download` and `expiresAt` contains the original string.
+ */
 function mapTailoredResumeInitialState(
   jobId: string,
   row: TailoredResumeRow | null,
@@ -169,6 +185,11 @@ function mapTailoredResumeInitialState(
   };
 }
 
+/**
+ * Render a small left-pointing chevron SVG for use as a back icon.
+ *
+ * @returns A 16x16 ReactElement containing a decorative chevron SVG with `aria-hidden="true"`.
+ */
 function BackIcon(): ReactElement {
   return (
     <svg
@@ -190,6 +211,12 @@ function BackIcon(): ReactElement {
   );
 }
 
+/**
+ * Render the job details page for the authenticated user, including job metadata, match scoring, company research, and tailored-resume state.
+ *
+ * @param params - Route parameters object; expects an `id` property for the job record
+ * @returns The React element for the job details page
+ */
 export default async function JobDetailsPage({
   params,
 }: {
