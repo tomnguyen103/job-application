@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildFallbackProfessionalSummary,
   buildTailoredResumeInput,
   buildTailoredResumePrompt,
   extractFirstJsonObject,
@@ -141,6 +142,33 @@ test("sanitizeTailoredResumeContent rejects missing-skill claims in summary", ()
       ),
     /missing skill/,
   );
+});
+
+test("sanitizeTailoredResumeContent repairs summary with safe fallback", () => {
+  const fallback = buildFallbackProfessionalSummary(profile, job);
+  const content = sanitizeTailoredResumeContent(
+    {
+      professionalSummary:
+        "Frontend Engineer with React, TypeScript, and AWS experience.",
+      roles: [
+        {
+          bullets: [
+            "Built React interfaces",
+            "Supported TypeScript application workflows",
+          ],
+        },
+      ],
+    },
+    {
+      roleCount: 1,
+      forbiddenTerms: job.missingSkills,
+      fallbackProfessionalSummary: fallback,
+    },
+  );
+
+  assert.equal(content.professionalSummary, fallback);
+  assert.doesNotMatch(content.professionalSummary, /\bAWS\b/i);
+  assert.doesNotMatch(content.professionalSummary, /\bGraphQL\b/i);
 });
 
 test("sanitizeTailoredResumeContent requires bullets for every profile role", () => {

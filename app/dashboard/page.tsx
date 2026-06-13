@@ -6,6 +6,7 @@ import { MatchDistributionChart } from "@/components/dashboard/MatchDistribution
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import type { ActivityEntry } from "@/components/dashboard/RecentActivity";
 import { ResearchActivityChart } from "@/components/dashboard/ResearchActivityChart";
+import { SkillGapInsights } from "@/components/dashboard/SkillGapInsights";
 import {
   DASHBOARD_STAT_LABELS,
   StatsBar,
@@ -31,6 +32,14 @@ import {
   type DashboardJobStatRow,
 } from "@/lib/dashboard-stats";
 import {
+  buildSkillGapInsights,
+  buildTodayActions,
+  type EngagementJob,
+  type EngagementTailoredResume,
+  type SkillGapInsight,
+  type TodayAction,
+} from "@/lib/engagement-insights";
+import {
   createInsforgeServer,
   requireCurrentUser,
 } from "@/lib/insforge-server";
@@ -40,6 +49,21 @@ export const dynamic = "force-dynamic";
 
 type ProfileCompletionRow = {
   is_complete: boolean | null;
+  resume_pdf_url: string | null;
+};
+
+type DashboardEngagementJobRow = {
+  id: string;
+  title: string | null;
+  company: string | null;
+  match_score: number | null;
+  missing_skills: string[] | null;
+  researched_at: string | null;
+};
+
+type DashboardTailoredResumeRow = {
+  job_id: string | null;
+  expires_at: string | null;
 };
 
 function buildStats(values: {
@@ -81,6 +105,40 @@ function chartYAxis(points: { count: number }[]): YAxisConfig {
   );
 }
 
+function clampScore(score: number | null): number {
+  if (score === null || !Number.isFinite(score)) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, Math.round(score)));
+}
+
+function mapEngagementJobRow(row: DashboardEngagementJobRow): EngagementJob {
+  return {
+    id: row.id,
+    title: row.title?.trim() || "Untitled role",
+    company: row.company?.trim() || "Unknown company",
+    matchScore: clampScore(row.match_score),
+    missingSkills: (row.missing_skills ?? [])
+      .map((skill) => skill.trim())
+      .filter(Boolean),
+    researchedAt: row.researched_at,
+  };
+}
+
+function mapTailoredResumeRow(
+  row: DashboardTailoredResumeRow,
+): EngagementTailoredResume | null {
+  if (!row.job_id) {
+    return null;
+  }
+
+  return {
+    jobId: row.job_id,
+    expiresAt: row.expires_at,
+  };
+}
+
 export default async function DashboardPage(): Promise<ReactElement> {
   const user = await requireCurrentUser();
   const insforge = await createInsforgeServer();
@@ -92,13 +150,15 @@ export default async function DashboardPage(): Promise<ReactElement> {
     unresearchedResult,
     runsResult,
     researchedResult,
+    engagementJobsResult,
+    tailoredResumesResult,
     jobsOverTimeResult,
     matchDistributionResult,
     researchActivityResult,
   ] = await Promise.all([
     insforge.database
       .from("profiles")
-      .select("is_complete")
+      .select("is_complete, resume_pdf_url")
       .eq("id", user.id)
       .maybeSingle(),
     insforge.database
@@ -129,19 +189,35 @@ export default async function DashboardPage(): Promise<ReactElement> {
       .or("researched_at.not.is.null")
       .order("researched_at", { ascending: false })
       .limit(5),
+    insforge.database
+      .from("jobs")
+      .select("id, title, company, match_score, missing_skills, researched_at")
+      .eq("user_id", user.id)
+      .order("match_score", { ascending: false })
+      .limit(20),
+    insforge.database
+      .from("tailored_resumes")
+      .select("job_id, expires_at")
+      .eq("user_id", user.id)
+      .order("generated_at", { ascending: false })
+      .limit(50),
     fetchJobsOverTime(user.id, now),
     fetchMatchDistribution(user.id),
     fetchResearchActivity(user.id, now),
   ]);
 
-  if (profileResult.error) {
+  const profileLoadFailed = Boolean(profileResult.error);
+
+  if (profileLoadFailed) {
     console.error("[dashboard] profile read error:", profileResult.error);
   }
 
   // Boundary assertion on the SDK row shape, column selected above.
   const profileRow = (profileResult.data ?? null) as ProfileCompletionRow | null;
-  const showIncompleteProfileBanner =
-    !profileResult.error && profileRow?.is_complete !== true;
+  const profileComplete =
+    !profileLoadFailed && profileRow?.is_complete === true;
+  const showIncompleteProfileBanner = !profileLoadFailed && !profileComplete;
+  const hasResume = !profileLoadFailed && Boolean(profileRow?.resume_pdf_url);
 
   const statsLoadFailed =
     Boolean(jobsResult.error) || Boolean(unresearchedResult.error);
@@ -201,6 +277,51 @@ export default async function DashboardPage(): Promise<ReactElement> {
     }));
   }
 
+  const engagementJobsLoadFailed = Boolean(engagementJobsResult.error);
+  const tailoredResumesLoadFailed = Boolean(tailoredResumesResult.error);
+  const todayActionsLoadFailed =
+    profileLoadFailed || engagementJobsLoadFailed || tailoredResumesLoadFailed;
+
+  let todayActions: TodayAction[] = [];
+  let skillGapInsights: SkillGapInsight[] = [];
+
+  if (engagementJobsLoadFailed) {
+    console.error(
+      "[dashboard] engagement jobs read error:",
+      engagementJobsResult.error,
+    );
+  } else {
+    // Boundary assertions on the SDK row shapes, columns selected above.
+    const engagementJobs = (
+      engagementJobsResult.data ?? []
+    ).map((row) => mapEngagementJobRow(row as DashboardEngagementJobRow));
+
+    skillGapInsights = buildSkillGapInsights(engagementJobs);
+
+    if (tailoredResumesLoadFailed) {
+      console.error(
+        "[dashboard] tailored resume engagement read error:",
+        tailoredResumesResult.error,
+      );
+    } else if (!profileLoadFailed) {
+      const tailoredResumes = (tailoredResumesResult.data ?? [])
+        .map((row) =>
+          mapTailoredResumeRow(row as DashboardTailoredResumeRow),
+        )
+        .filter(
+          (resume): resume is EngagementTailoredResume => resume !== null,
+        );
+
+      todayActions = buildTodayActions({
+        profileComplete,
+        hasResume,
+        jobs: engagementJobs,
+        tailoredResumes,
+        now,
+      });
+    }
+  }
+
   // Charts render real data only when at least one bucket is non-zero;
   // a null fetch result (query/config failure) shows the error message
   // and an all-zero result falls back to each chart's no-data default.
@@ -220,11 +341,18 @@ export default async function DashboardPage(): Promise<ReactElement> {
       <section className="mx-auto w-full max-w-[1280px] px-6 py-8 lg:px-0">
         <div className="flex flex-col gap-6">
           <TodayWorkspace
-            profileComplete={!showIncompleteProfileBanner}
+            profileComplete={profileComplete}
+            profileLoadFailed={profileLoadFailed}
             stats={stats}
+            actions={todayActions}
+            actionsLoadFailed={todayActionsLoadFailed}
           />
           {showIncompleteProfileBanner ? <IncompleteProfileBanner /> : null}
           <StatsBar stats={stats} />
+          <SkillGapInsights
+            insights={skillGapInsights}
+            loadFailed={engagementJobsLoadFailed}
+          />
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <RecentActivity
               entries={activityEntries}

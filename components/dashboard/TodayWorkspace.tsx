@@ -6,27 +6,49 @@ import {
   type DashboardStat,
   type DashboardStatLabel,
 } from "@/components/dashboard/StatsBar";
+import type { TodayAction, TodayActionTone } from "@/lib/engagement-insights";
 
 type Props = {
   profileComplete: boolean;
+  profileLoadFailed?: boolean;
   stats: DashboardStat[];
+  actions: TodayAction[];
+  actionsLoadFailed?: boolean;
 };
 
 function getStatValue(stats: DashboardStat[], label: DashboardStatLabel): string {
   return stats.find((stat) => stat.label === label)?.value ?? "-";
 }
 
+function actionToneClass(tone: TodayActionTone): string {
+  if (tone === "info") {
+    return "bg-info-lightest text-info-foreground";
+  }
+
+  if (tone === "success") {
+    return "bg-success-lightest text-success-foreground";
+  }
+
+  return "bg-accent-muted text-accent";
+}
+
 export function TodayWorkspace({
   profileComplete,
+  profileLoadFailed = false,
   stats,
+  actions,
+  actionsLoadFailed = false,
 }: Props): ReactElement {
   const totalJobs = getStatValue(stats, DASHBOARD_STAT_LABELS.TOTAL_JOBS);
   const averageMatch = getStatValue(stats, DASHBOARD_STAT_LABELS.AVG_MATCH);
-  const researchedCompanies = getStatValue(
-    stats,
-    DASHBOARD_STAT_LABELS.COMPANIES,
-  );
   const jobsThisWeek = getStatValue(stats, DASHBOARD_STAT_LABELS.JOBS_WEEK);
+  const primaryActionHref =
+    profileComplete || profileLoadFailed ? "/find-jobs" : "/profile";
+  const primaryActionLabel = profileComplete
+    ? "Find jobs"
+    : profileLoadFailed
+      ? "Find jobs"
+      : "Complete profile";
 
   return (
     <section className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
@@ -44,10 +66,10 @@ export function TodayWorkspace({
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <Link
-              href={profileComplete ? "/find-jobs" : "/profile"}
+              href={primaryActionHref}
               className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark"
             >
-              {profileComplete ? "Find jobs" : "Complete profile"}
+              {primaryActionLabel}
             </Link>
             <Link
               href="/find-jobs"
@@ -58,35 +80,63 @@ export function TodayWorkspace({
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-md border border-border bg-surface-glass p-4">
+        <div className="rounded-md border border-border bg-surface-glass p-4">
           <div className="flex items-center justify-between gap-4 border-b border-border pb-3">
-            <span className="text-sm font-medium leading-5 text-text-secondary">
-              Jobs this week
-            </span>
-            <span className="text-xl font-semibold leading-7 text-text-primary">
-              {jobsThisWeek}
+            <div>
+              <p className="text-sm font-semibold leading-5 text-text-primary">
+                Next moves
+              </p>
+              <p className="mt-1 text-xs font-medium leading-4 text-text-secondary">
+                Based on your saved jobs and resume state.
+              </p>
+            </div>
+            <span className="rounded-full bg-accent-muted px-3 py-1 text-xs font-semibold leading-4 text-accent">
+              {jobsThisWeek} this week
             </span>
           </div>
-          <div className="flex items-center justify-between gap-4 border-b border-border pb-3">
-            <span className="text-sm font-medium leading-5 text-text-secondary">
-              Average match
-            </span>
-            <span className="text-xl font-semibold leading-7 text-text-primary">
-              {averageMatch}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm font-medium leading-5 text-text-secondary">
+
+          {actionsLoadFailed ? (
+            <p className="py-8 text-sm font-medium leading-5 text-text-secondary">
+              Could not load suggested actions. The rest of your dashboard is
+              still available.
+            </p>
+          ) : (
+            <ul className="mt-4 grid gap-3">
+              {actions.map((action) => (
+                <li key={action.id}>
+                  <Link
+                    href={action.href}
+                    className="block rounded-md border border-border bg-surface px-4 py-3 transition-colors hover:border-accent hover:bg-surface-secondary"
+                  >
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold leading-4 ${actionToneClass(action.tone)}`}
+                    >
+                      {action.label}
+                    </span>
+                    <span className="mt-3 block text-sm font-semibold leading-5 text-text-primary">
+                      {action.title}
+                    </span>
+                    <span className="mt-1 block text-xs font-medium leading-5 text-text-secondary">
+                      {action.detail}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm font-medium leading-5 text-text-secondary">
             <div className="rounded-md bg-surface px-3 py-3">
               <span className="block text-lg font-semibold leading-6 text-text-primary">
                 {totalJobs}
               </span>
-              jobs found
+              jobs saved
             </div>
             <div className="rounded-md bg-surface px-3 py-3">
               <span className="block text-lg font-semibold leading-6 text-text-primary">
-                {researchedCompanies}
+                {averageMatch}
               </span>
-              researched
+              avg match
             </div>
           </div>
         </div>
