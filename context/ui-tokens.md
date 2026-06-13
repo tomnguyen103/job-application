@@ -180,11 +180,14 @@ Match score bars and indicators use gradient stops based on score range:
 
 ### Status Badges
 
-| Status     | Background             | Text                      |
-| ---------- | ---------------------- | ------------------------- |
-| Tailored   | `bg-accent-light`      | `text-accent`             |
-| High Match | `bg-success-lightest`  | `text-success-foreground` |
-| Low Match  | `bg-surface-secondary` | `text-text-secondary`     |
+| Status       | Background             | Text                      |
+| ------------ | ---------------------- | ------------------------- |
+| Tailored     | `bg-accent-light`      | `text-accent`             |
+| Resume ready | `bg-success-lightest`  | `text-success-foreground` |
+| High Match   | `bg-success-lightest`  | `text-success-foreground` |
+| Low Match    | `bg-surface-secondary` | `text-text-secondary`     |
+
+Tailored resume actions reuse existing tokens only: `bg-accent` for Generate, `border-border bg-surface` for Download/secondary actions, `text-success` for ready copy, and `text-error` for failures.
 
 ---
 

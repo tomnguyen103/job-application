@@ -106,7 +106,7 @@ Wire profile form to InsForge DB.
 **Logic:**
 
 - Server Action in actions/profile.ts saves all form fields to profiles table
-- Resume PDF uploaded to InsForge Storage at resumes/{user_id}/resume.pdf with upsert: true
+- Resume PDF uploaded to InsForge Storage at resumes/{user_id}/resume.pdf with remove-then-upload
 - resume_pdf_url saved to profiles table after upload
 - is_complete set to true when all required fields are filled
 - Completion percentage and missing fields calculated and saved
@@ -149,7 +149,7 @@ Generate a clean professional PDF resume from current profile data using Gemini 
   - Polished work experience bullet points
   - Clean professional language throughout
 - @react-pdf/renderer renders Gemini 2.5-flash output into clean single-page PDF using renderToBuffer()
-- Buffer uploaded to InsForge Storage at resumes/{user_id}/resume.pdf with upsert: true
+- Buffer uploaded to InsForge Storage at resumes/{user_id}/resume.pdf with remove-then-upload
 - resume_pdf_url updated in profiles table
 
 ---
@@ -259,10 +259,9 @@ Agent researches the company using their public website and builds a structured 
   **Stagehand homepage extraction:**
 
 ```typescript
-const homepage = await stagehand.extract({
-  instruction:
-    "This is a company's homepage. Capture what the company actually does, who it's for, and any concrete signals (funding, customers, scale, mission, recent launches). Then find the internal links most worth visiting to research them as an employer.",
-  schema: z.object({
+const homepage = await stagehand.extract(
+  "This is a company's homepage. Capture what the company actually does, who it's for, and any concrete signals (funding, customers, scale, mission, recent launches). Then find the internal links most worth visiting to research them as an employer.",
+  z.object({
     oneLiner: z.string().describe("What the company does in one sentence"),
     productSummary: z
       .string()
@@ -287,7 +286,8 @@ const homepage = await stagehand.extract({
       )
       .describe("Internal links worth visiting"),
   }),
-});
+  { timeout: 30_000, serverCache: false },
+);
 ```
 
 If oneLiner and productSummary are empty — bail to synthesis with job description and profile only.
@@ -295,10 +295,9 @@ If oneLiner and productSummary are empty — bail to synthesis with job descript
 **Stagehand sub-page extraction (max 3 pages — prefer about/blog/engineering/product over careers):**
 
 ```typescript
-const page = await stagehand.extract({
-  instruction:
-    "Extract substance that helps a candidate understand this company before applying: what they do, their values and how they work, the specific technologies and tools they use, notable projects or customers, and how the team operates. Ignore nav, footers, cookie banners, and generic marketing copy.",
-  schema: z.object({
+const page = await stagehand.extract(
+  "Extract substance that helps a candidate understand this company before applying: what they do, their values and how they work, the specific technologies and tools they use, notable projects or customers, and how the team operates. Ignore nav, footers, cookie banners, and generic marketing copy.",
+  z.object({
     keyPoints: z.array(z.string()),
     technologies: z
       .array(z.string())
@@ -310,7 +309,8 @@ const page = await stagehand.extract({
       .array(z.string())
       .describe("Customers, funding, scale, projects, awards"),
   }),
-});
+  { timeout: 30_000, serverCache: false },
+);
 ```
 
 - Close Browserbase session after homepage + max 3 sub-pages
@@ -444,13 +444,56 @@ Wire three dashboard charts to real PostHog event data for current user.
 
 ---
 
+## Phase 6 — Tailored Resume
+
+### 18 Job-Tailored Resume Agent
+
+Generate a temporary ATS-friendly resume PDF from the job details page, tailored to the selected saved job and the user's saved profile. The Profile page Generate Resume button remains unchanged.
+
+**UI:**
+
+- Job details page shows Generate Tailored Resume near Apply Now
+- Button has idle, generating, ready/download, expired, and error states
+- Download Tailored Resume opens the latest unexpired tailored PDF
+- Inline copy explains the file expires after 15 days
+- Existing primary/secondary button patterns and feedback text styles reused
+
+**Logic:**
+
+- POST /api/jobs/[id]/tailored-resume
+- Load current user, selected jobs row scoped by id + user_id, and saved profile
+- Tailored resume agent uses title, company, about_role, responsibilities, requirements, nice_to_have, matched_skills, missing_skills, and profile data
+- Saved Adzuna description may be only a snippet — agent must not claim it saw the full posting
+- Agent prioritizes requirements and matched_skills, avoids claiming missing_skills, and never invents metrics, tools, employers, or achievements
+- @react-pdf/renderer renders ATS-simple PDF: standard headings, single column, no tables, no graphics, no headers/footers
+- Save PDF to tailored-resumes storage path with expires_at = generated_at + 15 days
+- GET /api/jobs/[id]/tailored-resume/download streams latest unexpired file for the current user
+
+**Backend:**
+
+- New tailored_resumes table with user_id, job_id, storage_key, authenticated storage_url, file_name, generated_at, expires_at
+- Owner-scoped RLS policies using auth.uid()
+- Separate private tailored-resumes storage bucket/prefix
+- Regenerating for the same job removes the previous tailored file and row for that user/job
+- Daily InsForge schedule calls cleanup function to delete expired storage objects, then expired rows
+
+**Verification:**
+
+- Unit tests for tailored agent sanitizer and job input shaping
+- Route tests for unauthorized access, inaccessible jobs, expired resume download, and latest unexpired resume
+- Cleanup tests for expired vs unexpired records
+- npm test, npm run lint, npm run build
+
+---
+
 ## Feature Count
 
-| Phase                 | Features |
-| --------------------- | -------- |
-| Phase 1 — Foundation  | 4        |
-| Phase 2 — Profile     | 4        |
-| Phase 3 — Find Jobs   | 3        |
-| Phase 4 — Job Details | 2        |
-| Phase 5 — Dashboard   | 4        |
-| **Total**             | **17**   |
+| Phase                     | Features |
+| ------------------------- | -------- |
+| Phase 1 — Foundation      | 4        |
+| Phase 2 — Profile         | 4        |
+| Phase 3 — Find Jobs       | 3        |
+| Phase 4 — Job Details     | 2        |
+| Phase 5 — Dashboard       | 4        |
+| Phase 6 — Tailored Resume | 1        |
+| **Total**                 | **18**   |

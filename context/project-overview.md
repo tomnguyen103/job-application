@@ -2,7 +2,7 @@
 
 ## About the Project
 
-JobApplication is a full stack AI-powered job hunting assistant. The user sets up their profile once, uploads their resume, and the agent automatically discovers relevant jobs from Adzuna — scoring each one against the user's profile using Gemini. For jobs they're interested in, the agent researches the company across their public web pages and builds a structured dossier — company overview, tech stack, culture, why the role exists, and interview prep. The user reviews everything and applies with one click.
+JobApplication is a full stack AI-powered job hunting assistant. The user sets up their profile once, uploads their resume, and the agent automatically discovers relevant jobs from Adzuna — scoring each one against the user's profile using Gemini 2.5 Flash. For jobs they're interested in, the agent researches the company across their public web pages and builds a structured dossier — company overview, tech stack, culture, why the role exists, and interview prep. The user reviews everything and applies with one click.
 
 The entire process is tracked on a dashboard with PostHog-powered analytics and a recent activity feed.
 
@@ -60,10 +60,11 @@ Full width layout on all pages. No sidebar.
 - User fills profile form — all standard resume fields
 - User uploads their existing resume PDF
 - Two options on upload:
-  - "Extract from Resume" → Gemini parses resume and auto-fills profile form fields
+  - "Extract from Resume" → Gemini 2.5 Flash parses resume and auto-fills profile form fields
   - "Skip" → resume stored as-is, profile unchanged
 - User can manually edit any profile field at any time
-- User can generate a clean professional PDF resume from their current profile data using Gemini
+- User can generate a clean professional PDF resume from their current profile data using Gemini 2.5 Flash
+- Job-specific resume generation happens only from a saved job's detail page, not from the profile page
 
 ### Finding Jobs — Adzuna Discovery
 
@@ -71,13 +72,13 @@ Full width layout on all pages. No sidebar.
 - Enters job title and location
 - Clicks Find Jobs button
 - Agent calls Adzuna API with user's search criteria
-- Gemini scores each job 0-100 against user profile
+- Gemini 2.5 Flash scores each job 0-100 against user profile
 - Jobs appear in the job list below
 - After search completes a message shows: "Found 8 jobs and saved 4 strong matches"
 
 ### Job Matching
 
-- Gemini scores each job 0-100 against user profile
+- Gemini 2.5 Flash scores each job 0-100 against user profile
 - Returns: score, match reason, matched skills array, missing skills array
 - All jobs visible in Find Jobs page regardless of score
 - High scoring jobs visually highlighted
@@ -98,11 +99,15 @@ Full width layout on all pages. No sidebar.
   - Visual score indicator
   - Matched skills — green tags
   - Missing skills — red tags
-  - Match reason paragraph from Gemini
+  - Match reason paragraph from Gemini 2.5 Flash
 - Company Research section:
   - Empty state with Research Company button
   - After research: structured dossier showing company overview, tech stack, culture, why this role exists, interview prep talking points
   - Powered by Browserbase + Stagehand browsing the company's public pages
+- Tailored Resume section:
+  - Generate Tailored Resume button uses the saved job description and the user's saved profile
+  - Generated PDF is saved temporarily for that job and expires after 15 days
+  - Download Tailored Resume opens the latest unexpired PDF
 - Apply Now button — opens external apply URL in new tab
 
 ### Company Research Flow
@@ -111,9 +116,9 @@ Full width layout on all pages. No sidebar.
 - Single Browserbase session opens with Stagehand
 - Agent navigates to company homepage — extracts overview, nav links, tech mentions
 - Agent visits About, Blog, Engineering pages if they exist
-- Gemini synthesizes all extracted content into structured dossier
+- Gemini 2.5 Flash synthesizes all extracted content into structured dossier
 - Dossier displayed on job details page
-- If company site cannot be found — Gemini generates best dossier from company name and job description alone
+- If company site cannot be found — Gemini 2.5 Flash generates best dossier from company name and job description alone
 
 ### Dashboard
 
@@ -156,6 +161,13 @@ Full width layout on all pages. No sidebar.
 - Generated per job when user clicks Research Company
 - Never affects profile data or match score
 
+### Tailored Resume Data
+
+- Stored in `tailored_resumes` table with InsForge Storage key + authenticated download route metadata
+- Generated per job when user clicks Generate Tailored Resume on the job details page
+- Expires after 15 days and is deleted from storage and database by scheduled cleanup
+- Never replaces the profile page's active base resume at `resumes/{user_id}/resume.pdf`
+
 ---
 
 ## Features In Scope
@@ -165,12 +177,13 @@ Full width layout on all pages. No sidebar.
 - InsForge authentication (Google + GitHub OAuth)
 - Redirect to dashboard after login
 - Profile form with all standard resume fields
-- Resume PDF upload with optional profile auto-fill via Gemini
-- Resume PDF generation from profile data using Gemini
+- Resume PDF upload with optional profile auto-fill via Gemini 2.5 Flash
+- Resume PDF generation from profile data using Gemini 2.5 Flash
+- Job-detail tailored resume generation with temporary 15-day PDF storage
 - Adzuna API job discovery — searches by title and location, category filtered to IT jobs
-- Gemini job matching with score, reason, matched skills, missing skills
+- Gemini 2.5 Flash job matching with score, reason, matched skills, missing skills
 - Job details page with full structured description
-- Company Research Agent — single Browserbase session browses company public pages, Gemini builds dossier
+- Company Research Agent — single Browserbase session browses company public pages, Gemini 2.5 Flash builds dossier
 - Find Jobs page with search controls, filter, sort dropdown, pagination
 - Dashboard with stats bar, recent activity, analytics charts
 - PostHog event tracking throughout
@@ -185,7 +198,6 @@ Full width layout on all pages. No sidebar.
 - Auto apply — agent does not fill or submit application forms
 - URL input for manual job import
 - Cover letter generation
-- Resume tailoring per job
 - Score recalculation after tailoring
 - Previous Job + Next Job navigation
 - Sidebar navigation — top navbar only
@@ -198,7 +210,7 @@ Full width layout on all pages. No sidebar.
 - Mobile app
 - Team or multi-user accounts
 - Scheduled agent runs — manually triggered only
-- Multiple saved resume versions — one active resume per user at a time
+- Persistent multiple base resume versions — one active profile resume per user at a time
 - Payment or subscription system
 - Browser extension
 
@@ -231,7 +243,7 @@ A developer or technical job seeker who:
 
 - User can sign up, fill profile, upload resume, and start finding jobs in under 5 minutes
 - Adzuna job discovery returns relevant tech jobs for any title and location search
-- Gemini match scores feel accurate and the reasoning makes sense
+- Gemini 2.5 Flash match scores feel accurate and the reasoning makes sense
 - Company Research Agent returns a useful dossier for well-known tech companies
 - Company Research Agent gracefully handles companies with minimal web presence
 - Job details page displays clean structured job information

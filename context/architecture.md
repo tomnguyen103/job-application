@@ -9,7 +9,7 @@
 | Cloud browser                  | Browserbase              | Company research — browsing company public pages |
 | AI browser control             | Stagehand                | Company page interaction and content extraction  |
 | Job Discovery                  | Adzuna API               | Job search and discovery                         |
-| AI model                       | Google Gemini 2.5-flash  | Matching, research synthesis, extraction         |
+| AI model                       | Gemini 2.5 Flash         | Matching, research synthesis, extraction, tailoring |
 | Analytics                      | PostHog                  | Event tracking and dashboard charts              |
 | PDF generation                 | @react-pdf/renderer      | Resume PDF rendering                             |
 | Styling                        | Tailwind CSS + shadcn/ui | UI components and styling                        |
@@ -57,11 +57,17 @@
 │       ├── resume/
 │       │   ├── generate/route.ts          → Generate base resume PDF from profile
 │       │   └── extract/route.ts           → Extract profile data from uploaded resume PDF
+│       └── jobs/
+│           └── [id]/
+│               └── tailored-resume/
+│                   ├── route.ts           → Generate job-tailored resume PDF
+│                   └── download/route.ts  → Download latest unexpired tailored resume
 ├── agent/
 │   ├── adzuna.ts                          → Adzuna API job discovery + Gemini scoring
 │   ├── research.ts                        → Company research — Browserbase + Stagehand + Gemini
 │   ├── matcher.ts                         → Gemini job matching logic
-│   ├── extractor.ts                       → Gemini job description extraction + structuring
+│   ├── extractor.ts                       → Gemini resume extraction + structuring
+│   ├── tailored-resume.ts                 → Job-tailored resume rewrite agent
 │   └── types.ts                           → Agent-specific TypeScript types
 ├── actions/
 │   ├── profile.ts                         → Profile save + update
@@ -119,7 +125,7 @@
 | Folder        | Owns                                                                                                   |
 | ------------- | ------------------------------------------------------------------------------------------------------ |
 | `app/`        | Pages and API routes only. No business logic.                                                          |
-| `agent/`      | All agent logic. Adzuna discovery, company research, matching, extraction. Nothing here touches React. |
+| `agent/`      | All agent logic. Adzuna discovery, company research, matching, extraction, tailored resumes. Nothing here touches React. |
 | `actions/`    | Server Actions for UI-triggered mutations only. Profile save, profile update.                          |
 | `components/` | UI only. No data fetching logic. No direct DB calls.                                                   |
 | `lib/`        | Third party client initialisation and shared utilities only.                                           |
@@ -152,7 +158,7 @@ Calls agent/adzuna.ts
         ↓
 Adzuna API returns job listings
         ↓
-Gemini scores each job against user profile
+Gemini 2.5 Flash scores each job against user profile
         ↓
 Agent writes results to InsForge DB
         ↓
@@ -172,7 +178,7 @@ Single Browserbase session opens with Stagehand
         ↓
 Navigates to company homepage + sub pages
         ↓
-Gemini synthesizes dossier from extracted content
+Gemini 2.5 Flash synthesizes dossier from extracted content
         ↓
 Dossier saved to jobs.company_research
         ↓
@@ -186,13 +192,33 @@ User uploads resume or clicks Generate
         ↓
 API route in app/api/resume/
         ↓
-Gemini processes content
+Gemini 2.5 Flash processes content
         ↓
 @react-pdf/renderer renders PDF buffer
         ↓
 New PDF uploaded to InsForge Storage
         ↓
 URL saved to profiles table
+```
+
+### Job-Tailored Resume Operations (API Routes)
+
+```text
+User clicks Generate Tailored Resume on job details page
+        ↓
+API route in app/api/jobs/[id]/tailored-resume
+        ↓
+Loads saved job details + current profile scoped to user
+        ↓
+agent/tailored-resume.ts rewrites resume content for this job
+        ↓
+@react-pdf/renderer renders PDF buffer
+        ↓
+New PDF uploaded to temporary InsForge Storage path
+        ↓
+Row saved to tailored_resumes with expires_at = generated_at + 15 days
+        ↓
+Daily cleanup deletes expired storage objects and rows
 ```
 
 ---
@@ -282,15 +308,29 @@ URL saved to profiles table
 | job_id     | uuid        | Optional — related job           |
 | created_at | timestamptz |                                  |
 
+### `tailored_resumes`
+
+| Column       | Type        | Notes                                      |
+| ------------ | ----------- | ------------------------------------------ |
+| id           | uuid        |                                            |
+| user_id      | uuid        | References profiles                        |
+| job_id       | uuid        | References jobs                            |
+| storage_key  | text        | InsForge Storage key for the generated PDF |
+| storage_url  | text        | Authenticated download route or signed URL |
+| file_name    | text        | Download filename                          |
+| generated_at | timestamptz | When the tailored PDF was generated        |
+| expires_at   | timestamptz | 15 days after generation                   |
+
 ---
 
 ## InsForge Storage
 
-| Bucket  | Path                         | Contents                  |
-| ------- | ---------------------------- | ------------------------- |
-| resumes | resumes/{user_id}/resume.pdf | Current active resume PDF |
+| Bucket           | Path                                                   | Contents                          |
+| ---------------- | ------------------------------------------------------ | --------------------------------- |
+| resumes          | resumes/{user_id}/resume.pdf                           | Current active resume PDF         |
+| tailored-resumes | tailored-resumes/{user_id}/{job_id}/{resume_id}.pdf    | Temporary job-tailored resume PDFs |
 
-Access: authenticated users only, own files only.
+Access: authenticated users only, own files only. Tailored resume rows are scoped by `user_id`; download routes must also verify the requested job belongs to the current user.
 
 ---
 
@@ -368,17 +408,10 @@ const data = await response.json();
 
 ```typescript
 // Single session — visits company homepage and sub pages sequentially
-const stagehand = new Stagehand({
-  env: "BROWSERBASE",
-  apiKey: process.env.BROWSERBASE_API_KEY!,
-  projectId: process.env.BROWSERBASE_PROJECT_ID!,
-  browserbaseSessionID: session.id,
-  modelName: "google/gemini-2.5-flash",
-  modelClientOptions: { apiKey: process.env.GEMINI_API_KEY! },
-});
+const stagehand = createCompanyResearchStagehand(session.sessionId);
 
 await stagehand.init();
-const page = stagehand.page;
+const page = await stagehand.context.awaitActivePage();
 
 // Clean company name and construct homepage URL
 const cleanName = companyName
@@ -391,9 +424,12 @@ const homepageUrl = `https://www.${cleanName}.com`;
 
 // Navigate and extract — graceful fallback if page not found
 try {
-  await page.goto(homepageUrl);
-  await page.waitForLoadState("networkidle");
-  const content = await stagehand.extract({ instruction: "..." });
+  await page.goto(homepageUrl, { waitUntil: "networkidle", timeoutMs: 30_000 });
+  const content = await stagehand.extract(
+    "Extract company research signals from this page.",
+    companyResearchSchema,
+    { timeout: 30_000, serverCache: false },
+  );
 } catch (error) {
   // Log and continue — Gemini will synthesize from what was found
   await logAgentError(jobId, error);

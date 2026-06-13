@@ -155,6 +155,7 @@ const { error } = await insforge.storage
 **Storage paths:**
 
 - Base resume: `resumes/{user_id}/resume.pdf`
+- Tailored resume: `tailored-resumes/{user_id}/{job_id}/{resume_id}.pdf`
 
 **Rules:**
 
@@ -163,6 +164,30 @@ const { error } = await insforge.storage
 - `getPublicUrl(path)` returns a plain `string` directly — do NOT destructure `.data.publicUrl`
 - Always save the returned URL string to the DB after upload
 - Never write files to disk — always upload the `File` directly from FormData
+
+### Tailored Resume Storage
+
+```typescript
+const path = `${userId}/${jobId}/${resumeId}.pdf`;
+const file = new File([new Uint8Array(buffer)], "tailored-resume.pdf", {
+  type: "application/pdf",
+});
+
+await insforge.storage.from("tailored-resumes").remove(path); // ignore not-found
+const { data, error } = await insforge.storage
+  .from("tailored-resumes")
+  .upload(path, file);
+```
+
+**Rules:**
+
+- Use the `tailored-resumes` bucket/prefix for job-specific PDFs — never overwrite `resumes/{user_id}/resume.pdf`
+- Save `storage_key`, `storage_url`, `file_name`, `generated_at`, and `expires_at` in `tailored_resumes`
+- `storage_url` is the authenticated app download route or a time-limited signed URL, not a public storage URL
+- `expires_at` is 15 days after generation and blocks the authenticated download route after expiry
+- Download through an authenticated route that verifies the job and resume row belong to the current user
+- Expired rows are not downloadable
+- Scheduled cleanup deletes expired private storage objects first, then deletes their `tailored_resumes` rows
 
 ---
 
@@ -267,6 +292,27 @@ const jobRecord = {
 
 ---
 
+## Tailored Resume Agent
+
+**Input sources:**
+
+- Current user's saved profile from `profiles`
+- Selected job row from `jobs`, scoped by `id` and `user_id`
+- Job fields: title, company, about_role, responsibilities, requirements, nice_to_have, matched_skills, missing_skills
+
+**Rules:**
+
+- The agent runs only from the job details page — the profile Generate Resume button stays unchanged
+- Treat `about_role` as a saved job description that may be an Adzuna snippet, not guaranteed full posting text
+- Prioritize requirements, responsibilities, and `matched_skills` when choosing keywords
+- Never present `missing_skills` as skills the candidate has
+- Do not keyword-stuff; rewrite bullets only when supported by the profile
+- Facts such as name, contact, companies, titles, dates, education, and skills remain grounded in saved profile data
+- Output feeds an ATS-simple PDF: standard headings, single column, no tables, no graphics, no headers/footers
+- Store the generated PDF as a temporary tailored resume with a 15-day expiration
+
+---
+
 ## Browserbase
 
 **Check first:** Check AGENTS.md for an installed Browserbase skill. If a Browserbase MCP server is configured — use it. The skill/MCP will have the latest session management and API patterns.
@@ -311,17 +357,9 @@ Browserbase sessions run on Browserbase's cloud infrastructure, not inside your 
 ### Initialisation
 
 ```typescript
-import { Stagehand } from "@browserbasehq/stagehand";
+import { createCompanyResearchStagehand } from "@/lib/stagehand";
 
-const stagehand = new Stagehand({
-  env: "BROWSERBASE",
-  apiKey: process.env.BROWSERBASE_API_KEY!,
-  projectId: process.env.BROWSERBASE_PROJECT_ID!,
-  browserbaseSessionID: session.id,
-  model: { modelName: "google/gemini-2.5-flash", apiKey: process.env.GEMINI_API_KEY! },
-  disableAPI: true,
-  disablePino: true,
-});
+const stagehand = createCompanyResearchStagehand(session.sessionId);
 
 await stagehand.init();
 const page = await stagehand.context.awaitActivePage();
@@ -334,23 +372,27 @@ const page = await stagehand.context.awaitActivePage();
 ```typescript
 import { z } from "zod";
 
-const result = await stagehand.extract({
-  instruction:
+try {
+  const result = await stagehand.extract(
     "Extract the company overview, main product description, and any technology mentions from this page.",
-  schema: z.object({
-    companyOverview: z.string().optional(),
-    mainProduct: z.string().optional(),
-    techMentions: z.array(z.string()).optional(),
-    navLinks: z
-      .array(
-        z.object({
-          label: z.string(),
-          url: z.string(),
-        }),
-      )
-      .optional(),
-  }),
-});
+    z.object({
+      companyOverview: z.string().optional(),
+      mainProduct: z.string().optional(),
+      techMentions: z.array(z.string()).optional(),
+      navLinks: z
+        .array(
+          z.object({
+            label: z.string(),
+            url: z.string(),
+          }),
+        )
+        .optional(),
+    }),
+    { timeout: 30_000, serverCache: false },
+  );
+} catch (error) {
+  await logAgentError(jobId, error);
+}
 ```
 
 ### act()
@@ -380,62 +422,85 @@ Browser's only job is the company website.
 
 ```typescript
 // Step 1 — Homepage extraction
-const homepageData = await stagehand.extract({
-  instruction:
+let homepageData = {
+  oneLiner: "",
+  productSummary: "",
+  signals: [],
+  pageLinks: [],
+};
+
+try {
+  homepageData = await stagehand.extract(
     "This is a company's homepage. Capture what the company actually does, who it's for, and any concrete signals (funding, customers, scale, mission, recent launches). Then find the internal links most worth visiting to research them as an employer.",
-  schema: z.object({
-    oneLiner: z.string().describe("What the company does in one sentence"),
-    productSummary: z
-      .string()
-      .describe("What they build/sell and who it's for"),
-    signals: z
-      .array(z.string())
-      .describe("Funding, notable customers, scale, mission, recent news"),
-    pageLinks: z
-      .array(
-        z.object({
-          url: z.string(),
-          kind: z.enum([
-            "about",
-            "careers",
-            "blog",
-            "engineering",
-            "product",
-            "team",
-            "other",
-          ]),
-        }),
-      )
-      .describe("Internal links worth visiting"),
-  }),
-});
+    z.object({
+      oneLiner: z.string().describe("What the company does in one sentence"),
+      productSummary: z
+        .string()
+        .describe("What they build/sell and who it's for"),
+      signals: z
+        .array(z.string())
+        .describe("Funding, notable customers, scale, mission, recent news"),
+      pageLinks: z
+        .array(
+          z.object({
+            url: z.string(),
+            kind: z.enum([
+              "about",
+              "careers",
+              "blog",
+              "engineering",
+              "product",
+              "team",
+              "other",
+            ]),
+          }),
+        )
+        .describe("Internal links worth visiting"),
+    }),
+    { timeout: 30_000, serverCache: false },
+  );
+} catch (error) {
+  await logAgentError(jobId, error);
+}
 
 // If oneLiner and productSummary are empty — wrong site or parked domain
 // Skip to synthesis with job description and profile only
 if (!homepageData.oneLiner && !homepageData.productSummary) {
-  await stagehand.close();
   // proceed to synthesis with empty companyResearch
 }
 
 // Step 2 — Sub-page extraction (max 3, prefer about/blog/engineering/product over careers)
-const subPageData = await stagehand.extract({
-  instruction:
+let subPageData = {
+  keyPoints: [],
+  technologies: [],
+  valuesOrCulture: [],
+  notable: [],
+};
+
+try {
+  subPageData = await stagehand.extract(
     "Extract substance that helps a candidate understand this company before applying: what they do, their values and how they work, the specific technologies and tools they use, notable projects or customers, and how the team operates. Ignore nav, footers, cookie banners, and generic marketing copy.",
-  schema: z.object({
-    keyPoints: z.array(z.string()),
-    technologies: z
-      .array(z.string())
-      .describe("Specific languages, frameworks, tools, platforms"),
-    valuesOrCulture: z
-      .array(z.string())
-      .describe("Stated values, working style, team norms"),
-    notable: z
-      .array(z.string())
-      .describe("Customers, funding, scale, projects, awards"),
-  }),
-});
+    z.object({
+      keyPoints: z.array(z.string()),
+      technologies: z
+        .array(z.string())
+        .describe("Specific languages, frameworks, tools, platforms"),
+      valuesOrCulture: z
+        .array(z.string())
+        .describe("Stated values, working style, team norms"),
+      notable: z
+        .array(z.string())
+        .describe("Customers, funding, scale, projects, awards"),
+    }),
+    { timeout: 30_000, serverCache: false },
+  );
+} catch (error) {
+  await logAgentError(jobId, error);
+}
 
 // Step 3 — Gemini synthesis (after browser closes)
+await stagehand.close();
+
 // Feed three data sources: company research + job from DB + profile from DB
 const systemPrompt = `You are a sharp career strategist preparing a candidate to apply for a specific role. You are given (a) research collected from the company's own website, (b) the job posting, and (c) the candidate's profile. Produce a concise, concrete briefing that gives this specific candidate an edge for this specific role.
 
@@ -475,15 +540,39 @@ Experience: ${profile.years_experience} years, level ${profile.experience_level}
 Skills: ${profile.skills.join(", ")}
 Work history: ${JSON.stringify(profile.work_experience)}`;
 
-const response = await ai.models.generateContent({
-  model: "gemini-2.5-flash",
-  contents: userPrompt,
-  config: {
-    systemInstruction: systemPrompt,
-    responseMimeType: "application/json",
-    temperature: 0.4,
-  },
-});
+const ai = createGeminiClient();
+let dossier = {
+  companyOverview: "",
+  techStack: [],
+  culture: [],
+  whyThisRole: "",
+  yourEdge: [],
+  gapsToAddress: [],
+  smartQuestions: [],
+  interviewPrep: [],
+  sources: [],
+};
+
+try {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+      },
+    ],
+    config: {
+      temperature: 0.4,
+      responseMimeType: "application/json",
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+
+  dossier = JSON.parse(response.text ?? "{}");
+} catch (error) {
+  await logAgentError(jobId, error);
+}
 ```
 
 **Dossier fields:**
@@ -505,7 +594,7 @@ const response = await ai.models.generateContent({
 - Always use `extract()` with a Zod schema — never parse raw HTML or use regex
 - Always wrap every `act()` and `extract()` in try/catch
 - Always call `await stagehand.close()` when done — ends the Browserbase session
-- Model is always `gemini-2.5-flash` — never use other models
+- Model is always `gemini-2.5-flash` via `createGeminiClient()`
 - Temperature is `0.4` for synthesis — grounded but flexible enough to make real connections
 - Max 3 sub-pages — never exceed this on free plan
 - Always close session in finally block — never leave sessions open even if research fails
@@ -513,33 +602,53 @@ const response = await ai.models.generateContent({
 - If browser research returns empty — still run synthesis with job + profile only
 - yourEdge, gapsToAddress, and smartQuestions are the most valuable fields — never skip them
 
-## Google Gemini
+## Gemini 2.5 Flash
 
-> **Model reality check (2026-06-09):** every shipped AI feature uses **Gemini 2.5-flash** via `@google/genai` — extraction (`agent/extractor.ts`, F07), resume generation (`agent/generator.ts`, F08), and job match scoring (`agent/matcher.ts`, F10, temperature 0.3). The `openai` package is NOT installed. This section remains only as the reference plan for company-research synthesis (Feature 13) — decide that feature's model when building it.
+> **Model reality check (2026-06-12):** AI features use **Gemini 2.5 Flash** via `@google/genai` and `agent/gemini.ts`: extraction (`agent/extractor.ts`, F07), resume generation (`agent/generator.ts`, F08), job match scoring (`agent/matcher.ts`, F10), company research (`agent/research.ts`, F13), and tailored resume generation (`agent/tailored-resume.ts`, F18).
 
-> **Feature 13 update (2026-06-10):** company research synthesis also uses **Gemini 2.5-flash** via `@google/genai` (`agent/research.ts`, temperature 0.4, thinking disabled). Stagehand extraction uses the same provider through `modelName: "google/gemini-2.5-flash"`. The `openai` package is still not a direct app dependency.
-
-**Check first:** Check AGENTS.md for an installed Gemini skill. The skill will have the latest API patterns and model capabilities.
+**Check first:** Use `agent/gemini.ts` and `GEMINI_API_KEY` for app AI calls.
 
 ### Structured JSON Response
 
 ```typescript
-import { GoogleGenAI } from "@google/genai";
+import { createGeminiClient } from "@/agent/gemini";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const ai = createGeminiClient();
 
-const response = await ai.models.generateContent({
-  model: "gemini-2.5-flash",
-  contents: `Your prompt here`,
-  config: {
-    systemInstruction:
-      "You are a job matching assistant. Return only valid JSON.",
-    responseMimeType: "application/json",
-    temperature: 0.3,
-  },
-});
+let result = null;
 
-const result = JSON.parse(response.text);
+try {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: `Return only valid JSON matching this shape:
+{
+  "score": number,
+  "reason": string
+}
+
+Your prompt here`,
+          },
+        ],
+      },
+    ],
+    config: { temperature: 0.3 },
+  });
+
+  const text = (response.text ?? "").trim();
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("No JSON object found in model response");
+  }
+
+  result = JSON.parse(jsonMatch[0]);
+} catch (error) {
+  await logAgentError(jobId, error);
+}
 ```
 
 **Temperature settings:**
@@ -556,9 +665,9 @@ const result = JSON.parse(response.text);
 
 **Rules:**
 
-- Model string is always `'gemini-2.5-flash'` — never use other model names
-- Always set `responseMimeType: 'application/json'` in `config` for structured data
-- Always read `response.text` (a string) and `JSON.parse` it — even in JSON mode it returns a string
+- Model string is always `'gemini-2.5-flash'` for current app features
+- Always route through `createGeminiClient()` so missing keys fail at request time
+- Always parse `response.text` as model text
 - Always validate parsed JSON before using — wrap in try/catch
 - Match threshold is always `MATCH_THRESHOLD` from `lib/utils.ts` — never hardcode 70
 - Company research synthesis must always return a complete dossier — never return empty even if browser research failed
@@ -765,7 +874,7 @@ Only use these — others are silently ignored:
 
 - Server-side only — never import in client components
 - Always use `renderToBuffer` — not `renderToStream` or `PDFDownloadLink`
-- PDF generation only in `app/api/resume/` routes
+- PDF generation only in `app/api/resume/` routes or `app/api/jobs/[id]/tailored-resume`
 - Generated buffer is wrapped in a `File` and uploaded to InsForge Storage — never written to disk
 - Storage upload follows the InsForge section above: `remove` then `upload`, no `upsert` option
 - Always save public URL to DB after upload

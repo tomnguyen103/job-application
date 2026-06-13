@@ -7,6 +7,10 @@ import { JobActions } from "@/components/job-details/JobActions";
 import { JobDescription } from "@/components/job-details/JobDescription";
 import { JobInfo } from "@/components/job-details/JobInfo";
 import { MatchScore } from "@/components/job-details/MatchScore";
+import {
+  TailoredResumeAction,
+  type TailoredResumeInitialState,
+} from "@/components/job-details/TailoredResumeAction";
 import { Navbar } from "@/components/layout/Navbar";
 import { parseCompanyResearchDossier } from "@/lib/company-research";
 import {
@@ -41,6 +45,12 @@ type JobDetailsRow = {
   missing_skills: string[] | null;
   company_research: unknown;
   found_at: string | null;
+};
+
+type TailoredResumeRow = {
+  id: string;
+  generated_at: string | null;
+  expires_at: string | null;
 };
 
 type JobDetails = {
@@ -139,6 +149,26 @@ function mapJobRowToDetails(row: JobDetailsRow): JobDetails {
   };
 }
 
+function mapTailoredResumeInitialState(
+  jobId: string,
+  row: TailoredResumeRow | null,
+): TailoredResumeInitialState {
+  if (!row?.expires_at) {
+    return { status: "idle", downloadUrl: null, expiresAt: null };
+  }
+
+  const expiresAt = Date.parse(row.expires_at);
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    return { status: "expired", downloadUrl: null, expiresAt: row.expires_at };
+  }
+
+  return {
+    status: "ready",
+    downloadUrl: `/api/jobs/${jobId}/tailored-resume/download`,
+    expiresAt: row.expires_at,
+  };
+}
+
 function BackIcon(): ReactElement {
   return (
     <svg
@@ -190,6 +220,28 @@ export default async function JobDetailsPage({
   // Boundary assertion on the SDK row shape: the selected columns above define this detail view.
   const job = mapJobRowToDetails(data as JobDetailsRow);
 
+  const { data: tailoredResumeData, error: tailoredResumeError } =
+    await insforge.database
+      .from("tailored_resumes")
+      .select("id, generated_at, expires_at")
+      .eq("user_id", user.id)
+      .eq("job_id", data.id)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+  if (tailoredResumeError) {
+    console.error(
+      "[job-details] tailored resume read error:",
+      tailoredResumeError,
+    );
+  }
+
+  const tailoredResumeInitialState = mapTailoredResumeInitialState(
+    data.id,
+    tailoredResumeData as TailoredResumeRow | null,
+  );
+
   return (
     <main className="min-h-screen bg-background">
       <Navbar />
@@ -234,6 +286,10 @@ export default async function JobDetailsPage({
             jobId={data.id}
             company={job.company}
             initialResearch={job.companyResearch}
+          />
+          <TailoredResumeAction
+            jobId={data.id}
+            initialState={tailoredResumeInitialState}
           />
           <JobActions company={job.company} applyUrl={job.postUrl} />
         </div>

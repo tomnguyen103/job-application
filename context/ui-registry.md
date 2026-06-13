@@ -295,7 +295,7 @@ Same stacked-card-on-page-background layout family as the profile page, but full
 
 ## Job Details Page (Feature 12)
 
-Last updated: 2026-06-10
+Last updated: 2026-06-12
 
 The job details page matches `context/designs/job-details.png`: a centered `max-w-[1080px]` stacked detail column on the page background, with the existing authenticated Navbar above it. It is a dynamic Server Component route that reads a single `jobs` row scoped to the current user and renders real saved job/match data. Company research is empty-state UI only until Feature 13 wires the action.
 
@@ -307,6 +307,7 @@ The job details page matches `context/designs/job-details.png`: a centered `max-
 - Back link classes: `inline-flex items-center gap-2 text-base font-semibold leading-6 text-text-secondary transition-colors hover:text-accent`
 - Stack classes: `mt-8 flex flex-col gap-6`
 - Data read: `jobs` select for detail columns (`title`, `company`, `location`, `salary`, `job_type`, links, description fields, match fields, `found_at`) with `.eq("id", id).eq("user_id", user.id).maybeSingle()`
+- Feature 18 data read: latest `tailored_resumes` row for the same `user_id` + `job_id`, ordered by `generated_at DESC`, passed to `TailoredResumeAction` as `idle`, `ready`, or `expired`
 
 ### JobInfo
 
@@ -377,6 +378,22 @@ The job details page matches `context/designs/job-details.png`: a centered `max-
 - Path: `components/job-details/JobActions.tsx`
 - Apply button: `inline-flex min-h-14 w-full items-center justify-center rounded-xl bg-accent px-4 text-base font-semibold text-accent-foreground shadow-card transition-opacity hover:opacity-90`
 - Missing-link fallback: same dimensions and colors with `opacity-60`, text "Apply link unavailable"
+
+### TailoredResumeAction
+
+- Path: `components/job-details/TailoredResumeAction.tsx`
+- Card classes: `overflow-hidden rounded-2xl border border-border bg-surface shadow-card`
+- Header classes: `flex flex-col gap-4 border-b border-border px-8 py-6 sm:flex-row sm:items-center sm:justify-between`
+- Header icon: `flex h-8 w-8 items-center justify-center rounded-full bg-accent-muted text-accent`
+- Heading classes: `text-xl font-bold leading-7 text-text-primary`
+- Generate button: `inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-base font-semibold text-accent-foreground shadow-card transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60`
+- Download button: `inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-5 text-base font-semibold text-text-primary shadow-card transition-colors hover:bg-surface-secondary`
+- Body wrapper classes: `px-8 py-5`
+- Ready copy classes: `text-sm font-semibold leading-5 text-success`
+- Idle/generating/expired copy classes: `text-sm font-medium leading-5 text-text-muted`
+- Error line classes: `border-t border-border px-8 py-4 text-sm font-medium leading-5 text-error`
+- Feature 18 wiring: Client Component with props `jobId` and `initialState`. Button calls `POST /api/jobs/[id]/tailored-resume`, disables with `aria-busy`, swaps the generate icon for the shared inline spinner (`animate-spin`, 16x16), stores the returned `downloadUrl`/`expiresAt`, then calls `router.refresh()`.
+- States: idle, generating, ready/download, expired, error.
 
 ### JobsTable link update
 
