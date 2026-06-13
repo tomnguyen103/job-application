@@ -199,12 +199,6 @@ npm test
 
 The test suite covers company-research URL trust rules, tech-stack evidence filtering, dashboard helpers, profile completion, extraction sanitizing, tailored-resume prompt/storage helpers, and tailored-resume route behavior.
 
-## README Header Pattern
-
-The sample design you provided is called a **README hero badge header**. It uses a centered product name, a short positioning line, and compact status or stack badges.
-
-![README hero badge header reference](public/images/readme-hero-badge-header-sample.png)
-
 ---
 
 Job listings powered by [Adzuna](https://www.adzuna.com/). Built with [Claude Code](https://claude.com/claude-code).
