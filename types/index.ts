@@ -33,6 +33,7 @@ export type ProfileRow = {
   job_titles_seeking?: string[] | null;
   remote_preference?: string | null;
   salary_expectation?: string | null;
+  cover_letter_tone?: string | null;
   preferred_locations?: string[] | null;
   resume_pdf_url?: string | null;
   resume_pdf_key?: string | null;
@@ -57,6 +58,7 @@ export type Profile = {
   jobTitlesSeeking: string;
   remotePreference: string;
   salaryExpectation: string;
+  coverLetterTone: string;
   preferredLocations: string;
 };
 

@@ -35,6 +35,7 @@ export function mapProfileRowToProfile(
     jobTitlesSeeking: (row.job_titles_seeking ?? []).join(", "),
     remotePreference: row.remote_preference ?? "",
     salaryExpectation: row.salary_expectation ?? "",
+    coverLetterTone: row.cover_letter_tone ?? "",
     preferredLocations: (row.preferred_locations ?? []).join(", "),
   };
 }

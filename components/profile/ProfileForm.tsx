@@ -52,6 +52,12 @@ const REMOTE_PREFERENCE_OPTIONS: Option[] = [
   { value: "any", label: "Any" },
 ];
 
+const COVER_LETTER_TONE_OPTIONS: Option[] = [
+  { value: "formal", label: "Formal" },
+  { value: "casual", label: "Casual" },
+  { value: "enthusiastic", label: "Enthusiastic" },
+];
+
 const INPUT_CLASS =
   "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-text-primary placeholder:text-text-muted focus:border-accent focus:ring-accent focus:outline-none";
 
@@ -638,9 +644,14 @@ export function ProfileForm({ profile }: Props): ReactElement {
                   className={INPUT_CLASS}
                 />
               </Field>
+              <SelectField
+                label="Cover Letter Tone"
+                name="cover_letter_tone"
+                defaultValue={profile.coverLetterTone}
+                options={COVER_LETTER_TONE_OPTIONS}
+              />
               <Field
                 label="Preferred Locations (Optional)"
-                className="sm:col-span-2"
               >
                 <input
                   type="text"

@@ -43,6 +43,7 @@ const profile: Profile = {
   jobTitlesSeeking: "Software Engineer",
   remotePreference: "hybrid",
   salaryExpectation: "",
+  coverLetterTone: "formal",
   preferredLocations: "Austin, TX",
 };
 

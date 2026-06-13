@@ -83,6 +83,7 @@ The agent never modifies your profile and research never affects match scores �
    | `BROWSERBASE_API_KEY` / `BROWSERBASE_PROJECT_ID` | Browserbase session credentials |
    | `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | PostHog event ingestion |
    | `POSTHOG_PERSONAL_API_KEY` / `POSTHOG_PROJECT_ID` / `POSTHOG_API_HOST` | PostHog Query API (dashboard charts) |
+   | `TAILORED_RESUME_CLEANUP_API_KEY` / `INSFORGE_ADMIN_API_KEY` / `INSFORGE_BASE_URL` | Scheduled cleanup for expired tailored resumes |
 
    > Never commit `.env.local` — it is gitignored.
 
@@ -144,6 +145,7 @@ context/              Project design docs (architecture, UI tokens, standards)
 
 - **`profiles`** — your profile is the single source of truth for matching; it changes only when you edit it or apply a resume extraction
 - **`jobs`** — discovered jobs with structured fields, match data, and a `company_research` JSONB dossier per job
+- **`tailored_resumes`** — temporary job-scoped resume PDFs, expired by scheduled cleanup
 - All tables are protected with row-level security scoped to the authenticated user
 
 ## Testing
@@ -152,7 +154,7 @@ context/              Project design docs (architecture, UI tokens, standards)
 npm test
 ```
 
-Unit tests cover the company-research URL trust rules, tech-stack evidence filtering, and the dashboard stats/charts/activity helpers.
+Unit tests cover the company-research URL trust rules, tech-stack evidence filtering, dashboard helpers, profile completion, extraction sanitizing, and tailored-resume route/helper behavior.
 
 ---
 
