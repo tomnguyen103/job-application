@@ -298,6 +298,17 @@ import { Button } from "../../../components/ui/button";
 
 ---
 
+## Temporary Generated Files
+
+- Job-tailored resume PDFs are temporary generated files, not profile resume replacements.
+- Store owner-scoped metadata in `tailored_resumes` and the PDF in the documented InsForge Storage path.
+- Never accept a user-supplied storage key or file path from the browser.
+- Route handlers must verify both `jobs.user_id` and `tailored_resumes.user_id` match the current user.
+- Expired tailored resumes must not be downloadable.
+- Cleanup logic must delete expired storage objects and database rows, and tests must cover expired and unexpired records.
+
+---
+
 ## Dependencies
 
 Never install a new package without a clear reason. Before installing anything check:

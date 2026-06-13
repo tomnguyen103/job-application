@@ -126,6 +126,13 @@ border-radius: 8px
 padding: 8px 16px
 ```
 
+## Job Details Actions
+
+- Apply Now remains the primary external action.
+- Generate Tailored Resume belongs near Apply Now and uses the existing in-app primary button pattern.
+- Download Tailored Resume uses the existing secondary button pattern.
+- Show inline loading, success, expired, and error text using existing feedback styles.
+
 ---
 
 ## Form Inputs
