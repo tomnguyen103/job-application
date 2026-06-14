@@ -110,6 +110,24 @@ test("sanitizeExtractedProfile accepts enum values regardless of casing", () => 
   assert.equal(result.education?.graduationYear, "2019");
 });
 
+test("sanitizeExtractedProfile does not invent an education degree", () => {
+  const raw: RawExtracted = {
+    education: {
+      degree: "unknown certificate",
+      fieldOfStudy: "Computer Science",
+      institution: "State University",
+      graduationYear: 2019,
+    },
+  };
+
+  const result = sanitizeExtractedProfile(raw);
+
+  assert.equal(result.education?.degree, "");
+  assert.equal(result.education?.fieldOfStudy, "Computer Science");
+  assert.equal(result.education?.institution, "State University");
+  assert.equal(result.education?.graduationYear, "2019");
+});
+
 test("sanitizeExtractedProfile rounds yearsExperience and rejects non-numbers", () => {
   assert.equal(
     sanitizeExtractedProfile({ yearsExperience: "7.4" }).yearsExperience,

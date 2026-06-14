@@ -6,6 +6,7 @@ import {
   expiredTailoredResumeRecords,
   getTailoredResumeExpiresAt,
   latestUnexpiredTailoredResume,
+  previousTailoredResumeMetadataIdsToDelete,
   safeTailoredResumeFileName,
   TAILORED_RESUME_BUCKET,
   TAILORED_RESUME_FILE_NAME,
@@ -74,5 +75,22 @@ test("safeTailoredResumeFileName keeps download filenames header-safe", () => {
   assert.equal(
     safeTailoredResumeFileName('tailored resume "final".pdf'),
     "tailored-resume--final-.pdf",
+  );
+});
+
+test("previousTailoredResumeMetadataIdsToDelete keeps metadata when file deletion failed", () => {
+  const rows = [
+    { id: "old-removed", storage_key: "user-1/job-1/old-removed.pdf" },
+    { id: "old-failed", storage_key: "user-1/job-1/old-failed.pdf" },
+    { id: "old-metadata-only", storage_key: null },
+    { id: "current", storage_key: "user-1/job-1/current.pdf" },
+  ];
+
+  assert.deepEqual(
+    previousTailoredResumeMetadataIdsToDelete(rows, {
+      currentResumeId: "current",
+      removedStorageKeys: new Set(["user-1/job-1/old-removed.pdf"]),
+    }),
+    ["old-removed", "old-metadata-only"],
   );
 });
