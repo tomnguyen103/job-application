@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Website Modernization - Phase 5 Complete
+**Phase:** Website Modernization - Phase 6 Readiness Audit Started
 **Last completed:** Modernization Phase 5 - Engagement Features Without Billing
-**Next:** Modernization Phase 6 - SaaS Readiness Later, only after explicit approval
+**Next:** Explicit approval plus InsForge payments enablement before any SaaS implementation
 
 ---
 
@@ -161,6 +161,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-13: Tailored resume generation fix - local logs showed the job-detail tailored resume route was returning 422 because Gemini included a missing skill in the professional summary and `sanitizeTailoredResumeContent` rejected the whole response. The agent now requests JSON mode and replaces unsafe summaries with a deterministic profile/job fallback that excludes missing skills, while still filtering unsafe bullets and preserving the Profile page base resume flow.
 - 2026-06-13: Website Modernization Phase 5 complete without billing, payments, admin, team, or plan-management changes. Resolved the saved ThemeToggle caveat by making the button label neutral and switching visible icons with `data-theme` CSS before hydration. Added pure engagement helpers in `lib/engagement-insights.ts` plus tests in `tests/engagement-insights.test.ts`. Dashboard now shows data-derived Today actions from profile completeness, resume availability, saved jobs, company research status, and tailored-resume freshness; it also shows repeated missing-skill insights from saved jobs. Job details now includes `InterviewPrepExpansion`, turning existing company research, match strengths, and gap skills into interview focus areas, lead-with points, gap framing, and questions to ask.
 - 2026-06-13: Phase 5 review findings fixed - dashboard engagement error handling now separates profile, engagement-job, and tailored-resume read failures. Today actions no longer guess profile completion or resume readiness when profile/tailored-resume data is unavailable, and skill-gap insights remain visible when jobs data succeeds even if tailored-resume reads fail.
+- 2026-06-14: Website Modernization Phase 6 readiness audit started as docs-only work. No payment, subscription, billing, admin, team, pricing, plan-management, route, schema, or UI implementation was added. The linked InsForge project is `JobApplication`, but `npx @insforge/cli payments stripe status --json` reports `Payments are not available on this backend`, so Phase 6 implementation remains gated on explicit user approval and backend enablement. Recorded the current CLI namespace (`payments stripe`), installed SDK payments method shape from `node_modules/@insforge/sdk/dist/*.d.ts`, and Stripe webhook/fulfillment requirements in `context/website-modernization-plan.md` and `context/library-docs.md`.
 
 ---
 

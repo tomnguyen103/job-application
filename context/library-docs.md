@@ -191,6 +191,51 @@ const { data, error } = await insforge.storage
 
 ---
 
+### Payments - Phase 6 Readiness Only
+
+As of 2026-06-14, payments are not enabled for the linked JobApplication
+backend. `npx @insforge/cli payments stripe status --json` returns:
+
+```json
+{
+  "error": "Payments are not available on this backend.\nSelf-hosted: upgrade your InsForge instance. Cloud/private preview: contact your InsForge admin to enable payments."
+}
+```
+
+Do not add checkout, billing, subscription, pricing, admin, team, plan limit, or
+customer portal app code while this remains true.
+
+**CLI reality check:**
+
+- The local CLI groups Stripe commands under `npx @insforge/cli payments stripe`.
+- Use `npx @insforge/cli payments stripe status --json` for availability.
+- Do not use generic `secrets` commands for Stripe keys.
+- Default to test mode while building; live mode requires explicit approval.
+
+**SDK reality check:**
+
+The installed `@insforge/sdk` types are the source of truth when docs disagree.
+In this checkout, `node_modules/@insforge/sdk/dist/*.d.ts` exposes:
+
+```typescript
+insforge.payments.createCheckoutSession("test", request);
+insforge.payments.createCustomerPortalSession("test", request);
+```
+
+Do not copy examples that pass `environment` inside a single object unless the
+installed SDK types change.
+
+**Rules before any payment UI:**
+
+- Add RLS on `payments.checkout_sessions` and
+  `payments.customer_portal_sessions` for the approved billing subject.
+- Do not allow arbitrary `subject.type` or `subject.id` from users.
+- Use app-owned tables for user-facing payment or entitlement state.
+- Fulfill from webhook-backed payment projections, not success URLs.
+- Keep Stripe secret keys out of frontend code and public env vars.
+
+---
+
 ## Adzuna API
 
 **Check first:** Check AGENTS.md for an installed Adzuna skill. If none exists — use this file and the official Adzuna API docs.
