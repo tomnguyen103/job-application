@@ -12,6 +12,7 @@ import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 import {
   buildTailoredResumeStorageKey,
   getTailoredResumeExpiresAt,
+  previousTailoredResumeMetadataIdsToDelete,
   TAILORED_RESUME_BUCKET,
   TAILORED_RESUME_FILE_NAME,
 } from "@/lib/tailored-resume";
@@ -258,9 +259,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       }
 
       const previous = (previousRows ?? []) as PreviousTailoredResumeRow[];
-      const previousIds = previous
-        .map((row) => row.id)
-        .filter((previousId) => previousId !== resumeId);
+      const removedStorageKeys = new Set<string>();
 
       for (const row of previous) {
         if (row.storage_key && row.id !== resumeId) {
@@ -273,9 +272,16 @@ export async function POST(_request: Request, { params }: RouteContext) {
               "[tailored-resume] previous file cleanup warning:",
               removeError,
             );
+          } else {
+            removedStorageKeys.add(row.storage_key);
           }
         }
       }
+
+      const previousIds = previousTailoredResumeMetadataIdsToDelete(previous, {
+        currentResumeId: resumeId,
+        removedStorageKeys,
+      });
 
       if (previousIds.length > 0) {
         const { error: deleteError } = await insforge.database

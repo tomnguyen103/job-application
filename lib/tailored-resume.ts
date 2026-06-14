@@ -13,6 +13,11 @@ export type TailoredResumeRecord = {
   expires_at: string;
 };
 
+export type PreviousTailoredResumeCleanupRow = {
+  id: string;
+  storage_key: string | null;
+};
+
 export function buildTailoredResumeStorageKey(
   userId: string,
   jobId: string,
@@ -66,4 +71,17 @@ export function safeTailoredResumeFileName(
   }
 
   return trimmed.replace(/[^A-Za-z0-9._-]/g, "-");
+}
+
+export function previousTailoredResumeMetadataIdsToDelete(
+  rows: PreviousTailoredResumeCleanupRow[],
+  args: {
+    currentResumeId: string;
+    removedStorageKeys: Set<string>;
+  },
+): string[] {
+  return rows
+    .filter((row) => row.id !== args.currentResumeId)
+    .filter((row) => !row.storage_key || args.removedStorageKeys.has(row.storage_key))
+    .map((row) => row.id);
 }

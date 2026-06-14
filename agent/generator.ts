@@ -1,3 +1,5 @@
+import { Type, type Schema } from "@google/genai";
+
 import { createGeminiClient } from "@/agent/gemini";
 import type { Profile } from "@/types";
 
@@ -7,6 +9,48 @@ export type GeneratedResumeContent = {
 };
 
 const MAX_BULLETS_PER_ROLE = 4;
+
+type RuntimeSchema = Omit<
+  Schema,
+  "anyOf" | "items" | "maxItems" | "minItems" | "properties"
+> & {
+  anyOf?: RuntimeSchema[];
+  items?: RuntimeSchema;
+  maxItems?: number;
+  minItems?: number;
+  properties?: Record<string, RuntimeSchema>;
+};
+
+const RESUME_RESPONSE_SCHEMA: RuntimeSchema = {
+  type: Type.OBJECT,
+  required: ["professionalSummary", "roles"],
+  propertyOrdering: ["professionalSummary", "roles"],
+  properties: {
+    professionalSummary: {
+      type: Type.STRING,
+      description:
+        "A concise professional resume summary grounded only in candidate data.",
+    },
+    roles: {
+      type: Type.ARRAY,
+      minItems: 0,
+      items: {
+        type: Type.OBJECT,
+        required: ["bullets"],
+        properties: {
+          bullets: {
+            type: Type.ARRAY,
+            minItems: 1,
+            maxItems: MAX_BULLETS_PER_ROLE,
+            items: {
+              type: Type.STRING,
+            },
+          },
+        },
+      },
+    },
+  },
+};
 
 function buildPrompt(profile: Profile): string {
   const candidateData = {
@@ -96,7 +140,12 @@ export async function generateResumeContent(
   const result = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{ role: "user", parts: [{ text: buildPrompt(profile) }] }],
-    config: { temperature: 0.7 },
+    config: {
+      temperature: 0.7,
+      responseMimeType: "application/json",
+      responseSchema: RESUME_RESPONSE_SCHEMA as unknown as Schema,
+      thinkingConfig: { thinkingBudget: 0 },
+    },
   });
 
   const text = (result.text ?? "").trim();

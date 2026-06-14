@@ -194,7 +194,7 @@ export function sanitizeExtractedProfile(raw: RawExtracted): Partial<Profile> {
     const edu = raw.education;
     const degree = str(edu.degree).toLowerCase();
     const education: Education = {
-      degree: VALID_DEGREES.has(degree) ? degree : "high_school",
+      degree: VALID_DEGREES.has(degree) ? degree : "",
       fieldOfStudy: str(edu.fieldOfStudy),
       institution: str(edu.institution),
       graduationYear:
