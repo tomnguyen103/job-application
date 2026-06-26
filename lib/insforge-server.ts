@@ -22,6 +22,10 @@ export function createInsforgeAdmin() {
     throw new Error("INSFORGE_ADMIN_API_KEY is not defined in environment variables.");
   }
 
+  if (!baseUrl) {
+    throw new Error("InsForge base URL is not defined. Set INSFORGE_BASE_URL or NEXT_PUBLIC_INSFORGE_URL in environment variables.");
+  }
+
   return createAdminClient({
     apiKey,
     baseUrl,

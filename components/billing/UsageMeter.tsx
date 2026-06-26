@@ -9,14 +9,7 @@ type Props = {
 export function UsageMeter({ usage, planKey }: Props): ReactElement {
   const plan = BILLING_PLANS[planKey];
   
-  const eventTypes: BillingEventType[] = [
-    "job_search_run",
-    "job_match_score",
-    "company_research_run",
-    "tailored_resume_generate",
-    "base_resume_generate",
-    "resume_extract",
-  ];
+  const eventTypes = Object.keys(plan.quotas) as BillingEventType[];
 
   return (
     <div className="rounded-md border border-border bg-surface p-4 shadow-card">

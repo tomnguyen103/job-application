@@ -48,14 +48,46 @@ export default async function ProfilePage(): Promise<ReactElement> {
   const user = await requireCurrentUser();
   const insforge = await createInsforgeServer();
 
-  const { data: row } = await insforge.database
+  const profilePromise = insforge.database
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle();
 
-  const entitlement = await getUserEntitlement(user.id);
-  const usage = await getCurrentPeriodUsage(user.id, entitlement);
+  const entitlementPromise = getUserEntitlement(user.id).catch((err) => {
+    console.error("[profile] Error loading entitlement:", err);
+    return {
+      planKey: "free" as const,
+      status: "active",
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+    };
+  });
+
+  const [profileResult, entitlement] = await Promise.all([
+    profilePromise,
+    entitlementPromise,
+  ]);
+
+  const row = profileResult.data;
+
+  let usage = {
+    job_search_run: 0,
+    job_match_score: 0,
+    company_research_run: 0,
+    tailored_resume_generate: 0,
+    base_resume_generate: 0,
+    resume_extract: 0,
+  };
+
+  try {
+    usage = await getCurrentPeriodUsage(user.id, entitlement);
+  } catch (err) {
+    console.error("[profile] Error loading usage:", err);
+  }
 
   const profile: Profile = row
     ? mapProfileRowToProfile(row, user.email ?? "")

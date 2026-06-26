@@ -60,6 +60,14 @@ export const BILLING_PLANS: Record<"free" | "pro", BillingPlan> = {
   },
 };
 
+/**
+ * Calculates the start and end boundaries of the current billing period.
+ * For Pro users, this relies on the subscription start and end dates from Stripe.
+ * For Free users, it defaults to the calendar month boundary.
+ * 
+ * @param entitlement - The user's active billing entitlement.
+ * @returns An object containing the start and end Date objects for the current period.
+ */
 export function getPeriodBoundaries(entitlement: UserEntitlement): { periodStart: Date; periodEnd: Date } {
   if (entitlement.planKey === "pro" && entitlement.currentPeriodStart && entitlement.currentPeriodEnd) {
     return {

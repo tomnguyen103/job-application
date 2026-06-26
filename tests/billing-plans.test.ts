@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert";
 
 import { BILLING_PLANS, getPeriodBoundaries, UserEntitlement } from "../lib/billing/plans";
+import { isUniqueConstraintViolation } from "../lib/billing/usage";
 
 test("BILLING_PLANS contains free and pro definitions", () => {
   assert.ok(BILLING_PLANS.free);
@@ -82,12 +83,8 @@ test("quota calculation logic correctly evaluates allowed and exhausted cases", 
 });
 
 test("idempotency check parses unique constraint violations as success", () => {
-  const isIdempotencyError = (error: { code?: string; message?: string }) => {
-    return error.code === "23505" || !!error.message?.includes("uq_usage_ledger_user_event_idempotency");
-  };
-
-  assert.ok(isIdempotencyError({ code: "23505" }));
-  assert.ok(isIdempotencyError({ message: "duplicate key value violates unique constraint uq_usage_ledger_user_event_idempotency" }));
-  assert.strictEqual(isIdempotencyError({ code: "other" }), false);
+  assert.ok(isUniqueConstraintViolation({ code: "23505" }));
+  assert.ok(isUniqueConstraintViolation({ message: "duplicate key value violates unique constraint uq_usage_ledger_user_event_idempotency" }));
+  assert.strictEqual(isUniqueConstraintViolation({ code: "other" }), false);
 });
 

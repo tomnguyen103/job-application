@@ -146,7 +146,18 @@ export default async function DashboardPage(): Promise<ReactElement> {
   const insforge = await createInsforgeServer();
   const now = new Date();
 
-  const entitlement = await getUserEntitlement(user.id);
+  const entitlementPromise = getUserEntitlement(user.id).catch((err) => {
+    console.error("[dashboard] Error loading entitlement:", err);
+    return {
+      planKey: "free" as const,
+      status: "active",
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+    };
+  });
 
   const [
     profileResult,
@@ -209,8 +220,22 @@ export default async function DashboardPage(): Promise<ReactElement> {
     fetchJobsOverTime(user.id, now),
     fetchMatchDistribution(user.id),
     fetchResearchActivity(user.id, now),
-    getCurrentPeriodUsage(user.id, entitlement),
+    entitlementPromise
+      .then((ent) => getCurrentPeriodUsage(user.id, ent))
+      .catch((err) => {
+        console.error("[dashboard] Error loading usage:", err);
+        return {
+          job_search_run: 0,
+          job_match_score: 0,
+          company_research_run: 0,
+          tailored_resume_generate: 0,
+          base_resume_generate: 0,
+          resume_extract: 0,
+        };
+      }),
   ]);
+
+  const entitlement = await entitlementPromise;
 
   const profileLoadFailed = Boolean(profileResult.error);
 

@@ -20,6 +20,14 @@ export interface WebhookResult {
   error?: string;
 }
 
+/**
+ * Shared handler for Stripe checkout session creation.
+ * Calls InsForge payments client to generate a subscription checkout session URL.
+ * Falls back gracefully when payments are disabled.
+ * 
+ * @param params - Parameters containing userId, userEmail, requestUrl, and insforge client.
+ * @returns CheckoutResult object containing success status, fallback indicator, and redirect URL or error message.
+ */
 export async function handleCheckout({
   userId,
   userEmail,
@@ -51,7 +59,11 @@ export async function handleCheckout({
       customerEmail: userEmail || undefined,
     };
 
-    console.log("[billing/checkout] Creating session:", sessionRequest);
+    console.log("[billing/checkout] Creating session:", {
+      priceId: stripePriceId,
+      hasEmail: !!userEmail,
+      mode: "subscription",
+    });
 
     const { data, error } = await insforge.payments.createCheckoutSession("test", sessionRequest);
 
@@ -87,6 +99,13 @@ export async function handleCheckout({
   }
 }
 
+/**
+ * Shared handler for Stripe customer billing portal session creation.
+ * Retrieves the user's stripe customer ID and generates a portal session URL.
+ * 
+ * @param params - Parameters containing userId, requestUrl, and insforge client.
+ * @returns PortalResult object containing success status, fallback indicator, and redirect URL or error message.
+ */
 export async function handlePortal({
   userId,
   requestUrl,
@@ -162,6 +181,14 @@ export async function handlePortal({
   }
 }
 
+/**
+ * Shared handler for processing incoming Stripe webhooks.
+ * Implements atomic idempotency checks and fulfills subscription checkouts,
+ * updates, and cancellations.
+ * 
+ * @param params - Parameters containing the Stripe event payload and the insforge admin client.
+ * @returns WebhookResult object containing status, duplicate flag, and any error message.
+ */
 export async function handleWebhook({
   event,
   insforgeAdmin,
@@ -176,42 +203,50 @@ export async function handleWebhook({
     return { received: false, status: "failed", error: "Missing event metadata" };
   }
 
-  // 1. Check idempotency
+  // 1. Check idempotency atomically
   try {
-    const { data: existingEvent, error: selectError } = await insforgeAdmin.database
+    // Insert as pending immediately. If it already exists, the database unique key constraint will reject it.
+    const { error: insertError } = await insforgeAdmin.database
       .from("billing_webhook_events")
-      .select("processing_status")
-      .eq("stripe_event_id", stripeEventId)
-      .maybeSingle();
+      .insert([
+        {
+          stripe_event_id: stripeEventId,
+          event_type: eventType,
+          processed_at: new Date().toISOString(),
+          payload: event,
+          processing_status: "pending",
+        },
+      ]);
 
-    if (selectError) {
-      console.error("[billing/webhook] Error checking existing event:", selectError);
+    if (insertError) {
+      const isDuplicate = insertError.code === "23505" || insertError.message?.includes("duplicate key");
+      if (isDuplicate) {
+        // Retrieve status of the existing event
+        const { data: existingEvent, error: selectError } = await insforgeAdmin.database
+          .from("billing_webhook_events")
+          .select("processing_status")
+          .eq("stripe_event_id", stripeEventId)
+          .maybeSingle();
+
+        if (selectError) {
+          console.error("[billing/webhook] Error checking existing event:", selectError);
+          return { received: false, status: "failed", error: "Database error" };
+        }
+
+        if (existingEvent) {
+          if (existingEvent.processing_status === "processed" || existingEvent.processing_status === "ignored") {
+            console.log(`[billing/webhook] Event ${stripeEventId} already processed (race detected), skipping.`);
+            return { received: true, status: "ignored", duplicate: true };
+          }
+          if (existingEvent.processing_status === "pending") {
+            console.log(`[billing/webhook] Event ${stripeEventId} is currently being processed by another worker.`);
+            return { received: false, status: "failed", error: "Event currently processing" };
+          }
+        }
+      }
+
+      console.error("[billing/webhook] Error inserting pending event:", insertError);
       return { received: false, status: "failed", error: "Database error" };
-    }
-
-    if (existingEvent) {
-      if (existingEvent.processing_status === "processed" || existingEvent.processing_status === "ignored") {
-        console.log(`[billing/webhook] Event ${stripeEventId} already processed, skipping.`);
-        return { received: true, status: "ignored", duplicate: true };
-      }
-    } else {
-      // Insert as pending
-      const { error: insertError } = await insforgeAdmin.database
-        .from("billing_webhook_events")
-        .insert([
-          {
-            stripe_event_id: stripeEventId,
-            event_type: eventType,
-            processed_at: new Date().toISOString(),
-            payload: event,
-            processing_status: "pending",
-          },
-        ]);
-
-      if (insertError) {
-        console.error("[billing/webhook] Error inserting pending event:", insertError);
-        return { received: false, status: "failed", error: "Database error" };
-      }
     }
   } catch (err) {
     console.error("[billing/webhook] Idempotency check failed:", err);

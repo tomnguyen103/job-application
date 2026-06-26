@@ -10,6 +10,15 @@ export interface UserEntitlement {
   stripeSubscriptionId: string | null;
 }
 
+/**
+ * Fetches and resolves the billing entitlement for a given user from the database.
+ * If the user does not have a record, defaults to the Free plan.
+ * Handles grace period checking and automatically downgrades past_due/canceled
+ * subscriptions if they are past the 3-day grace period.
+ * 
+ * @param userId - The unique identifier of the user.
+ * @returns The resolved UserEntitlement object.
+ */
 export async function getUserEntitlement(userId: string): Promise<UserEntitlement> {
   const defaultFree: UserEntitlement = {
     planKey: "free",
