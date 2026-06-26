@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { queryPostHogHogQL, type HogQLRow } from "@/lib/posthog-query";
 
 export type DailyChartPoint = {
@@ -184,15 +186,49 @@ const DAILY_EVENT_COUNT_QUERY = (
    GROUP BY day
    ORDER BY day`;
 
+const getCachedJobsOverTimeRaw = unstable_cache(
+  async (userId: string) => {
+    return queryPostHogHogQL(
+      DAILY_EVENT_COUNT_QUERY("job_found", JOBS_OVER_TIME_DAYS),
+      { userId },
+    );
+  },
+  ["posthog-jobs-over-time-raw"],
+  { revalidate: 300 }
+);
+
+const getCachedResearchActivityRaw = unstable_cache(
+  async (userId: string) => {
+    return queryPostHogHogQL(
+      DAILY_EVENT_COUNT_QUERY("company_researched", RESEARCH_ACTIVITY_DAYS),
+      { userId },
+    );
+  },
+  ["posthog-research-activity-raw"],
+  { revalidate: 300 }
+);
+
+const getCachedMatchDistributionRaw = unstable_cache(
+  async (userId: string) => {
+    return queryPostHogHogQL(
+      `SELECT toFloat(properties.matchScore) AS score, count() AS c
+       FROM events
+       WHERE event = 'job_found'
+         AND distinct_id = {userId}
+       GROUP BY score`,
+      { userId },
+    );
+  },
+  ["posthog-match-distribution-raw"],
+  { revalidate: 300 }
+);
+
 /** `job_found` events per day for the last 30 days. Null on query failure. */
 export async function fetchJobsOverTime(
   userId: string,
   now: Date,
 ): Promise<DailyChartPoint[] | null> {
-  const rows = await queryPostHogHogQL(
-    DAILY_EVENT_COUNT_QUERY("job_found", JOBS_OVER_TIME_DAYS),
-    { userId },
-  );
+  const rows = await getCachedJobsOverTimeRaw(userId);
 
   if (rows === null) {
     return null;
@@ -211,10 +247,7 @@ export async function fetchResearchActivity(
   userId: string,
   now: Date,
 ): Promise<DailyChartPoint[] | null> {
-  const rows = await queryPostHogHogQL(
-    DAILY_EVENT_COUNT_QUERY("company_researched", RESEARCH_ACTIVITY_DAYS),
-    { userId },
-  );
+  const rows = await getCachedResearchActivityRaw(userId);
 
   if (rows === null) {
     return null;
@@ -232,14 +265,7 @@ export async function fetchResearchActivity(
 export async function fetchMatchDistribution(
   userId: string,
 ): Promise<DistributionChartPoint[] | null> {
-  const rows = await queryPostHogHogQL(
-    `SELECT toFloat(properties.matchScore) AS score, count() AS c
-     FROM events
-     WHERE event = 'job_found'
-       AND distinct_id = {userId}
-     GROUP BY score`,
-    { userId },
-  );
+  const rows = await getCachedMatchDistributionRaw(userId);
 
   if (rows === null) {
     return null;

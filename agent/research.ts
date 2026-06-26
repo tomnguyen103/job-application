@@ -1,7 +1,7 @@
 import type { Stagehand } from "@browserbasehq/stagehand";
 import { z } from "zod";
 
-import { createGeminiClient } from "@/agent/gemini";
+import { createGeminiClient, parseGeminiJsonResponse } from "@/agent/gemini";
 import {
   createCompanyResearchSession,
   releaseBrowserbaseSession,
@@ -631,14 +631,7 @@ async function synthesizeDossier(
       },
     });
 
-    const text = (result.text ?? "").trim();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      throw new Error("No JSON object found in model response");
-    }
-
-    const raw: unknown = JSON.parse(jsonMatch[0]);
+    const raw: unknown = parseGeminiJsonResponse<unknown>(result.text ?? "");
     const dossier = sanitizeCompanyResearchDossier(raw, fallback);
     return {
       ...dossier,

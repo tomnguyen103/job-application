@@ -7,3 +7,86 @@ import { requireEnv } from "@/lib/env";
 export function createGeminiClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
 }
+
+function findBalancedObject(text: string, start: number): string | null {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+export function extractFirstJsonObject(text: string): string | null {
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== "{") {
+      continue;
+    }
+
+    const candidate = findBalancedObject(text, i);
+    if (!candidate) {
+      return null;
+    }
+
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extracts and parses the first JSON object from a text response.
+ * Uses a robust bracket-depth balanced parser with a fallback to regex-based extraction.
+ */
+export function parseGeminiJsonResponse<T>(text: string): T {
+  const trimmed = text.trim();
+  const balanced = extractFirstJsonObject(trimmed);
+
+  if (balanced) {
+    return JSON.parse(balanced) as T;
+  }
+
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("No JSON object found in model response");
+  }
+
+  return JSON.parse(jsonMatch[0]) as T;
+}
+

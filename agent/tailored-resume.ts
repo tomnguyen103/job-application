@@ -1,6 +1,6 @@
 import { Type, type Schema } from "@google/genai";
 
-import { createGeminiClient } from "@/agent/gemini";
+import { createGeminiClient, parseGeminiJsonResponse, extractFirstJsonObject } from "@/agent/gemini";
 import type { Profile } from "@/types";
 
 export type TailoredResumeJob = {
@@ -155,67 +155,8 @@ function safeProfessionalSummary(
   throw new Error("Model response claims a missing skill in the summary");
 }
 
-function findBalancedObject(text: string, start: number): string | null {
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let i = start; i < text.length; i++) {
-    const char = text[i];
-
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === "\"") {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === "\"") {
-      inString = true;
-      continue;
-    }
-
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return text.slice(start, i + 1);
-      }
-    }
-  }
-
-  return null;
-}
-
-export function extractFirstJsonObject(text: string): string | null {
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] !== "{") {
-      continue;
-    }
-
-    const candidate = findBalancedObject(text, i);
-    if (!candidate) {
-      return null;
-    }
-
-    try {
-      JSON.parse(candidate);
-      return candidate;
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
-}
+// Re-export extractFirstJsonObject for backward compatibility
+export { extractFirstJsonObject };
 
 export function buildTailoredResumeInput(
   profile: Profile,
@@ -393,13 +334,7 @@ export async function generateTailoredResumeContent({
     },
   });
 
-  const text = (result.text ?? "").trim();
-  const jsonPayload = extractFirstJsonObject(text);
-  if (!jsonPayload) {
-    throw new Error("No JSON object found in model response");
-  }
-
-  const raw = JSON.parse(jsonPayload) as unknown;
+  const raw = parseGeminiJsonResponse<unknown>(result.text ?? "");
   return sanitizeTailoredResumeContent(raw, {
     roleCount: profile.workExperience.length,
     forbiddenTerms: job.missingSkills,

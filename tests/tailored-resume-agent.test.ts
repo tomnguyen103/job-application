@@ -5,10 +5,10 @@ import {
   buildFallbackProfessionalSummary,
   buildTailoredResumeInput,
   buildTailoredResumePrompt,
-  extractFirstJsonObject,
   sanitizeTailoredResumeContent,
   type TailoredResumeJob,
 } from "../agent/tailored-resume";
+import { extractFirstJsonObject } from "../agent/gemini";
 import type { Profile } from "../types";
 
 const profile: Profile = {
