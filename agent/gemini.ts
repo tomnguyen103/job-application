@@ -56,7 +56,7 @@ export function extractFirstJsonObject(text: string): string | null {
 
     const candidate = findBalancedObject(text, i);
     if (!candidate) {
-      return null;
+      continue;
     }
 
     try {

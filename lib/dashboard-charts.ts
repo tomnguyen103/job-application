@@ -188,10 +188,14 @@ const DAILY_EVENT_COUNT_QUERY = (
 
 const getCachedJobsOverTimeRaw = unstable_cache(
   async (userId: string) => {
-    return queryPostHogHogQL(
+    const res = await queryPostHogHogQL(
       DAILY_EVENT_COUNT_QUERY("job_found", JOBS_OVER_TIME_DAYS),
       { userId },
     );
+    if (res === null) {
+      throw new Error("PostHog query failed for jobs over time");
+    }
+    return res;
   },
   ["posthog-jobs-over-time-raw"],
   { revalidate: 300 }
@@ -199,10 +203,14 @@ const getCachedJobsOverTimeRaw = unstable_cache(
 
 const getCachedResearchActivityRaw = unstable_cache(
   async (userId: string) => {
-    return queryPostHogHogQL(
+    const res = await queryPostHogHogQL(
       DAILY_EVENT_COUNT_QUERY("company_researched", RESEARCH_ACTIVITY_DAYS),
       { userId },
     );
+    if (res === null) {
+      throw new Error("PostHog query failed for research activity");
+    }
+    return res;
   },
   ["posthog-research-activity-raw"],
   { revalidate: 300 }
@@ -210,7 +218,7 @@ const getCachedResearchActivityRaw = unstable_cache(
 
 const getCachedMatchDistributionRaw = unstable_cache(
   async (userId: string) => {
-    return queryPostHogHogQL(
+    const res = await queryPostHogHogQL(
       `SELECT toFloat(properties.matchScore) AS score, count() AS c
        FROM events
        WHERE event = 'job_found'
@@ -218,6 +226,10 @@ const getCachedMatchDistributionRaw = unstable_cache(
        GROUP BY score`,
       { userId },
     );
+    if (res === null) {
+      throw new Error("PostHog query failed for match distribution");
+    }
+    return res;
   },
   ["posthog-match-distribution-raw"],
   { revalidate: 300 }
@@ -228,18 +240,18 @@ export async function fetchJobsOverTime(
   userId: string,
   now: Date,
 ): Promise<DailyChartPoint[] | null> {
-  const rows = await getCachedJobsOverTimeRaw(userId);
-
-  if (rows === null) {
+  try {
+    const rows = await getCachedJobsOverTimeRaw(userId);
+    return buildDailySeries({
+      rows: toDailyCountRows(rows),
+      days: JOBS_OVER_TIME_DAYS,
+      now,
+      labelStyle: "monthDay",
+    });
+  } catch (error) {
+    console.error("[posthog/cache] fetchJobsOverTime failed:", error);
     return null;
   }
-
-  return buildDailySeries({
-    rows: toDailyCountRows(rows),
-    days: JOBS_OVER_TIME_DAYS,
-    now,
-    labelStyle: "monthDay",
-  });
 }
 
 /** `company_researched` events per day for the last 7 days. Null on query failure. */
@@ -247,29 +259,29 @@ export async function fetchResearchActivity(
   userId: string,
   now: Date,
 ): Promise<DailyChartPoint[] | null> {
-  const rows = await getCachedResearchActivityRaw(userId);
-
-  if (rows === null) {
+  try {
+    const rows = await getCachedResearchActivityRaw(userId);
+    return buildDailySeries({
+      rows: toDailyCountRows(rows),
+      days: RESEARCH_ACTIVITY_DAYS,
+      now,
+      labelStyle: "weekday",
+    });
+  } catch (error) {
+    console.error("[posthog/cache] fetchResearchActivity failed:", error);
     return null;
   }
-
-  return buildDailySeries({
-    rows: toDailyCountRows(rows),
-    days: RESEARCH_ACTIVITY_DAYS,
-    now,
-    labelStyle: "weekday",
-  });
 }
 
 /** All-time matchScore distribution across `job_found` events. Null on query failure. */
 export async function fetchMatchDistribution(
   userId: string,
 ): Promise<DistributionChartPoint[] | null> {
-  const rows = await getCachedMatchDistributionRaw(userId);
-
-  if (rows === null) {
+  try {
+    const rows = await getCachedMatchDistributionRaw(userId);
+    return buildMatchDistribution(toScoreCountRows(rows));
+  } catch (error) {
+    console.error("[posthog/cache] fetchMatchDistribution failed:", error);
     return null;
   }
-
-  return buildMatchDistribution(toScoreCountRows(rows));
 }
