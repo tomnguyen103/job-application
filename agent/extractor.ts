@@ -1,4 +1,4 @@
-import { createGeminiClient } from "@/agent/gemini";
+import { createGeminiClient, parseGeminiJsonResponse } from "@/agent/gemini";
 import type { Education, Profile, WorkExperience } from "@/types";
 
 const VALID_DEGREES = new Set([
@@ -233,12 +233,6 @@ export async function extractProfileFromPdf(
     },
   });
 
-  const text = (result.text ?? "").trim();
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("No JSON object found in model response");
-  }
-
-  const raw = JSON.parse(jsonMatch[0]) as RawExtracted;
+  const raw = parseGeminiJsonResponse<RawExtracted>(result.text ?? "");
   return sanitizeExtractedProfile(raw);
 }

@@ -1,4 +1,4 @@
-import { createGeminiClient } from "@/agent/gemini";
+import { createGeminiClient, parseGeminiJsonResponse } from "@/agent/gemini";
 import type { JobMatchContent, UsableAdzunaJob } from "@/agent/types";
 import type { Profile } from "@/types";
 
@@ -101,12 +101,6 @@ export async function scoreJobMatch(
     config: { temperature: 0.3, thinkingConfig: { thinkingBudget: 0 } },
   });
 
-  const text = (result.text ?? "").trim();
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("No JSON object found in model response");
-  }
-
-  const raw = JSON.parse(jsonMatch[0]) as unknown;
+  const raw = parseGeminiJsonResponse<unknown>(result.text ?? "");
   return sanitize(raw);
 }

@@ -5,10 +5,10 @@ import {
   buildFallbackProfessionalSummary,
   buildTailoredResumeInput,
   buildTailoredResumePrompt,
-  extractFirstJsonObject,
   sanitizeTailoredResumeContent,
   type TailoredResumeJob,
 } from "../agent/tailored-resume";
+import { extractFirstJsonObject, parseGeminiJsonResponse } from "../agent/gemini";
 import type { Profile } from "../types";
 
 const profile: Profile = {
@@ -216,3 +216,31 @@ test("extractFirstJsonObject skips incidental invalid braces", () => {
     '{"professionalSummary":"Grounded summary","roles":[]}',
   );
 });
+
+test("extractFirstJsonObject skips unmatched leading brace", () => {
+  const json = extractFirstJsonObject(
+    'Draft note {not json: {"professionalSummary":"Grounded summary","roles":[]}',
+  );
+
+  assert.equal(
+    json,
+    '{"professionalSummary":"Grounded summary","roles":[]}',
+  );
+});
+
+test("parseGeminiJsonResponse parses successfully when preceded by stray braces", () => {
+  type TestShape = { professionalSummary: string; roles: unknown[] };
+
+  // Case 1: Matched-but-invalid leading brace
+  const res1 = parseGeminiJsonResponse<TestShape>(
+    'Some preamble {not json} here: {"professionalSummary":"Grounded summary","roles":[]}',
+  );
+  assert.deepEqual(res1, { professionalSummary: "Grounded summary", roles: [] });
+
+  // Case 2: Unmatched leading brace
+  const res2 = parseGeminiJsonResponse<TestShape>(
+    'Preamble with {unmatched: {"professionalSummary":"Grounded summary","roles":[]}',
+  );
+  assert.deepEqual(res2, { professionalSummary: "Grounded summary", roles: [] });
+});
+
