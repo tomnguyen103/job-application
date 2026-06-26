@@ -1,5 +1,7 @@
 import type { ReactElement } from "react";
 
+import { getUserEntitlement } from "@/lib/billing/entitlements";
+import { getCurrentPeriodUsage } from "@/lib/billing/usage";
 import { IncompleteProfileBanner } from "@/components/dashboard/IncompleteProfileBanner";
 import { JobsOverTimeChart } from "@/components/dashboard/JobsOverTimeChart";
 import { MatchDistributionChart } from "@/components/dashboard/MatchDistributionChart";
@@ -144,6 +146,19 @@ export default async function DashboardPage(): Promise<ReactElement> {
   const insforge = await createInsforgeServer();
   const now = new Date();
 
+  const entitlementPromise = getUserEntitlement(user.id).catch((err) => {
+    console.error("[dashboard] Error loading entitlement:", err);
+    return {
+      planKey: "free" as const,
+      status: "active",
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+    };
+  });
+
   const [
     profileResult,
     jobsResult,
@@ -155,6 +170,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
     jobsOverTimeResult,
     matchDistributionResult,
     researchActivityResult,
+    usage,
   ] = await Promise.all([
     insforge.database
       .from("profiles")
@@ -204,7 +220,22 @@ export default async function DashboardPage(): Promise<ReactElement> {
     fetchJobsOverTime(user.id, now),
     fetchMatchDistribution(user.id),
     fetchResearchActivity(user.id, now),
+    entitlementPromise
+      .then((ent) => getCurrentPeriodUsage(user.id, ent))
+      .catch((err) => {
+        console.error("[dashboard] Error loading usage:", err);
+        return {
+          job_search_run: 0,
+          job_match_score: 0,
+          company_research_run: 0,
+          tailored_resume_generate: 0,
+          base_resume_generate: 0,
+          resume_extract: 0,
+        };
+      }),
   ]);
+
+  const entitlement = await entitlementPromise;
 
   const profileLoadFailed = Boolean(profileResult.error);
 
@@ -346,6 +377,8 @@ export default async function DashboardPage(): Promise<ReactElement> {
             stats={stats}
             actions={todayActions}
             actionsLoadFailed={todayActionsLoadFailed}
+            entitlement={entitlement}
+            usage={usage}
           />
           {showIncompleteProfileBanner ? <IncompleteProfileBanner /> : null}
           <StatsBar stats={stats} />

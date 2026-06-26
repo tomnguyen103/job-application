@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 
 import { generateResumeContent } from "@/agent/generator";
+import { assertQuotaAvailable, recordUsage, QuotaExceededError } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 import { mapProfileRowToProfile } from "@/lib/utils";
 
@@ -38,6 +39,19 @@ export async function POST() {
   }
 
   const profile = mapProfileRowToProfile(row, user.email ?? "");
+
+  // Phase 6S.2 - Quota check
+  try {
+    await assertQuotaAvailable(user.id, "base_resume_generate", 1);
+  } catch (quotaError) {
+    if (quotaError instanceof QuotaExceededError) {
+      return NextResponse.json(
+        { error: quotaError.message },
+        { status: 402 },
+      );
+    }
+    throw quotaError;
+  }
 
   let content;
   try {
@@ -101,6 +115,16 @@ export async function POST() {
         { status: 500 },
       );
     }
+
+    // Phase 6S.2 - Record usage
+    await recordUsage(
+      user.id,
+      "base_resume_generate",
+      1,
+      `generate:${row.updated_at}`,
+      {},
+      "/api/resume/generate",
+    );
 
     revalidatePath("/profile");
     return NextResponse.json({ success: true });

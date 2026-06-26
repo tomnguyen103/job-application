@@ -5,6 +5,7 @@ import { Logo } from "@/components/layout/Logo";
 
 const footerLinks = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms & Condition", href: "/terms" },
 ];

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
 
+import { PlanSummary } from "@/components/billing/PlanSummary";
+import { UsageMeter } from "@/components/billing/UsageMeter";
+import type { UserEntitlement, BillingEventType } from "@/lib/billing/plans";
 import {
   DASHBOARD_STAT_LABELS,
   type DashboardStat,
@@ -14,6 +17,8 @@ type Props = {
   stats: DashboardStat[];
   actions: TodayAction[];
   actionsLoadFailed?: boolean;
+  entitlement: UserEntitlement;
+  usage: Record<BillingEventType, number>;
 };
 
 function getStatValue(stats: DashboardStat[], label: DashboardStatLabel): string {
@@ -38,6 +43,8 @@ export function TodayWorkspace({
   stats,
   actions,
   actionsLoadFailed = false,
+  entitlement,
+  usage,
 }: Props): ReactElement {
   const totalJobs = getStatValue(stats, DASHBOARD_STAT_LABELS.TOTAL_JOBS);
   const averageMatch = getStatValue(stats, DASHBOARD_STAT_LABELS.AVG_MATCH);
@@ -78,6 +85,18 @@ export function TodayWorkspace({
               Review saved jobs
             </Link>
           </div>
+
+          {entitlement && usage && (
+            <div className="mt-8 border-t border-border/60 pt-6">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                Billing & Quotas
+              </h2>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                <PlanSummary entitlement={entitlement} />
+                <UsageMeter usage={usage} planKey={entitlement.planKey} />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="rounded-md border border-border bg-surface-glass p-4">
