@@ -1,5 +1,7 @@
 import type { ReactElement } from "react";
 
+import { getUserEntitlement } from "@/lib/billing/entitlements";
+import { getCurrentPeriodUsage } from "@/lib/billing/usage";
 import { IncompleteProfileBanner } from "@/components/dashboard/IncompleteProfileBanner";
 import { JobsOverTimeChart } from "@/components/dashboard/JobsOverTimeChart";
 import { MatchDistributionChart } from "@/components/dashboard/MatchDistributionChart";
@@ -144,6 +146,8 @@ export default async function DashboardPage(): Promise<ReactElement> {
   const insforge = await createInsforgeServer();
   const now = new Date();
 
+  const entitlement = await getUserEntitlement(user.id);
+
   const [
     profileResult,
     jobsResult,
@@ -155,6 +159,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
     jobsOverTimeResult,
     matchDistributionResult,
     researchActivityResult,
+    usage,
   ] = await Promise.all([
     insforge.database
       .from("profiles")
@@ -204,6 +209,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
     fetchJobsOverTime(user.id, now),
     fetchMatchDistribution(user.id),
     fetchResearchActivity(user.id, now),
+    getCurrentPeriodUsage(user.id, entitlement),
   ]);
 
   const profileLoadFailed = Boolean(profileResult.error);
@@ -346,6 +352,8 @@ export default async function DashboardPage(): Promise<ReactElement> {
             stats={stats}
             actions={todayActions}
             actionsLoadFailed={todayActionsLoadFailed}
+            entitlement={entitlement}
+            usage={usage}
           />
           {showIncompleteProfileBanner ? <IncompleteProfileBanner /> : null}
           <StatsBar stats={stats} />

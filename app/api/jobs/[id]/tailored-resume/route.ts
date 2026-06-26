@@ -8,6 +8,7 @@ import {
   generateTailoredResumeContent,
   type TailoredResumeJob,
 } from "@/agent/tailored-resume";
+import { assertQuotaAvailable, recordUsage, QuotaExceededError } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 import {
   buildTailoredResumeStorageKey,
@@ -155,6 +156,19 @@ export async function POST(_request: Request, { params }: RouteContext) {
       );
     }
 
+    // Phase 6S.2 - Quota check
+    try {
+      await assertQuotaAvailable(user.id, "tailored_resume_generate", 1);
+    } catch (quotaError) {
+      if (quotaError instanceof QuotaExceededError) {
+        return NextResponse.json(
+          { success: false, error: quotaError.message },
+          { status: 402 },
+        );
+      }
+      throw quotaError;
+    }
+
     const { data: previousRows, error: previousError } =
       await insforge.database
         .from("tailored_resumes")
@@ -257,6 +271,17 @@ export async function POST(_request: Request, { params }: RouteContext) {
           { status: 500 },
         );
       }
+
+      // Phase 6S.2 - Record usage
+      await recordUsage(
+        user.id,
+        "tailored_resume_generate",
+        1,
+        `tailor:${resumeId}`,
+        { jobId: job.id, company: job.company },
+        `/api/jobs/${job.id}/tailored-resume`,
+        resumeId,
+      );
 
       const previous = (previousRows ?? []) as PreviousTailoredResumeRow[];
       const removedStorageKeys = new Set<string>();

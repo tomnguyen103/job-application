@@ -1,54 +1,34 @@
-# Memory - Website Modernization Phase 6 Readiness Audit
+# Memory - Stripe SaaS Integration (Phases 6S.1 through 6S.8)
 
-Last updated: 2026-06-14 00:00 -05:00
+Last updated: 2026-06-26
 
 ## What was built
 
-- Started Website Modernization Phase 6 as a documentation-only readiness audit.
-- Updated `context/website-modernization-plan.md` with the current Phase 6 status, backend/payment gates, SDK/CLI reality checks, product decisions still required, and additional gates before any billing code.
-- Updated `context/library-docs.md` with a Phase 6 payments-readiness section under InsForge, documenting the current backend capability result and the local CLI/SDK payment shapes.
-- Updated `context/progress-tracker.md` so the current status is `Website Modernization - Phase 6 Readiness Audit Started` and the next step is explicit approval plus InsForge payments enablement.
-- Preserved the previous Phase 5 published state: dashboard Today actions, skill-gap insights, job-detail interview prep, theme/signout polish, and tailored-resume safety fixes are already merged.
+- Database billing schema migration (`migrations/20260626154135_create-billing-schema.sql`) creating:
+  - `user_entitlements` table with user-scoped RLS SELECT policies and restricted client write access.
+  - `usage_ledger` table with user-scoped RLS SELECT policies, append-only entries, and idempotency constraints.
+  - `billing_webhook_events` table for webhook processing idempotency.
+- Server-side quota validation and usage ledger tracking (`lib/billing/usage.ts`) guarding expensive operations (`/api/agent/find`, `/api/agent/research`, `/api/resume/extract`, `/api/resume/generate`, and `/api/jobs/[id]/tailored-resume`).
+- Stripe checkout redirection (`/api/billing/checkout`), Customer Portal redirection (`/api/billing/portal`), and webhook ingestion/fulfillment (`/api/billing/webhook`) routes using pure method handlers (`lib/billing/routes.ts`) for testability.
+- Read-only billing and quota summary components (`PlanSummary`, `UsageMeter`, `BillingActions` in `components/billing/`) integrated into TodayWorkspace Dashboard and Profile pages.
+- Public route `/pricing` with price comparison grid, support links, and authentication-aware CTA redirects.
+- Safe fallback system returning `fallback: true` on checkout/portal APIs and displaying a premium "Coming Soon" card when payments are disabled on the backend.
+- Pure-based unit and integration tests (`tests/billing-routes.test.ts` and `tests/billing-plans.test.ts`) validating route logic without Node path resolution issues.
 
 ## Decisions made
 
-- Phase 6 implementation is not approved yet. The current work is readiness documentation only.
-- No payment, subscription, billing, pricing, admin, team, plan-management, route, schema, or UI implementation was added.
-- The linked InsForge project is `JobApplication`, but `npx @insforge/cli payments stripe status --json` reports payments are not available on this backend.
-- The local InsForge CLI namespaces Stripe commands under `payments stripe`, even though older docs or skill snapshots may show `payments status`.
-- The installed `@insforge/sdk` types expose `insforge.payments.createCheckoutSession(environment, request)` and `createCustomerPortalSession(environment, request)`, so future payment work should trust `node_modules/@insforge/sdk/dist/*.d.ts` before copied examples.
-- Stripe success and cancel URLs must stay navigation-only. Fulfillment and subscription access must come from webhook-backed payment projections and app-owned entitlement/order tables.
+- Leverage InsForge native payments SDK (`createCheckoutSession` and `createCustomerPortalSession`) without storing secret Stripe keys on the client or server.
+- Decouple Next.js API route handlers into pure library methods (`lib/billing/routes.ts`) to allow dependency injection during test executions, avoiding Node.js module path resolution issues on `@insforge/sdk/ssr` imports.
+- Gracefully handle payments-disabled errors returned by the platform, transforming them into a structured fallback mode for high-fidelity UI rendering rather than throwing raw errors.
 
 ## Problems solved
 
-- Removed ambiguity around the next modernization phase: Phase 6 is the only unfinished item, but it remains gated instead of implementation-ready.
-- Captured the live backend blocker before anyone tries to build checkout UI or store Stripe keys incorrectly.
-- Documented that generic InsForge secrets are not an acceptable workaround for unavailable payments.
-- Captured the SDK/docs shape mismatch so future work does not copy the wrong payment call signature.
+- ESLint warning regarding unused `_table` variable in `tests/billing-routes.test.ts` resolved.
+- Verified that all 77 unit/integration tests pass at 100%.
+- Verified Next.js production build (`npm run build`) and ESLint (`npm run lint`) succeed without any errors.
 
 ## Current state
 
-- Branch is `main`, tracking `origin/main`.
-- Uncommitted changes are documentation/handoff only: `context/website-modernization-plan.md`, `context/library-docs.md`, `context/progress-tracker.md`, and `memory.md`.
-- `context/ui-registry.md`, `context/ui-tokens.md`, and `context/ui-rules.md` were not updated in this pass because no UI component, token, or theme behavior changed.
-- Verification completed after the docs-only Phase 6 readiness audit:
-  - `npm test` passed 64/64.
-  - `npm run lint` passed.
-  - `npm run build` passed.
-  - `git diff --check` passed with LF-to-CRLF warnings only.
-  - In-app browser verified homepage desktop/mobile serving, theme toggle dark/light/dark, no console warnings/errors, no horizontal overflow, and `/dashboard` redirecting to `/login?next=%2Fdashboard` when unauthenticated.
-- Authenticated Sign out visual verification is still not completed because the available in-app browser session was unauthenticated.
-
-## Next session starts with
-
-1. Do not implement Phase 6 billing/payment features until the user explicitly approves moving past readiness planning.
-2. If approved, first enable or upgrade InsForge payments for the linked backend and confirm `npx @insforge/cli payments stripe status --json` no longer reports payments unavailable.
-3. Decide the Phase 6 business model before code: free/pro/premium boundaries, whether billing is user-only, usage quotas, entitlement tables, and tracking events.
-4. Keep team, organization, admin, and multi-seat billing out of scope unless separately approved.
-
-## Open questions
-
-- Whether the user wants to enable InsForge payments and proceed with a real Phase 6 implementation later.
-- Whether the eventual billing subject should be a single authenticated user only.
-- Which AI/browser operations should have quotas or usage limits.
-- Whether to establish an authenticated local browser session for Sign out visual evidence before the next UI implementation phase.
+- All uncommitted files (billing schema migrations, route helpers, UI components, tests, and updated plan/progress documents) are ready and verified.
+- Backend status check confirms database migrations are applied and synced.
+- Ready to commit uncommitted files and open a draft PR for CodeRabbit review.

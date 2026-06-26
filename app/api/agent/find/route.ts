@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 import { discoverJobs } from "@/agent/adzuna";
+import { assertQuotaAvailable, recordUsage, QuotaExceededError } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 import { capturePostHogServerEvent } from "@/lib/posthog-server";
 import { mapProfileRowToProfile } from "@/lib/utils";
@@ -85,6 +86,28 @@ export async function POST(req: NextRequest) {
 
     const profile = mapProfileRowToProfile(profileRow, user.email ?? "");
 
+    // Phase 6S.2 - Quota check
+    try {
+      await assertQuotaAvailable(user.id, "job_search_run", 1);
+      await assertQuotaAvailable(user.id, "job_match_score", 1);
+    } catch (quotaError) {
+      if (quotaError instanceof QuotaExceededError) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: quotaError.message,
+            code: "QUOTA_EXCEEDED",
+            eventType: quotaError.eventType,
+            current: quotaError.current,
+            limit: quotaError.limit,
+            planKey: quotaError.planKey,
+          },
+          { status: 402 },
+        );
+      }
+      throw quotaError;
+    }
+
     const { data: runData, error: runError } = await insforge.database
       .from("agent_runs")
       .insert([
@@ -132,6 +155,29 @@ export async function POST(req: NextRequest) {
       status: "completed",
       jobsFound: result.saved,
     });
+
+    // Phase 6S.2 - Record usage
+    await recordUsage(
+      user.id,
+      "job_search_run",
+      1,
+      `run:${run.id}:search`,
+      { jobTitle, location },
+      "/api/agent/find",
+      run.id,
+    );
+
+    if (result.saved > 0) {
+      await recordUsage(
+        user.id,
+        "job_match_score",
+        result.saved,
+        `run:${run.id}:scores`,
+        { jobTitle, location, count: result.saved },
+        "/api/agent/find",
+        run.id,
+      );
+    }
 
     await Promise.all(
       result.savedJobs.map((savedJob) =>

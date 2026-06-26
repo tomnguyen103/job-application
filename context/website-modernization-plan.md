@@ -373,9 +373,13 @@ Do not introduce payment yet.
 
 Start this only after the modernized site feels complete.
 
+Detailed Stripe review plan: `context/stripe-saas-integration-plan.md`.
+
 Current readiness status (2026-06-14):
 
 - Status: docs-only readiness audit started; implementation is not approved.
+- Provider direction for review: Stripe, with InsForge payments as the
+  preferred integration path once backend payments are enabled.
 - Backend capability: `npx @insforge/cli payments stripe status --json`
   returns `Payments are not available on this backend.` Do not work around this
   with generic secrets or custom Stripe key storage.

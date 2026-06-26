@@ -6,9 +6,25 @@ import { redirect } from "next/navigation";
 import { orderedSupportedProviders } from "@/lib/auth";
 import type { SupportedOAuthProvider } from "@/lib/auth";
 
+import { createAdminClient } from "@insforge/sdk";
+
 export async function createInsforgeServer() {
   return createServerClient({
     cookies: await cookies(),
+  });
+}
+
+export function createInsforgeAdmin() {
+  const apiKey = process.env.INSFORGE_ADMIN_API_KEY;
+  const baseUrl = process.env.INSFORGE_BASE_URL || process.env.NEXT_PUBLIC_INSFORGE_URL;
+
+  if (!apiKey) {
+    throw new Error("INSFORGE_ADMIN_API_KEY is not defined in environment variables.");
+  }
+
+  return createAdminClient({
+    apiKey,
+    baseUrl,
   });
 }
 

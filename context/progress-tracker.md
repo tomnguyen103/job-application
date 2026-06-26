@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Website Modernization - Phase 6 Readiness Audit Started
-**Last completed:** Modernization Phase 5 - Engagement Features Without Billing
-**Next:** Explicit approval plus InsForge payments enablement before any SaaS implementation
+**Phase:** Website Modernization - Phase 6 Stripe SaaS Integration Completed
+**Last completed:** Phase 6 Stripe SaaS Integration (Phases 6S.1 through 6S.8)
+**Next:** Monitor in production/staging and gather user feedback
 
 ---
 
@@ -57,7 +57,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - [x] Phase 3 - Login And Public Exploration
 - [x] Phase 4 - Authenticated Workspace Polish
 - [x] Phase 5 - Engagement Features Without Billing
-- [ ] Phase 6 - SaaS Readiness Later
+- [x] Phase 6 - Stripe SaaS Integration
 
 ---
 
@@ -162,6 +162,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-13: Website Modernization Phase 5 complete without billing, payments, admin, team, or plan-management changes. Resolved the saved ThemeToggle caveat by making the button label neutral and switching visible icons with `data-theme` CSS before hydration. Added pure engagement helpers in `lib/engagement-insights.ts` plus tests in `tests/engagement-insights.test.ts`. Dashboard now shows data-derived Today actions from profile completeness, resume availability, saved jobs, company research status, and tailored-resume freshness; it also shows repeated missing-skill insights from saved jobs. Job details now includes `InterviewPrepExpansion`, turning existing company research, match strengths, and gap skills into interview focus areas, lead-with points, gap framing, and questions to ask.
 - 2026-06-13: Phase 5 review findings fixed - dashboard engagement error handling now separates profile, engagement-job, and tailored-resume read failures. Today actions no longer guess profile completion or resume readiness when profile/tailored-resume data is unavailable, and skill-gap insights remain visible when jobs data succeeds even if tailored-resume reads fail.
 - 2026-06-14: Website Modernization Phase 6 readiness audit started as docs-only work. No payment, subscription, billing, admin, team, pricing, plan-management, route, schema, or UI implementation was added. The linked InsForge project is `JobApplication`, but `npx @insforge/cli payments stripe status --json` reports `Payments are not available on this backend`, so Phase 6 implementation remains gated on explicit user approval and backend enablement. Recorded the current CLI namespace (`payments stripe`), installed SDK payments method shape from `node_modules/@insforge/sdk/dist/*.d.ts`, and Stripe webhook/fulfillment requirements in `context/website-modernization-plan.md` and `context/library-docs.md`.
+- 2026-06-14: Drafted `context/stripe-saas-integration-plan.md` as the separate Phase 6S review plan. Provider direction is Stripe, with InsForge payments preferred once backend payments are enabled. The plan proposes single-user billing only, Free + Pro launch tiers, app-owned `user_entitlements`, append-only `usage_ledger`, webhook idempotency, quota enforcement for expensive AI/Browserbase/resume operations, hosted checkout/customer portal surfaces, and a staged implementation sequence. This is still docs-only; no payment, subscription, billing, admin, team, route, schema, UI, or plan-limit implementation was added.
 
 ---
 
@@ -179,3 +180,5 @@ Update this file after every completed feature. Any AI agent reading this should
 - KNOWN GAP (out of scope for Feature 05): the design shows the active nav item ("Profile") highlighted in `text-accent`, but the shared `components/layout/Navbar.tsx` (built in Features 01–02) renders all links with `text-text-dark` and has no active-route state. Adding active highlighting is a shared-Navbar change affecting every page — deferred so Feature 05 stays scoped to the profile page. RESOLVED in Feature 09 via `components/layout/NavLinks.tsx`.
 - Feature 05 visual check note: `/profile` is auth-gated (`requireCurrentUser` redirects to `/login`), so it can't be screenshotted without a logged-in session. Verified via `npm run build`/`lint` and a section-by-section review against `profile.png`; a live visual pass should be done after logging in (or during `/review` before demo).
 - 2026-06-09: Built Feature 07 (AI Profile Extraction from Resume). DEVIATION from build plan: used Gemini multimodal (`@google/genai`, model `gemini-2.5-flash`) instead of the earlier pdf-parse text-extraction plan — PDF sent as `inlineData` directly to Gemini, eliminating the pdf-parse dependency. Do NOT use `@google/generative-ai` — that package uses the deprecated v1beta endpoint and returns 404 for all current models. New files: `agent/extractor.ts` (Gemini extraction + sanitize), `app/api/resume/extract/route.ts` (POST: downloads PDF from InsForge storage, calls extractor, returns `Partial<Profile>`), `components/profile/ProfilePageContent.tsx` (client wrapper holding `mergedProfile` state and `extractionKey`). Modified: `app/profile/page.tsx` (uses ProfilePageContent instead of direct ResumeUpload + ProfileForm), `components/profile/ResumeUpload.tsx` (added `onExtract` prop, Extract button with loading state, calls `/api/resume/extract`). State sharing: `ProfilePageContent` holds extracted state; when extraction completes it merges non-null fields into a new `mergedProfile` and increments `extractionKey` — ProfileForm remounts with the key change, picking up new `defaultValues` and `useState` initializers from the merged profile. User still saves manually after reviewing. `npm run build` passes.
+- 2026-06-26: Implemented the complete Stripe SaaS Integration Plan (Phases 6S.1 through 6S.8) for the JobApplication project. Created SQL migration for `user_entitlements`, `usage_ledger`, and `billing_webhook_events` with owner-scoped RLS policies. Protected expensive routes with server-side quota checks. Implemented `PlanSummary`, `UsageMeter`, and `BillingActions` components on the Dashboard and Profile page. Created public route `/pricing` with price comparison grid and login/upgrade actions. Integrated Stripe Checkout, Customer Portal, and webhook fulfillment endpoints via the InsForge Payments SDK. Configured fallback graceful degradation when payments are disabled on the backend. All tests, linter checks, and Next.js production builds compile and run successfully.
+

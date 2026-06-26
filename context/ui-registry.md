@@ -659,3 +659,38 @@ Last updated: 2026-06-09
 | Accent   | `checkbox-accent` (sets `accent-color: var(--color-accent)`) |
 
 **Pattern notes:** Native checkbox tinted via the `checkbox-accent` utility — do not hand-build custom checkbox markup.
+
+---
+
+## Stripe SaaS Billing Components (2026-06-26)
+
+These components implement Stripe subscription states, usage tracking, and pricing comparison under Website Modernization styling rules.
+
+### PlanSummary
+
+- Path: `components/billing/PlanSummary.tsx`
+- Classes: `rounded-md border border-border bg-surface p-4 shadow-card`, title `text-lg font-bold text-text-primary flex items-center gap-2`, status badge `inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize bg-success-lightest text-success-foreground` or `bg-surface-secondary text-text-secondary`.
+- Behavior: Server component that displays the user's current plan tier (Free/Pro), its subscription status, and billing period renewal/expiration date.
+
+### UsageMeter
+
+- Path: `components/billing/UsageMeter.tsx`
+- Classes: `rounded-md border border-border bg-surface p-4 shadow-card`, progress bar track `h-2 w-full rounded-full bg-border-light overflow-hidden`, progress bar fill `h-full rounded-full transition-all duration-500 ease-out`.
+- Color mapping: progress bar fill colors:
+  - Green (`bg-success`) for usage <= 70%
+  - Blue (`bg-info`) for usage between 71% and 89%
+  - Red (`bg-error`) for usage >= 90%
+- Behavior: displays quota meters for the 6 tracked events (searches, scores, research, tailored resumes, base resumes, extractions).
+
+### BillingActions
+
+- Path: `components/billing/BillingActions.tsx` (Client Component)
+- Classes: Manage Billing button `inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary`, Upgrade button `inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`, coming-soon card `rounded-md border border-border bg-surface-secondary p-3`.
+- Behavior: handles checkout redirection and customer portal session creation, falls back gracefully to showing "Payments coming soon" alert when payments are disabled on the backend.
+
+### PricingPage
+
+- Path: `app/pricing/page.tsx` (Server Component)
+- Classes: page wrapper `min-h-screen bg-background`, section `mx-auto w-full max-w-[1280px] px-6 py-16 text-center`, grid `mt-12 grid gap-8 md:grid-cols-2 max-w-[800px] mx-auto text-left`, tier card `rounded-md border border-border bg-surface p-8 shadow-card flex flex-col justify-between transition-transform duration-300 hover:scale-[1.01]`, Pro border `border-accent`, Recommended label `absolute top-0 right-0 bg-accent text-accent-foreground px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-bl-md`.
+- Behavior: Public route showing comparison grid between Free and Pro plans, with context-aware CTAs (login redirect or checkout).
+

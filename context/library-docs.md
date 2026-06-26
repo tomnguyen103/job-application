@@ -205,6 +205,10 @@ backend. `npx @insforge/cli payments stripe status --json` returns:
 Do not add checkout, billing, subscription, pricing, admin, team, plan limit, or
 customer portal app code while this remains true.
 
+The detailed Stripe SaaS review draft lives in
+`context/stripe-saas-integration-plan.md`. Treat it as a planning artifact until
+the review checklist is approved and backend payments are enabled.
+
 **CLI reality check:**
 
 - The local CLI groups Stripe commands under `npx @insforge/cli payments stripe`.
