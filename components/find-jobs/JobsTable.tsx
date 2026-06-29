@@ -8,6 +8,7 @@ export type JobListItem = {
   company: string;
   role: string;
   matchScore: number;
+  location: string;
   salary: string;
   dateFound: string;
 };
@@ -27,6 +28,7 @@ const HEADERS = [
   "Company",
   "Role",
   "Match Score",
+  "Location",
   "Salary Est.",
   "Date Found",
 ];
@@ -111,6 +113,10 @@ function MobileJobCard({ job }: { job: JobListItem }): ReactElement {
         <MatchMeter score={job.matchScore} />
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 text-xs font-medium leading-4 text-text-secondary">
+        <div className="col-span-2 rounded-md bg-surface-secondary px-3 py-2">
+          <span className="block font-semibold text-text-primary">Location</span>
+          {job.location}
+        </div>
         <div className="rounded-md bg-surface-secondary px-3 py-2">
           <span className="block font-semibold text-text-primary">Salary</span>
           {job.salary}
@@ -137,7 +143,7 @@ export function JobsTable({
   return (
     <div className="overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card">
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[760px] border-collapse">
+        <table className="w-full min-w-[900px] border-collapse">
           <thead>
             <tr className="bg-surface-secondary">
               {HEADERS.map((header) => (
@@ -190,6 +196,9 @@ export function JobsTable({
                 </td>
                 <td className="px-6 py-3.5">
                   <MatchMeter score={job.matchScore} />
+                </td>
+                <td className="max-w-[220px] px-6 py-3.5 text-sm font-medium leading-5 text-text-secondary">
+                  {job.location}
                 </td>
                 <td className="px-6 py-3.5 text-sm font-medium text-text-secondary">
                   {job.salary}

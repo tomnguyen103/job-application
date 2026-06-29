@@ -26,6 +26,7 @@ type JobRow = {
   company: string | null;
   title: string | null;
   match_score: number | null;
+  location: string | null;
   salary: string | null;
   found_at: string | null;
 };
@@ -88,6 +89,7 @@ function mapJobRowToListItem(row: JobRow): JobListItem {
     company: row.company ?? "Unknown company",
     role: row.title ?? "Untitled role",
     matchScore: row.match_score ?? 0,
+    location: row.location ?? "-",
     salary: row.salary ?? "-",
     dateFound: row.found_at ? formatRelativeTime(row.found_at) : "-",
   };
@@ -122,7 +124,7 @@ export default async function FindJobsPage({
 
     let query = insforge.database
       .from("jobs")
-      .select("id, company, title, match_score, salary, found_at", {
+      .select("id, company, title, match_score, location, salary, found_at", {
         count: "exact",
       })
       .eq("user_id", user.id);

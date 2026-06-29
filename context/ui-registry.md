@@ -354,13 +354,14 @@ Same stacked-card-on-page-background layout family as the profile page, but full
 ### JobsTable
 
 - Path: `components/find-jobs/JobsTable.tsx` (exports the `JobListItem` type)
-- Card classes: `overflow-hidden rounded-2xl border border-border bg-surface shadow-card` with an `overflow-x-auto` wrapper and `w-full min-w-[760px] border-collapse` table
+- Card classes: `overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card` with an `overflow-x-auto` wrapper and `w-full min-w-[900px] border-collapse` table
 - Header row: `bg-surface-secondary`; `th`: `px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-text-secondary`
 - Body rows: `border-t border-border transition-colors hover:bg-surface-secondary`; cells `px-6 py-3.5`
-- Company cell: chip `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-tertiary text-text-secondary` (building SVG) + name `text-sm font-semibold text-text-primary`
-- Role: `text-sm font-medium text-text-primary`; Salary/Date: `text-sm font-medium text-text-secondary`
-- Renders `JobsPagination` inside the same card below the table — only when `totalResults > 0` (Feature 10)
-- Empty state: single `border-t border-border` row, `td colSpan={5}` with `px-6 py-12 text-center text-sm font-medium text-text-secondary` — `emptyMessage` prop (F11): "No jobs match your filters." when filters are active, "No jobs yet — search above to find your first matches." on a fresh account; passes `hrefForPage` through to JobsPagination
+- Company cell: chip `flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-tertiary text-text-secondary` (building SVG) + name `text-sm font-semibold text-text-primary`
+- Role: `text-sm font-medium text-text-primary`; Location/Salary/Date: `text-sm font-medium text-text-secondary`
+- Desktop column order: Company, Role, Match Score, Location, Salary Est., Date Found. Mobile cards show Location immediately below the match meter, then Salary and Found.
+- Renders `JobsPagination` inside the same card below the table - only when `totalResults > 0` (Feature 10)
+- Empty state: single `border-t border-border` row, `td colSpan={6}` with `px-6 py-12 text-center text-sm font-medium text-text-secondary`; `emptyMessage` prop (F11): "No jobs match your filters." when filters are active, "No jobs yet - search above to find your first matches." on a fresh account; passes `hrefForPage` through to JobsPagination
 - Row key is `job.id` (`JobListItem` carries the DB id as of Feature 10)
 
 ### Match Score Bar (reusable — Job Details will reuse)
