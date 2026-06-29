@@ -114,7 +114,7 @@ These entries supersede the previous homepage modernization classes for the publ
 - Path: `components/layout/Navbar.tsx` (Server Component — auth check only)
 - Root classes: `border-b border-border bg-surface`
 - Inner classes: `mx-auto flex min-h-20 max-w-[1280px] flex-wrap items-center justify-between gap-y-3 px-4 py-3 sm:px-6 md:h-20 md:flex-nowrap md:py-0 lg:px-0`
-- Brand: `<Logo className="h-8 w-auto sm:h-10" priority />` wrapped in `<Link href="/" aria-label="Job Application home" className="shrink-0">` (Feature 09 — replaced the old `/logo.png` wordmark image, which had "JobPilot" baked in)
+- Brand: `<Logo className="h-8 w-auto sm:h-10" preload />` wrapped in `<Link href="/" aria-label="Job Application home" className="shrink-0">` (Feature 09 — replaced the old `/logo.png` wordmark image, which had "JobPilot" baked in)
 - Nav links: rendered by `NavLinks` (see below) — do not put plain `<Link>`s back in the Navbar
 - Public primary button classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`
 - Authenticated Sign out action classes: `inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary`
@@ -122,7 +122,7 @@ These entries supersede the previous homepage modernization classes for the publ
 ### Logo
 
 - Path: `components/layout/Logo.tsx` (Server Component, presentational)
-- Optional `className` prop defaults to `h-10 w-auto`; optional `priority` prop passes through to `next/image`. Navbar sets `priority` and overrides the display size to `h-8 w-auto sm:h-10` for mobile LCP and fit.
+- Optional `className` prop defaults to `h-10 w-auto`; optional `preload` prop passes through to `next/image`. Navbar sets `preload` and overrides the display size to `h-8 w-auto sm:h-10` for mobile LCP and fit.
 - Renders `next/image` `src="/logo2.png"` — 894×168 transparent PNG (teal document/magnifier app-icon mark + single-line navy "Job Application" wordmark), intrinsic `width={894} height={168}`, display classes `h-10 w-auto`, `alt="Job Application"`
 - `/logo2.png` (2026-06-10 brand artwork) follows the legacy `/logo.png` format: 168px-tall content-hugging transparent canvas, icon-left/wordmark-right single-line lockup, no tagline (the stacked two-line wordmark was rejected by the user — keep it horizontal). The favicon (`app/favicon.ico`, 16/32/48 PNG entries, ~11KB) is the icon mark alone.
 - Used by: Navbar, Footer, Login brand panel (gradient background — keep the PNG background transparent). The legacy `/logo.png` (JobPilot wordmark baked in) was deleted from the repo on 2026-06-10 — there is no logo asset other than `/logo2.png`. The old CSS mark (`.brand-logo-mark`) was removed with this change.

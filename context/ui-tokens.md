@@ -286,7 +286,7 @@ box-shadow: 0px 1px 3px rgba(0,0,0,0.1), 0px 1px 2px -1px rgba(0,0,0,0.1)
 
 ### Homepage Dossier Artifacts
 
-```
+```text
 background: landing-dossier-frame / landing-dossier-core
 border: border-chrome outside, border-dossier-line inside
 border-radius: rounded-md

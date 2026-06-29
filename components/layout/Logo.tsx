@@ -3,12 +3,12 @@ import type { ReactElement } from "react";
 
 type LogoProps = {
   className?: string;
-  priority?: boolean;
+  preload?: boolean;
 };
 
 export function Logo({
   className = "h-10 w-auto",
-  priority = false,
+  preload = false,
 }: LogoProps): ReactElement {
   return (
     <Image
@@ -16,7 +16,7 @@ export function Logo({
       alt="Job Application"
       width={894}
       height={168}
-      priority={priority}
+      preload={preload}
       className={`theme-logo ${className}`}
     />
   );

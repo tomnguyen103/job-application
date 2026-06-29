@@ -65,7 +65,6 @@ export function ApplicationConfidence(): ReactElement {
                 alt="Agent log with matching, filtering, tailoring, and preparation events"
                 width={2144}
                 height={1656}
-                loading="eager"
                 sizes="(max-width: 1024px) 84vw, 460px"
                 className="h-[260px] w-full object-cover object-top sm:h-[275px]"
               />

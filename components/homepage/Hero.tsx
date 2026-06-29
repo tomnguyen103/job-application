@@ -38,7 +38,7 @@ export function Hero(): ReactElement {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/login"
-                className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-accent px-5 pl-6 text-sm font-semibold text-accent-foreground shadow-card transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] focus:outline-none focus-visible:ring-accent active:scale-[0.98]"
+                className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-accent px-5 pl-6 text-sm font-semibold text-accent-foreground shadow-card transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.98]"
               >
                 Start for free
                 <span
@@ -50,7 +50,7 @@ export function Hero(): ReactElement {
               </Link>
               <Link
                 href="#workflow"
-                className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-md border border-border bg-surface px-5 pl-6 text-sm font-semibold text-text-primary shadow-card transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-accent hover:bg-surface-secondary focus:outline-none focus-visible:ring-accent active:scale-[0.98]"
+                className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-md border border-border bg-surface px-5 pl-6 text-sm font-semibold text-text-primary shadow-card transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-accent hover:bg-surface-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.98]"
               >
                 See workflow
                 <span
@@ -87,7 +87,7 @@ export function Hero(): ReactElement {
                     alt="Job Application dashboard with job stats, activity, and research charts"
                     width={1920}
                     height={969}
-                    priority
+                    preload
                     sizes="(max-width: 1024px) 88vw, 620px"
                     className="h-auto w-full rounded-sm border border-border"
                   />
@@ -102,7 +102,6 @@ export function Hero(): ReactElement {
                       alt="Shortlist of job matches with company, score, salary, and source"
                       width={2364}
                       height={1778}
-                      loading="eager"
                       sizes="(max-width: 768px) 88vw, 300px"
                       className="h-auto w-full"
                     />
@@ -116,7 +115,6 @@ export function Hero(): ReactElement {
                       alt="Agent log with matching, filtering, tailoring, and resume preparation events"
                       width={2144}
                       height={1656}
-                      loading="eager"
                       sizes="(max-width: 768px) 88vw, 300px"
                       className="h-[145px] w-full object-cover object-top sm:h-[160px]"
                     />

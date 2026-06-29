@@ -18,7 +18,7 @@ export function FinalCta(): ReactElement {
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/login"
-            className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-accent px-5 pl-6 text-sm font-semibold text-accent-foreground shadow-card transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] focus:outline-none focus-visible:ring-accent active:scale-[0.98]"
+            className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-accent px-5 pl-6 text-sm font-semibold text-accent-foreground shadow-card transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.98]"
           >
             Start for free
             <span
@@ -30,7 +30,7 @@ export function FinalCta(): ReactElement {
           </Link>
           <Link
             href="#workflow"
-            className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-md border border-border bg-surface px-5 pl-6 text-sm font-semibold text-text-primary shadow-card transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-accent hover:bg-surface-secondary focus:outline-none focus-visible:ring-accent active:scale-[0.98]"
+            className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-md border border-border bg-surface px-5 pl-6 text-sm font-semibold text-text-primary shadow-card transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-accent hover:bg-surface-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.98]"
           >
             Review workflow
             <span

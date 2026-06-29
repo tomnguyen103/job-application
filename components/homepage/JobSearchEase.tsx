@@ -39,7 +39,6 @@ export function JobSearchEase(): ReactElement {
                 alt="Job match list with companies, scores, salaries, and sources"
                 width={2364}
                 height={1778}
-                loading="eager"
                 sizes="(max-width: 1024px) 84vw, 560px"
                 className="h-auto w-full"
               />
