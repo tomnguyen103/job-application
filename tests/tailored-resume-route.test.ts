@@ -139,16 +139,21 @@ function fakeClient(
 ): { client: TailoredResumeDownloadClient; calls: Call[] } {
   const scenario = { ...defaultScenario(), ...scenarioOverrides };
   const calls: Call[] = [];
+  function from(table: "jobs"): FakeJobQuery;
+  function from(table: "tailored_resumes"): FakeResumeQuery;
+  function from(
+    table: "jobs" | "tailored_resumes",
+  ): FakeJobQuery | FakeResumeQuery {
+    return table === "jobs"
+      ? new FakeJobQuery(scenario, calls)
+      : new FakeResumeQuery(scenario, calls);
+  }
 
   return {
     calls,
     client: {
       database: {
-        from(table: "jobs" | "tailored_resumes") {
-          return table === "jobs"
-            ? new FakeJobQuery(scenario, calls)
-            : new FakeResumeQuery(scenario, calls);
-        },
+        from,
       },
       storage: {
         from(bucket: typeof TAILORED_RESUME_BUCKET) {
@@ -290,9 +295,6 @@ test("resolveTailoredResumeDownload returns 500 for storage download errors", as
   });
 
   assert.equal(result.status, 500);
-  if (result.status === 200) {
-    throw new Error("expected an error result");
-  }
   assert.equal(
     result.body.error,
     "Failed to download the tailored resume. Please try again.",
@@ -319,8 +321,5 @@ test("resolveTailoredResumeDownload returns 404 for missing storage blobs", asyn
   });
 
   assert.equal(result.status, 404);
-  if (result.status === 200) {
-    throw new Error("expected an error result");
-  }
   assert.equal(result.body.error, "No unexpired tailored resume found.");
 });

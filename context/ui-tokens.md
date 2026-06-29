@@ -74,6 +74,13 @@ className="bg-purple-500 text-gray-600"
   --color-accent-muted: #effafa;
   --color-accent-foreground: #ffffff;
 
+  /* Premium homepage materials */
+  --color-chrome: #dfe7ef;
+  --color-chrome-strong: #b8c6d8;
+  --color-ink: #09111f;
+  --color-dossier-line: #cfd9e6;
+  --color-dossier-wash: #eef4f8;
+
   /* Success — green */
   --color-success: #10b981;
   --color-success-alt: #00bc7d;
@@ -110,18 +117,31 @@ className="bg-purple-500 text-gray-600"
   --color-overlay-dark: #131316;
   --color-overlay-foreground: #ffffff;
 
+  /* Chart support */
+  --color-chart-axis: #9ca3af;
+
   /* Border radius */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-card:
+    0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-artifact:
+    0 1px 1px rgb(9 17 31 / 0.05),
+    0 24px 70px -46px rgb(9 17 31 / 0.42),
+    inset 0 1px 0 rgb(255 255 255 / 0.72);
 }
 ```
 
 Dark mode overrides the same semantic variables under `:root[data-theme="dark"]`, with a system-preference fallback for first-time visitors. The active theme is set before hydration by `app/layout.tsx` and persisted by `components/layout/ThemeToggle.tsx`. Keep runtime theme overrides outside Tailwind cascade layers so they win over the `@theme` defaults.
 
 Dark-mode primary CTAs keep the bright teal `--color-accent`, so `--color-accent-foreground` becomes a dark teal in dark mode for readable button text. Do not use `text-accent-foreground` on `bg-overlay`; use `text-overlay-foreground` for overlay surfaces and overlay buttons.
+
+Luxury homepage material tokens (`chrome`, `ink`, `dossier-line`, `dossier-wash`, and `shadow-artifact`) are for public-site product artifacts, premium frames, ruled backgrounds, and editorial hero surfaces. Use them through the generated or hand-authored utility classes (`text-ink`, `border-dossier-line`, `bg-dossier-wash`, `shadow-artifact`) instead of hardcoding one-off colors.
 
 Tailwind v4 generates utility classes automatically from every `--color-*` token above:
 
@@ -165,6 +185,18 @@ Used for: primary buttons, active nav items, tailored badges, focus rings, and p
 | Subtle background      | `bg-accent-muted`        |
 
 `text-accent-foreground` is white in light mode and dark teal in dark mode so accent buttons remain readable against the active accent background.
+
+### Luxury Homepage Materials
+
+Used for the public homepage's Career Dossier artifact, ruled workspaces, and high-touch hero surfaces. Do not use these tokens for ordinary dashboard cards.
+
+| Element              | Token / Utility                         |
+| -------------------- | --------------------------------------- |
+| Editorial hero text  | `text-ink`                              |
+| Artifact frame       | `border-chrome`, `shadow-artifact`      |
+| Artifact separators  | `border-dossier-line`                   |
+| Ruled product fields | `landing-rule-field`, `bg-dossier-wash` |
+| Quiet section band   | `landing-quiet-band`                    |
 
 ### Match Score Colors
 
@@ -250,6 +282,16 @@ border: 1px solid var(--color-border)
 border-radius: 8px (rounded-md in Tailwind)
 padding: 24px (p-6)
 box-shadow: 0px 1px 3px rgba(0,0,0,0.1), 0px 1px 2px -1px rgba(0,0,0,0.1)
+```
+
+### Homepage Dossier Artifacts
+
+```text
+background: landing-dossier-frame / landing-dossier-core
+border: border-chrome outside, border-dossier-line inside
+border-radius: rounded-md
+shadow: shadow-artifact
+motion: landing-hover-lift with prefers-reduced-motion fallback
 ```
 
 ### Buttons
@@ -353,6 +395,7 @@ Dot size: 8px inner, 16px outer with white border
 - Never use raw Tailwind color classes like `bg-purple-500` or `text-gray-600`. Use project tokens only.
 - `--color-accent` is teal in light mode and brighter teal in dark mode. `--color-accent-foreground` changes with it for contrast. Never use Tailwind's built-in teal, cyan, or purple scale.
 - Use `--color-overlay-foreground` for text on `--color-overlay`; do not reuse accent foreground on overlay backgrounds.
+- Use the premium homepage material tokens only for public-site artifact surfaces, not as a replacement for default workspace surfaces.
 - Match score bars always use color tokens based on score range. Never hardcode colors.
 - LinkedIn badge always uses `--color-linkedin` tokens. Never use generic blue.
 - All borders default to `--color-border`. Never use `border-gray-*`.

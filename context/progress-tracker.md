@@ -6,8 +6,8 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Website Modernization - Phase 6 Stripe SaaS Integration Completed
-**Last completed:** Phase 6 Stripe SaaS Integration (Phases 6S.1 through 6S.8)
+**Phase:** Website Modernization - Luxury Homepage Redesign Completed
+**Last completed:** Public homepage luxury redesign and documentation refresh
 **Next:** Monitor in production/staging and gather user feedback
 
 ---
@@ -58,11 +58,13 @@ Update this file after every completed feature. Any AI agent reading this should
 - [x] Phase 4 - Authenticated Workspace Polish
 - [x] Phase 5 - Engagement Features Without Billing
 - [x] Phase 6 - Stripe SaaS Integration
+- [x] Luxury Homepage Redesign
 
 ---
 
 ## Decisions Made During Build
 
+- 2026-06-29: Redesigned the public homepage as a premium "private career desk" experience while preserving the core business purpose: find relevant roles, research companies, and tailor resumes. Added semantic premium material tokens (`chrome`, `ink`, `dossier-line`, `dossier-wash`, `shadow-artifact`), rebuilt homepage sections around the Career Dossier product artifact using the existing dashboard/jobs/agent-log assets, tightened public copy, kept top-navbar IA unchanged, and updated the UI registry/token docs. Verification target: desktop and mobile browser screenshots plus lint, typecheck, tests, and production build.
 - 2026-06-08: Built Feature 01 as a static App Router homepage matching `context/designs/landing-page.png`, using the provided public assets for the logo, dashboard preview, jobs list, agent log, and testimonial avatar.
 - 2026-06-08: Primary and header Get Started links point to `/login`; Find Your First Match links point to `/find-jobs` until auth-aware routing is implemented in Feature 02.
 - 2026-06-08: Built Feature 02 with InsForge OAuth for Google and GitHub using `@insforge/sdk/ssr`, server-side PKCE callback exchange, `/api/auth/refresh`, and Next.js 16 `proxy.ts` route protection.
