@@ -38,6 +38,7 @@ function completeProfile(): Profile {
     jobTitlesSeeking: "Software Engineer",
     remotePreference: "any",
     salaryExpectation: "$120,000",
+    coverLetterTone: "professional",
     preferredLocations: "San Diego",
   };
 }

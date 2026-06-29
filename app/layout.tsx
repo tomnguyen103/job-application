@@ -14,7 +14,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Job Application",
   description:
-    "An AI-powered job hunting assistant that finds, scores, and researches roles.",
+    "A private AI job search workspace for finding roles, researching companies, and tailoring resumes.",
 };
 
 const themeScript = `

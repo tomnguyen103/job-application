@@ -47,6 +47,22 @@ Primary accent CTAs use `bg-accent text-accent-foreground`. In dark mode, `text-
 - Secondary CTA: `inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-surface px-7 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary`
 - `Testimonial.tsx` was removed. Do not add fake testimonial/proof copy.
 
+### Luxury Homepage Redesign (2026-06-29)
+
+These entries supersede the previous homepage modernization classes for the public landing page. Keep the same business purpose: a private AI job search workspace for finding roles, researching companies, and tailoring resumes.
+
+- Paths: `app/page.tsx`, `components/homepage/Hero.tsx`, `OutcomeStrip.tsx`, `JobSearchEase.tsx`, `ApplicationConfidence.tsx`, `TrustSection.tsx`, `FinalCta.tsx`
+- Page root: `min-h-screen overflow-hidden bg-background text-text-primary`
+- Hero section: `mx-auto max-w-[1280px] px-4 pb-16 pt-8 sm:px-6 lg:px-0 lg:pb-24`
+- Hero shell: `landing-luxury-hero overflow-hidden rounded-md border border-border shadow-artifact`
+- Hero grid: `grid gap-12 px-6 py-12 sm:px-10 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:px-14 lg:py-20`
+- Hero heading: `mt-5 max-w-[700px] text-[42px] font-bold leading-[0.98] text-ink sm:text-[58px] lg:text-[58px]` with explicit two-line spans.
+- CTA buttons: primary `bg-accent text-accent-foreground`; secondary `border border-border bg-surface text-text-primary`; both use rounded-md, custom ease, visible `focus-visible:ring-accent`, and circular arrow chips.
+- Signature element: the Career Dossier artifact combines `dashboard-demo2.png`, `jobs-lists.png`, and cropped `agent-log3.png` inside `landing-dossier-frame`, `landing-dossier-core`, `border-chrome`, `border-dossier-line`, and `shadow-artifact`.
+- Section pattern: `mx-auto max-w-[1280px] px-4 ... sm:px-6 lg:px-0`; framed sections use rounded-md semantic borders and full-width layout, not nested decorative cards.
+- Motion: `.landing-reveal` and `.landing-hover-lift` only, guarded by `prefers-reduced-motion`.
+- Avoid: fake testimonials, emoji icons, raw Tailwind colors, one-off gradients in component markup, and generic feature-card grids detached from product screenshots.
+
 ### Login Modernization
 
 - Path: `app/(auth)/login/page.tsx`
@@ -98,7 +114,7 @@ Primary accent CTAs use `bg-accent text-accent-foreground`. In dark mode, `text-
 - Path: `components/layout/Navbar.tsx` (Server Component — auth check only)
 - Root classes: `border-b border-border bg-surface`
 - Inner classes: `mx-auto flex min-h-20 max-w-[1280px] flex-wrap items-center justify-between gap-y-3 px-4 py-3 sm:px-6 md:h-20 md:flex-nowrap md:py-0 lg:px-0`
-- Brand: `<Logo className="h-8 w-auto sm:h-10" />` wrapped in `<Link href="/" aria-label="Job Application home" className="shrink-0">` (Feature 09 — replaced the old `/logo.png` wordmark image, which had "JobPilot" baked in)
+- Brand: `<Logo className="h-8 w-auto sm:h-10" priority />` wrapped in `<Link href="/" aria-label="Job Application home" className="shrink-0">` (Feature 09 — replaced the old `/logo.png` wordmark image, which had "JobPilot" baked in)
 - Nav links: rendered by `NavLinks` (see below) — do not put plain `<Link>`s back in the Navbar
 - Public primary button classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`
 - Authenticated Sign out action classes: `inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary`
@@ -106,7 +122,7 @@ Primary accent CTAs use `bg-accent text-accent-foreground`. In dark mode, `text-
 ### Logo
 
 - Path: `components/layout/Logo.tsx` (Server Component, presentational)
-- Optional `className` prop defaults to `h-10 w-auto`; Navbar overrides it to `h-8 w-auto sm:h-10` for mobile fit.
+- Optional `className` prop defaults to `h-10 w-auto`; optional `priority` prop passes through to `next/image`. Navbar sets `priority` and overrides the display size to `h-8 w-auto sm:h-10` for mobile LCP and fit.
 - Renders `next/image` `src="/logo2.png"` — 894×168 transparent PNG (teal document/magnifier app-icon mark + single-line navy "Job Application" wordmark), intrinsic `width={894} height={168}`, display classes `h-10 w-auto`, `alt="Job Application"`
 - `/logo2.png` (2026-06-10 brand artwork) follows the legacy `/logo.png` format: 168px-tall content-hugging transparent canvas, icon-left/wordmark-right single-line lockup, no tagline (the stacked two-line wordmark was rejected by the user — keep it horizontal). The favicon (`app/favicon.ico`, 16/32/48 PNG entries, ~11KB) is the icon mark alone.
 - Used by: Navbar, Footer, Login brand panel (gradient background — keep the PNG background transparent). The legacy `/logo.png` (JobPilot wordmark baked in) was deleted from the repo on 2026-06-10 — there is no logo asset other than `/logo2.png`. The old CSS mark (`.brand-logo-mark`) was removed with this change.

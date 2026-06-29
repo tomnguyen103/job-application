@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default function Home(): ReactElement {
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen overflow-hidden bg-background text-text-primary">
       <Navbar />
       <Hero />
       <OutcomeStrip />
