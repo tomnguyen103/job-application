@@ -7,7 +7,7 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** Website Modernization - Luxury Homepage Redesign Completed
-**Last completed:** Find Jobs listings Location column update
+**Last completed:** Interview prep marker polish
 **Next:** Monitor in production/staging and gather user feedback
 
 ---
@@ -64,6 +64,7 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Decisions Made During Build
 
+- 2026-06-29: Polished the Job Details interview prep marker treatment for both light and dark themes. Section markers now use a semantic-token outer ring with an inner tone dot, and list bullets inherit each section's tone so the markers read intentionally without changing the current UI theme.
 - 2026-06-29: Updated the Find Jobs saved listings table to include each job's Location immediately after Match Score while preserving the existing semantic-token theme. The server page now selects `jobs.location`, `JobListItem` carries it into `JobsTable`, desktop renders a 6-column table, and mobile cards show Location directly below the match meter.
 - 2026-06-29: Redesigned the public homepage as a premium "private career desk" experience while preserving the core business purpose: find relevant roles, research companies, and tailor resumes. Added semantic premium material tokens (`chrome`, `ink`, `dossier-line`, `dossier-wash`, `shadow-artifact`), rebuilt homepage sections around the Career Dossier product artifact using the existing dashboard/jobs/agent-log assets, tightened public copy, kept top-navbar IA unchanged, and updated the UI registry/token docs. Verification target: desktop and mobile browser screenshots plus lint, typecheck, tests, and production build.
 - 2026-06-08: Built Feature 01 as a static App Router homepage matching `context/designs/landing-page.png`, using the provided public assets for the logo, dashboard preview, jobs list, agent log, and testimonial avatar.

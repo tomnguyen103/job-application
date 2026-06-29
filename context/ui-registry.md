@@ -99,6 +99,7 @@ These entries supersede the previous homepage modernization classes for the publ
 - `MatchScore`, `JobDescription`, `CompanyResearch`, `InterviewPrepExpansion`, `TailoredResumeAction`, and `JobActions` use `rounded-md` semantic cards.
 - New path: `components/job-details/InterviewPrepExpansion.tsx`
 - Interview prep card: `rounded-md border border-border bg-surface-elevated p-6 shadow-card`; prep sections use `rounded-md border border-border bg-surface p-5`; source badge uses the secondary button surface `border border-border bg-surface text-text-primary`.
+- Interview prep markers: section markers use a tokenized outer dot container `flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-surface-secondary` with an inner tone dot (`bg-accent`, `bg-success`, `bg-info`, or `bg-text-muted`); list bullets use the same tone dot family at `mt-[0.625rem] h-1.5 w-1.5` for light/dark alignment.
 - Page order: JobInfo, MatchScore, CompanyResearch, InterviewPrepExpansion, TailoredResumeAction, JobActions, JobDescription.
 
 ### Profile Modernization

@@ -13,20 +13,20 @@ type PrepSectionProps = {
   tone: "accent" | "info" | "success" | "muted";
 };
 
-function toneClass(tone: PrepSectionProps["tone"]): string {
+function toneDotClass(tone: PrepSectionProps["tone"]): string {
   if (tone === "info") {
-    return "bg-info-lightest text-info-foreground";
+    return "bg-info";
   }
 
   if (tone === "success") {
-    return "bg-success-lightest text-success-foreground";
+    return "bg-success";
   }
 
   if (tone === "muted") {
-    return "bg-surface-secondary text-text-secondary";
+    return "bg-text-muted";
   }
 
-  return "bg-accent-muted text-accent";
+  return "bg-accent";
 }
 
 function PrepSection({
@@ -39,9 +39,11 @@ function PrepSection({
     <article className="rounded-md border border-border bg-surface p-5">
       <div className="flex items-start gap-3">
         <span
-          className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${toneClass(tone)}`}
+          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-surface-secondary"
           aria-hidden="true"
-        />
+        >
+          <span className={`h-2 w-2 rounded-full ${toneDotClass(tone)}`} />
+        </span>
         <div>
           <h3 className="text-sm font-semibold leading-5 text-text-primary">
             {title}
@@ -57,7 +59,10 @@ function PrepSection({
             key={`${title}-${item}`}
             className="flex gap-3 text-sm font-medium leading-6 text-text-primary"
           >
-            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+            <span
+              className={`mt-[0.625rem] h-1.5 w-1.5 shrink-0 rounded-full ${toneDotClass(tone)}`}
+              aria-hidden="true"
+            />
             <span>{item}</span>
           </li>
         ))}
