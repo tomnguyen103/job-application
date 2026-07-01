@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { handleCheckout } from "@/lib/billing/routes";
+import type { BillingCheckoutClient } from "@/lib/billing/routes";
 
 export async function POST(req: Request) {
   try {
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
       userId: user.id,
       userEmail: user.email ?? undefined,
       requestUrl,
-      insforge,
+      insforge: insforge as unknown as BillingCheckoutClient,
     });
 
     return NextResponse.json(result);

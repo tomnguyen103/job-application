@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 
 import { generateResumeContent } from "@/agent/generator";
-import { assertQuotaAvailable, recordUsage, QuotaExceededError } from "@/lib/billing/usage";
+import { recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 import { mapProfileRowToProfile } from "@/lib/utils";
 
@@ -44,17 +44,24 @@ export async function POST() {
 
     const profile = mapProfileRowToProfile(row, user.email ?? "");
 
-    // Phase 6S.2 - Quota check
-    try {
-      await assertQuotaAvailable(user.id, "base_resume_generate", 1);
-    } catch (quotaError) {
-      if (quotaError instanceof QuotaExceededError) {
-        return NextResponse.json(
-          { success: false, error: quotaError.message },
-          { status: 402 },
-        );
-      }
-      throw quotaError;
+    const profileUpdatedAt =
+      typeof row.updated_at === "string" ? row.updated_at : user.id;
+    const generationReservation = await recordUsage(
+      user.id,
+      "base_resume_generate",
+      1,
+      `generate:${profileUpdatedAt}`,
+      {},
+      "/api/resume/generate",
+    );
+
+    if (!generationReservation.success) {
+      const failure = usageFailureToHttpResult(
+        "base_resume_generate",
+        generationReservation,
+        "Could not start resume generation. Please try again.",
+      );
+      return NextResponse.json(failure.body, { status: failure.status });
     }
 
     let content;
@@ -119,16 +126,6 @@ export async function POST() {
         { status: 500 },
       );
     }
-
-    // Phase 6S.2 - Record usage
-    await recordUsage(
-      user.id,
-      "base_resume_generate",
-      1,
-      `generate:${row.updated_at}`,
-      {},
-      "/api/resume/generate",
-    );
 
     revalidatePath("/profile");
     return NextResponse.json({ success: true });

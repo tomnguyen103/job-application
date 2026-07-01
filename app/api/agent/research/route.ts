@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { researchCompany } from "@/agent/research";
 import type { CompanyResearchJob } from "@/agent/research";
-import { assertQuotaAvailable, recordUsage, QuotaExceededError } from "@/lib/billing/usage";
+import { recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 import { capturePostHogServerEvent } from "@/lib/posthog-server";
 import { mapProfileRowToProfile } from "@/lib/utils";
@@ -155,25 +155,23 @@ export async function POST(req: NextRequest) {
     const profile = mapProfileRowToProfile(profileRow as ProfileRow, user.email ?? "");
     const job = mapJobRowToResearchJob(jobData as JobResearchRow);
 
-    // Phase 6S.2 - Quota check
-    try {
-      await assertQuotaAvailable(user.id, "company_research_run", 1);
-    } catch (quotaError) {
-      if (quotaError instanceof QuotaExceededError) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: quotaError.message,
-            code: "QUOTA_EXCEEDED",
-            eventType: quotaError.eventType,
-            current: quotaError.current,
-            limit: quotaError.limit,
-            planKey: quotaError.planKey,
-          },
-          { status: 402 },
-        );
-      }
-      throw quotaError;
+    const researchReservation = await recordUsage(
+      user.id,
+      "company_research_run",
+      1,
+      `research:${job.id}`,
+      { company: job.company, title: job.title },
+      "/api/agent/research",
+      job.id,
+    );
+
+    if (!researchReservation.success) {
+      const failure = usageFailureToHttpResult(
+        "company_research_run",
+        researchReservation,
+        "Could not start company research. Please try again.",
+      );
+      return NextResponse.json(failure.body, { status: failure.status });
     }
 
     const research = await researchCompany({
@@ -202,17 +200,6 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
-
-    // Phase 6S.2 - Record usage
-    await recordUsage(
-      user.id,
-      "company_research_run",
-      1,
-      `research:${job.id}`,
-      { company: job.company, title: job.title },
-      "/api/agent/research",
-      job.id,
-    );
 
     await capturePostHogServerEvent("company_researched", {
       userId: user.id,

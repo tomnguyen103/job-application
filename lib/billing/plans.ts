@@ -68,18 +68,29 @@ export const BILLING_PLANS: Record<"free" | "pro", BillingPlan> = {
  * @param entitlement - The user's active billing entitlement.
  * @returns An object containing the start and end Date objects for the current period.
  */
-export function getPeriodBoundaries(entitlement: UserEntitlement): { periodStart: Date; periodEnd: Date } {
-  if (entitlement.planKey === "pro" && entitlement.currentPeriodStart && entitlement.currentPeriodEnd) {
-    return {
-      periodStart: new Date(entitlement.currentPeriodStart),
-      periodEnd: new Date(entitlement.currentPeriodEnd),
-    };
-  }
-
-  // Free/default calendar month boundary
-  const now = new Date();
+function calendarMonthBoundaries(now: Date): { periodStart: Date; periodEnd: Date } {
   const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   return { periodStart, periodEnd };
+}
+
+function isValidDate(value: Date): boolean {
+  return !Number.isNaN(value.getTime());
+}
+
+export function getPeriodBoundaries(
+  entitlement: UserEntitlement,
+  now = new Date(),
+): { periodStart: Date; periodEnd: Date } {
+  if (entitlement.planKey === "pro" && entitlement.currentPeriodStart && entitlement.currentPeriodEnd) {
+    const periodStart = new Date(entitlement.currentPeriodStart);
+    const periodEnd = new Date(entitlement.currentPeriodEnd);
+
+    if (isValidDate(periodStart) && isValidDate(periodEnd) && periodStart < periodEnd) {
+      return { periodStart, periodEnd };
+    }
+  }
+
+  return calendarMonthBoundaries(now);
 }
 

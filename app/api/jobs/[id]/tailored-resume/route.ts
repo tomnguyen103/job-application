@@ -8,7 +8,7 @@ import {
   generateTailoredResumeContent,
   type TailoredResumeJob,
 } from "@/agent/tailored-resume";
-import { assertQuotaAvailable, recordUsage, QuotaExceededError } from "@/lib/billing/usage";
+import { recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 import {
   buildTailoredResumeStorageKey,
@@ -156,19 +156,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
       );
     }
 
-    // Phase 6S.2 - Quota check
-    try {
-      await assertQuotaAvailable(user.id, "tailored_resume_generate", 1);
-    } catch (quotaError) {
-      if (quotaError instanceof QuotaExceededError) {
-        return NextResponse.json(
-          { success: false, error: quotaError.message },
-          { status: 402 },
-        );
-      }
-      throw quotaError;
-    }
-
     const { data: previousRows, error: previousError } =
       await insforge.database
         .from("tailored_resumes")
@@ -192,6 +179,30 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     const profile = mapProfileRowToProfile(profileRow as ProfileRow, user.email ?? "");
     const job = mapJobRowToTailoredResumeJob(jobRow as TailoredResumeJobRow);
+    const generatedAt = new Date();
+    const expiresAt = getTailoredResumeExpiresAt(generatedAt);
+    const resumeId = randomUUID();
+    const storageKey = buildTailoredResumeStorageKey(user.id, job.id, resumeId);
+    const bucket = insforge.storage.from(TAILORED_RESUME_BUCKET);
+
+    const tailorReservation = await recordUsage(
+      user.id,
+      "tailored_resume_generate",
+      1,
+      `tailor:${resumeId}`,
+      { jobId: job.id, company: job.company },
+      `/api/jobs/${job.id}/tailored-resume`,
+      resumeId,
+    );
+
+    if (!tailorReservation.success) {
+      const failure = usageFailureToHttpResult(
+        "tailored_resume_generate",
+        tailorReservation,
+        "Could not start tailored resume generation. Please try again.",
+      );
+      return NextResponse.json(failure.body, { status: failure.status });
+    }
 
     let content;
     try {
@@ -206,12 +217,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
         { status: 422 },
       );
     }
-
-    const generatedAt = new Date();
-    const expiresAt = getTailoredResumeExpiresAt(generatedAt);
-    const resumeId = randomUUID();
-    const storageKey = buildTailoredResumeStorageKey(user.id, job.id, resumeId);
-    const bucket = insforge.storage.from(TAILORED_RESUME_BUCKET);
 
     let uploadedKey = storageKey;
 
@@ -271,17 +276,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
           { status: 500 },
         );
       }
-
-      // Phase 6S.2 - Record usage
-      await recordUsage(
-        user.id,
-        "tailored_resume_generate",
-        1,
-        `tailor:${resumeId}`,
-        { jobId: job.id, company: job.company },
-        `/api/jobs/${job.id}/tailored-resume`,
-        resumeId,
-      );
 
       const previous = (previousRows ?? []) as PreviousTailoredResumeRow[];
       const removedStorageKeys = new Set<string>();

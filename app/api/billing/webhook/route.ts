@@ -1,6 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { handleWebhook } from "@/lib/billing/routes";
+import type {
+  BillingWebhookAdminClient,
+  StripeBillingWebhookEvent,
+} from "@/lib/billing/routes";
 import { verifyStripeSignature } from "@/lib/billing/verify-webhook-signature";
 
 export async function POST(req: Request) {
@@ -19,9 +22,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  let event: any;
+  let event: StripeBillingWebhookEvent;
   try {
-    event = JSON.parse(rawBody);
+    event = JSON.parse(rawBody) as StripeBillingWebhookEvent;
   } catch (err) {
     console.error("[billing/webhook] Failed to parse JSON body:", err);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
@@ -32,7 +35,7 @@ export async function POST(req: Request) {
     const insforgeAdmin = createInsforgeAdmin();
     const result = await handleWebhook({
       event,
-      insforgeAdmin,
+      insforgeAdmin: insforgeAdmin as unknown as BillingWebhookAdminClient,
     });
 
     if (result.error === "Missing event metadata") {

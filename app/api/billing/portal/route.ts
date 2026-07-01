@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { handlePortal } from "@/lib/billing/routes";
+import type { BillingPortalClient } from "@/lib/billing/routes";
 
 export async function POST(req: Request) {
   try {
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     const result = await handlePortal({
       userId: user.id,
       requestUrl,
-      insforge,
+      insforge: insforge as unknown as BillingPortalClient,
     });
 
     if (!result.success && result.error?.includes("Stripe customer")) {

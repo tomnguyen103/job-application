@@ -1,11 +1,134 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 // Stripe object IDs (customer/subscription/price) are always alphanumeric + underscore.
 // Reject anything else before it reaches a PostgREST filter string.
 const SAFE_STRIPE_ID = /^[A-Za-z0-9_]+$/;
+const PENDING_WEBHOOK_STALE_MS = 10 * 60 * 1000;
+
+type BillingDatabaseError = {
+  code?: string;
+  message?: string;
+};
+
+type QueryResult<T> = PromiseLike<{
+  data: T | null;
+  error: BillingDatabaseError | null;
+}>;
+
+type MutationResult = PromiseLike<{
+  error: BillingDatabaseError | null;
+}>;
+
+type BillingRow = Record<string, unknown>;
+
+type BillingSelectQuery<T extends BillingRow> = {
+  eq(column: string, value: string | null): BillingSelectQuery<T>;
+  or(filter: string): BillingSelectQuery<T>;
+  maybeSingle(): QueryResult<T>;
+};
+
+type BillingUpdateQuery = {
+  eq(column: string, value: string): MutationResult;
+};
+
+type BillingTableClient<T extends BillingRow = BillingRow> = {
+  select(columns: string): BillingSelectQuery<T>;
+  insert(rows: BillingRow[]): MutationResult;
+  upsert(row: BillingRow, options?: { onConflict: string }): MutationResult;
+  update(row: BillingRow): BillingUpdateQuery;
+};
+
+type BillingDatabaseClient = {
+  from(table: string): BillingTableClient;
+};
+
+type CheckoutSessionResult = {
+  checkoutSession?: {
+    url?: string | null;
+  } | null;
+};
+
+type PortalSessionResult = {
+  customerPortalSession?: {
+    url?: string | null;
+  } | null;
+};
+
+type BillingPaymentsClient = {
+  createCheckoutSession(
+    environment: "test" | "live",
+    request: BillingRow,
+  ): Promise<{ data: CheckoutSessionResult | null; error: { message?: string } | null }>;
+  createCustomerPortalSession(
+    environment: "test" | "live",
+    request: BillingRow,
+  ): Promise<{ data: PortalSessionResult | null; error: { message?: string } | null }>;
+};
+
+export type BillingCheckoutClient = {
+  payments: Pick<BillingPaymentsClient, "createCheckoutSession">;
+};
+
+export type BillingPortalClient = {
+  database: BillingDatabaseClient;
+  payments: Pick<BillingPaymentsClient, "createCustomerPortalSession">;
+};
+
+export type BillingWebhookAdminClient = {
+  database: BillingDatabaseClient;
+};
+
+type StripeWebhookObject = {
+  client_reference_id?: string | null;
+  customer?: string | null;
+  subscription?: string | null;
+  id?: string | null;
+  metadata?: {
+    userId?: string | null;
+  } | null;
+  status?: string | null;
+  cancel_at_period_end?: boolean | null;
+  current_period_start?: number | null;
+  current_period_end?: number | null;
+  items?: {
+    data?: Array<{
+      price?: {
+        id?: string | null;
+      } | null;
+    }>;
+  } | null;
+};
+
+export type StripeBillingWebhookEvent = {
+  id?: string | null;
+  type?: string | null;
+  data: {
+    object: StripeWebhookObject;
+  };
+};
 
 function isSafeStripeId(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && SAFE_STRIPE_ID.test(value);
+}
+
+function stringField(row: BillingRow | null, key: string): string | null {
+  const value = row?.[key];
+  return typeof value === "string" ? value : null;
+}
+
+function isDuplicateError(error: BillingDatabaseError): boolean {
+  return error.code === "23505" || !!error.message?.includes("duplicate key");
+}
+
+function isPendingWebhookStale(processedAt: string | null, now: Date): boolean {
+  if (!processedAt) {
+    return true;
+  }
+
+  const processedAtDate = new Date(processedAt);
+  if (Number.isNaN(processedAtDate.getTime())) {
+    return true;
+  }
+
+  return now.getTime() - processedAtDate.getTime() > PENDING_WEBHOOK_STALE_MS;
 }
 
 // Defaults to "test" per InsForge's payments guidance (stay on test until the
@@ -52,7 +175,7 @@ export async function handleCheckout({
   userId: string;
   userEmail?: string;
   requestUrl: URL;
-  insforge: any;
+  insforge: BillingCheckoutClient;
 }): Promise<CheckoutResult> {
   try {
     const stripePriceId = process.env.STRIPE_PRO_PRICE_ID || "price_pro_test";
@@ -128,7 +251,7 @@ export async function handlePortal({
 }: {
   userId: string;
   requestUrl: URL;
-  insforge: any;
+  insforge: BillingPortalClient;
 }): Promise<PortalResult> {
   try {
     const { data: entitlement, error: dbError } = await insforge.database
@@ -208,11 +331,12 @@ export async function handleWebhook({
   event,
   insforgeAdmin,
 }: {
-  event: any;
-  insforgeAdmin: any;
+  event: StripeBillingWebhookEvent;
+  insforgeAdmin: BillingWebhookAdminClient;
 }): Promise<WebhookResult> {
   const stripeEventId = event.id;
   const eventType = event.type;
+  const now = new Date();
 
   if (!stripeEventId || !eventType) {
     return { received: false, status: "failed", error: "Missing event metadata" };
@@ -227,19 +351,20 @@ export async function handleWebhook({
         {
           stripe_event_id: stripeEventId,
           event_type: eventType,
-          processed_at: new Date().toISOString(),
+          processed_at: now.toISOString(),
           payload: event,
           processing_status: "pending",
         },
       ]);
 
     if (insertError) {
-      const isDuplicate = insertError.code === "23505" || insertError.message?.includes("duplicate key");
-      if (isDuplicate) {
+      let reclaimedStaleEvent = false;
+
+      if (isDuplicateError(insertError)) {
         // Retrieve status of the existing event
         const { data: existingEvent, error: selectError } = await insforgeAdmin.database
           .from("billing_webhook_events")
-          .select("processing_status")
+          .select("processing_status, processed_at")
           .eq("stripe_event_id", stripeEventId)
           .maybeSingle();
 
@@ -249,19 +374,48 @@ export async function handleWebhook({
         }
 
         if (existingEvent) {
-          if (existingEvent.processing_status === "processed" || existingEvent.processing_status === "ignored") {
+          const existingStatus = stringField(existingEvent, "processing_status");
+          if (existingStatus === "processed" || existingStatus === "ignored") {
             console.log(`[billing/webhook] Event ${stripeEventId} already processed (race detected), skipping.`);
             return { received: true, status: "ignored", duplicate: true };
           }
-          if (existingEvent.processing_status === "pending") {
-            console.log(`[billing/webhook] Event ${stripeEventId} is currently being processed by another worker.`);
+
+          if (existingStatus === "pending") {
+            const processedAt = stringField(existingEvent, "processed_at");
+            if (!isPendingWebhookStale(processedAt, now)) {
+              console.log(`[billing/webhook] Event ${stripeEventId} is currently being processed by another worker.`);
+              return { received: false, status: "failed", error: "Event currently processing" };
+            }
+
+            const { error: reclaimError } = await insforgeAdmin.database
+              .from("billing_webhook_events")
+              .update({
+                event_type: eventType,
+                processed_at: now.toISOString(),
+                payload: event,
+                processing_status: "pending",
+                error: null,
+              })
+              .eq("stripe_event_id", stripeEventId);
+
+            if (reclaimError) {
+              console.error("[billing/webhook] Error reclaiming stale pending event:", reclaimError);
+              return { received: false, status: "failed", error: "Database error" };
+            }
+
+            console.warn(`[billing/webhook] Reclaimed stale pending event ${stripeEventId}.`);
+            reclaimedStaleEvent = true;
+          } else {
+            console.error("[billing/webhook] Duplicate event has unexpected status:", existingStatus);
             return { received: false, status: "failed", error: "Event currently processing" };
           }
         }
       }
 
-      console.error("[billing/webhook] Error inserting pending event:", insertError);
-      return { received: false, status: "failed", error: "Database error" };
+      if (!reclaimedStaleEvent) {
+        console.error("[billing/webhook] Error inserting pending event:", insertError);
+        return { received: false, status: "failed", error: "Database error" };
+      }
     }
   } catch (err) {
     console.error("[billing/webhook] Idempotency check failed:", err);
@@ -275,13 +429,13 @@ export async function handleWebhook({
 
     let processed = false;
     let userId: string | null = null;
-    let customerId: string | null = dataObject.customer || null;
-    let subscriptionId: string | null = dataObject.subscription || dataObject.id || null;
+    let customerId: string | null = dataObject.customer ?? null;
+    let subscriptionId: string | null = dataObject.subscription ?? dataObject.id ?? null;
 
     if (eventType === "checkout.session.completed") {
-      userId = dataObject.client_reference_id || dataObject.metadata?.userId || null;
-      customerId = dataObject.customer;
-      subscriptionId = dataObject.subscription;
+      userId = dataObject.client_reference_id ?? dataObject.metadata?.userId ?? null;
+      customerId = dataObject.customer ?? null;
+      subscriptionId = dataObject.subscription ?? null;
 
       if (userId) {
         const { error: upsertError } = await insforgeAdmin.database
@@ -310,9 +464,9 @@ export async function handleWebhook({
       eventType === "customer.subscription.created" ||
       eventType === "customer.subscription.updated"
     ) {
-      customerId = dataObject.customer;
-      subscriptionId = dataObject.id;
-      const status = dataObject.status;
+      customerId = dataObject.customer ?? null;
+      subscriptionId = dataObject.id ?? null;
+      const status = dataObject.status ?? "unknown";
       const cancelAtPeriodEnd = !!dataObject.cancel_at_period_end;
       const currentPeriodStart = dataObject.current_period_start
         ? new Date(dataObject.current_period_start * 1000).toISOString()
@@ -321,7 +475,7 @@ export async function handleWebhook({
         ? new Date(dataObject.current_period_end * 1000).toISOString()
         : null;
 
-      const priceId = dataObject.items?.data?.[0]?.price?.id || null;
+      const priceId = dataObject.items?.data?.[0]?.price?.id ?? null;
 
       // Determine tier
       let planKey: "free" | "pro" = "free";
@@ -352,7 +506,7 @@ export async function handleWebhook({
         entitlementRow = data;
       }
 
-      userId = entitlementRow?.user_id || dataObject.metadata?.userId || null;
+      userId = stringField(entitlementRow, "user_id") ?? dataObject.metadata?.userId ?? null;
 
       if (userId) {
         const { error: updateError } = await insforgeAdmin.database
@@ -385,8 +539,8 @@ export async function handleWebhook({
     }
 
     if (eventType === "customer.subscription.deleted") {
-      customerId = dataObject.customer;
-      subscriptionId = dataObject.id;
+      customerId = dataObject.customer ?? null;
+      subscriptionId = dataObject.id ?? null;
 
       // Find user
       const { data: entitlementRow } = await insforgeAdmin.database
@@ -395,7 +549,7 @@ export async function handleWebhook({
         .eq("stripe_subscription_id", subscriptionId)
         .maybeSingle();
 
-      userId = entitlementRow?.user_id;
+      userId = stringField(entitlementRow, "user_id");
 
       if (userId) {
         const { error: updateError } = await insforgeAdmin.database
@@ -419,8 +573,8 @@ export async function handleWebhook({
     }
 
     if (eventType === "invoice.paid") {
-      customerId = dataObject.customer;
-      subscriptionId = dataObject.subscription;
+      customerId = dataObject.customer ?? null;
+      subscriptionId = dataObject.subscription ?? null;
 
       // Find user
       const { data: entitlementRow } = await insforgeAdmin.database
@@ -429,7 +583,7 @@ export async function handleWebhook({
         .eq("stripe_subscription_id", subscriptionId)
         .maybeSingle();
 
-      userId = entitlementRow?.user_id;
+      userId = stringField(entitlementRow, "user_id");
 
       if (userId) {
         const { error: updateError } = await insforgeAdmin.database
@@ -449,8 +603,8 @@ export async function handleWebhook({
     }
 
     if (eventType === "invoice.payment_failed") {
-      customerId = dataObject.customer;
-      subscriptionId = dataObject.subscription;
+      customerId = dataObject.customer ?? null;
+      subscriptionId = dataObject.subscription ?? null;
 
       // Find user
       const { data: entitlementRow } = await insforgeAdmin.database
@@ -459,7 +613,7 @@ export async function handleWebhook({
         .eq("stripe_subscription_id", subscriptionId)
         .maybeSingle();
 
-      userId = entitlementRow?.user_id;
+      userId = stringField(entitlementRow, "user_id");
 
       if (userId) {
         const { error: updateError } = await insforgeAdmin.database
@@ -497,7 +651,7 @@ export async function handleWebhook({
     const errorMsg = (err as Error).message || String(err);
     console.error(`[billing/webhook] Handler failed for event ${stripeEventId}:`, err);
 
-    await insforgeAdmin.database
+    const { error: failedUpdateError } = await insforgeAdmin.database
       .from("billing_webhook_events")
       .update({
         processing_status: "failed",
@@ -505,6 +659,10 @@ export async function handleWebhook({
         processed_at: new Date().toISOString(),
       })
       .eq("stripe_event_id", stripeEventId);
+
+    if (failedUpdateError) {
+      console.error("[billing/webhook] Error marking event failed:", failedUpdateError);
+    }
 
     return { received: false, status: "failed", error: errorMsg };
   }
