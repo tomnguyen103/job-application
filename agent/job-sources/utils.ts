@@ -106,7 +106,10 @@ export async function fetchJson<T>(
 /**
  * Fetches and normalizes postings across multiple ATS boards for one provider,
  * concurrently rather than one board at a time — a serial loop here would
- * multiply this provider's latency by the number of configured boards.
+ * multiply this provider's latency by the number of configured boards. Each
+ * board is isolated with Promise.allSettled: one bad board slug (typo, 404,
+ * transient error) contributes zero results instead of discarding every other
+ * board's already-fetched postings too.
  */
 export async function searchAtsBoards(args: {
   boardSlugs: string[];
@@ -118,9 +121,20 @@ export async function searchAtsBoards(args: {
 }): Promise<NormalizedJobPosting[]> {
   const { boardSlugs, input, fetchBoard } = args;
 
-  const perBoardResults = await Promise.all(
+  const outcomes = await Promise.allSettled(
     boardSlugs.map((boardSlug) => fetchBoard(boardSlug, input)),
   );
+
+  const perBoardResults = outcomes.map((outcome, index) => {
+    if (outcome.status === "fulfilled") {
+      return outcome.value;
+    }
+    console.error(
+      `[job-sources] board "${boardSlugs[index]}" fetch failed:`,
+      outcome.reason,
+    );
+    return [];
+  });
 
   return perBoardResults.flat().slice(0, input.limit);
 }

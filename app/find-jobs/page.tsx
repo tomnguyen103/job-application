@@ -9,7 +9,11 @@ import {
   createInsforgeServer,
   requireCurrentUser,
 } from "@/lib/insforge-server";
-import { MATCH_THRESHOLD, formatRelativeTime } from "@/lib/utils";
+import {
+  MATCH_THRESHOLD,
+  formatRelativeTime,
+  resolveSourceDisplayName,
+} from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -85,29 +89,6 @@ function buildHrefForPage(args: {
   };
 }
 
-function fallbackSourceName(sourceProvider: string | null): string {
-  if (sourceProvider === "remotive") {
-    return "Remotive";
-  }
-  if (sourceProvider === "usajobs") {
-    return "USAJOBS";
-  }
-  if (sourceProvider === "greenhouse") {
-    return "Greenhouse";
-  }
-  if (sourceProvider === "lever") {
-    return "Lever";
-  }
-  if (sourceProvider === "ashby") {
-    return "Ashby";
-  }
-  if (sourceProvider === "manual") {
-    return "Manual import";
-  }
-
-  return "Adzuna";
-}
-
 function mapJobRowToListItem(row: JobRow): JobListItem {
   return {
     id: row.id,
@@ -116,8 +97,10 @@ function mapJobRowToListItem(row: JobRow): JobListItem {
     matchScore: row.match_score ?? 0,
     location: row.location ?? "-",
     salary: row.salary ?? "-",
-    sourceDisplayName:
-      row.source_display_name ?? fallbackSourceName(row.source_provider),
+    sourceDisplayName: resolveSourceDisplayName(
+      row.source_display_name,
+      row.source_provider,
+    ),
     dateFound: row.found_at ? formatRelativeTime(row.found_at) : "-",
   };
 }

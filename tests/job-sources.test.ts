@@ -56,6 +56,21 @@ test("Adzuna normalization preserves canonical URL and attribution", () => {
   assert.strictEqual(normalized.applyUrl, job.redirect_url);
   assert.strictEqual(normalized.sourceDisplayName, "Adzuna");
   assert.strictEqual(normalized.salary, "$120k - $150k");
+  assert.strictEqual(normalized.jobType, "full_time");
+});
+
+test("Adzuna normalization does not invent a job type when Adzuna omits contract_type", () => {
+  const job: UsableAdzunaJob = {
+    title: "Frontend Engineer",
+    description: "Build product UI",
+    redirect_url: "https://www.adzuna.com/details/456",
+    company: { display_name: "Acme" },
+    // contract_type intentionally omitted
+  };
+
+  const normalized = normalizeAdzunaJob(job);
+
+  assert.strictEqual(normalized.jobType, null);
 });
 
 test("Remotive normalization filters missing required fields and strips HTML", () => {
@@ -159,6 +174,7 @@ test("Lever normalization reads commitment/location from categories and falls ba
       id: "lever-123",
       text: "Backend Engineer",
       descriptionPlain: "Own the API layer.",
+      additionalPlain: null,
       hostedUrl: "https://jobs.lever.co/acme/lever-123?lever-source=feed",
       createdAt: 1_717_200_000_000,
       categories: { commitment: "Full-time" },
@@ -168,6 +184,10 @@ test("Lever normalization reads commitment/location from categories and falls ba
   );
 
   assert.ok(normalized);
+  // additionalPlain: null must not leak the literal text "null" into the
+  // description — cleanText() returns "" for any non-string value before
+  // this reaches the outer template literal.
+  assert.strictEqual(normalized.description, "Own the API layer.");
   assert.strictEqual(normalized.location, "Not specified");
   assert.strictEqual(normalized.jobType, "Full-time");
   assert.strictEqual(normalized.providerJobId, "lever-123");

@@ -49,7 +49,7 @@ export function normalizeAdzunaJob(job: UsableAdzunaJob): NormalizedJobPosting {
     sourceUrl: canonicalSourceUrl(job.redirect_url),
     applyUrl: job.redirect_url,
     salary: formatSalary(job),
-    jobType: job.contract_type || "fulltime",
+    jobType: job.contract_type || null,
     postedAt: job.created ?? null,
     metadata: compactMetadata({
       salaryIsPredicted: job.salary_is_predicted,

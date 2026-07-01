@@ -75,7 +75,7 @@ export function normalizeUsaJobsItem(
     providerJobId: cleanText(descriptor.PositionID) || canonicalPostingUrl(url),
     title,
     company,
-    location: cleanText(descriptor.PositionLocationDisplay),
+    location: cleanText(descriptor.PositionLocationDisplay) || "Not specified",
     description,
     sourceUrl: canonicalPostingUrl(url),
     applyUrl: url,

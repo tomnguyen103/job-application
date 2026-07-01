@@ -26,18 +26,22 @@ export function verifyStripeSignature(
     return { valid: false, error: "Webhook signing secret is not configured" };
   }
 
-  const parts = signatureHeader.split(",").reduce<Record<string, string>>((acc, part) => {
+  // Stripe can send multiple v1=... candidates during secret rotation (one
+  // signed with the old secret, one with the new) — collect all of them and
+  // accept if any matches, rather than only checking whichever comes last.
+  let timestamp: string | undefined;
+  const signatureCandidates: string[] = [];
+
+  for (const part of signatureHeader.split(",")) {
     const [key, value] = part.split("=");
-    if (key && value) {
-      acc[key] = value;
+    if (key === "t" && value) {
+      timestamp = value;
+    } else if (key === "v1" && value) {
+      signatureCandidates.push(value);
     }
-    return acc;
-  }, {});
+  }
 
-  const timestamp = parts.t;
-  const signature = parts.v1;
-
-  if (!timestamp || !signature) {
+  if (!timestamp || signatureCandidates.length === 0) {
     return { valid: false, error: "Malformed Stripe-Signature header" };
   }
 
@@ -50,14 +54,17 @@ export function verifyStripeSignature(
   const expectedSignature = createHmac("sha256", secret)
     .update(`${timestamp}.${rawBody}`, "utf8")
     .digest("hex");
-
   const expectedBuffer = Buffer.from(expectedSignature, "utf8");
-  const actualBuffer = Buffer.from(signature, "utf8");
 
-  if (
-    expectedBuffer.length !== actualBuffer.length ||
-    !timingSafeEqual(expectedBuffer, actualBuffer)
-  ) {
+  const matchesAnyCandidate = signatureCandidates.some((candidate) => {
+    const candidateBuffer = Buffer.from(candidate, "utf8");
+    return (
+      expectedBuffer.length === candidateBuffer.length &&
+      timingSafeEqual(expectedBuffer, candidateBuffer)
+    );
+  });
+
+  if (!matchesAnyCandidate) {
     return { valid: false, error: "Signature mismatch" };
   }
 

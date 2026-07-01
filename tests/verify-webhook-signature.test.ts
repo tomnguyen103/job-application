@@ -81,6 +81,25 @@ test("verifyStripeSignature rejects a stale (replayed) timestamp", () => {
   assert.match(result.error || "", /tolerance/i);
 });
 
+test("verifyStripeSignature accepts a valid signature among multiple v1 candidates (secret rotation)", () => {
+  const body = JSON.stringify({ id: "evt_rotation" });
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  const oldSecretSignature = createHmac("sha256", "whsec_old_secret")
+    .update(`${timestamp}.${body}`, "utf8")
+    .digest("hex");
+  const currentSecretSignature = createHmac("sha256", SECRET)
+    .update(`${timestamp}.${body}`, "utf8")
+    .digest("hex");
+
+  // Stripe sends one v1 per active signing secret during rotation.
+  const header = `t=${timestamp},v1=${oldSecretSignature},v1=${currentSecretSignature}`;
+
+  const result = verifyStripeSignature(body, header, SECRET);
+
+  assert.equal(result.valid, true);
+});
+
 test("verifyStripeSignature forged body cannot forge a valid signature without the secret", () => {
   // Simulates an attacker who knows the event shape but not the signing secret.
   const forgedBody = JSON.stringify({

@@ -194,15 +194,11 @@ export function selectPostingsForScoring(
   };
 }
 
-async function loadExistingRows(
+async function loadRowsBySourceUrl(
   insforge: InsforgeServer,
   userId: string,
-  postings: NormalizedJobPosting[],
+  sourceUrls: string[],
 ): Promise<ExistingJobRow[]> {
-  const sourceUrls = Array.from(
-    new Set(postings.map((posting) => posting.sourceUrl).filter(Boolean)),
-  );
-
   if (sourceUrls.length === 0) {
     return [];
   }
@@ -218,6 +214,62 @@ async function loadExistingRows(
   }
 
   return (data ?? []) as ExistingJobRow[];
+}
+
+async function loadRowsByProviderJobId(
+  insforge: InsforgeServer,
+  userId: string,
+  provider: string,
+  providerJobIds: string[],
+): Promise<ExistingJobRow[]> {
+  if (providerJobIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await insforge.database
+    .from("jobs")
+    .select("source_url, source_provider, source_provider_job_id")
+    .eq("user_id", userId)
+    .eq("source_provider", provider)
+    .in("source_provider_job_id", providerJobIds);
+
+  if (error) {
+    throw new Error(`Duplicate check failed: ${error.message}`);
+  }
+
+  return (data ?? []) as ExistingJobRow[];
+}
+
+// Matches existing rows by canonical URL AND, separately, by provider-native
+// job id — a posting can change URL (tracking params, redirect rotation)
+// while keeping the same provider id, and matching by URL alone would miss it.
+async function loadExistingRows(
+  insforge: InsforgeServer,
+  userId: string,
+  postings: NormalizedJobPosting[],
+): Promise<ExistingJobRow[]> {
+  const sourceUrls = Array.from(
+    new Set(postings.map((posting) => posting.sourceUrl).filter(Boolean)),
+  );
+
+  const providerJobIdsByProvider = new Map<string, Set<string>>();
+  for (const posting of postings) {
+    if (!posting.providerJobId) {
+      continue;
+    }
+    const ids = providerJobIdsByProvider.get(posting.provider) ?? new Set<string>();
+    ids.add(posting.providerJobId);
+    providerJobIdsByProvider.set(posting.provider, ids);
+  }
+
+  const [byUrl, ...byProviderJobId] = await Promise.all([
+    loadRowsBySourceUrl(insforge, userId, sourceUrls),
+    ...Array.from(providerJobIdsByProvider.entries()).map(([provider, ids]) =>
+      loadRowsByProviderJobId(insforge, userId, provider, Array.from(ids)),
+    ),
+  ]);
+
+  return [byUrl, ...byProviderJobId].flat();
 }
 
 async function saveJob(
@@ -249,7 +301,7 @@ async function saveJob(
         company: job.company,
         location: job.location,
         salary: job.salary,
-        job_type: job.jobType || "fulltime",
+        job_type: job.jobType || null,
         about_role: job.description,
         match_score: match.matchScore,
         match_reason: match.matchReason,
