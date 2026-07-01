@@ -5,7 +5,7 @@ import {
   dedupePostings,
   searchProviders,
   selectPostingsForScoring,
-} from "../agent/job-discovery";
+} from "../agent/job-discovery-utils";
 import type {
   JobSourceProvider,
   NormalizedJobPosting,

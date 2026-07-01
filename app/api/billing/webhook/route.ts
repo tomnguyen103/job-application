@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { createInsforgeAdmin } from "@/lib/insforge-server";
 import { handleWebhook } from "@/lib/billing/routes";
 import { verifyStripeSignature } from "@/lib/billing/verify-webhook-signature";
 
@@ -29,6 +28,7 @@ export async function POST(req: Request) {
   }
 
   try {
+    const { createInsforgeAdmin } = await import("@/lib/insforge-server");
     const insforgeAdmin = createInsforgeAdmin();
     const result = await handleWebhook({
       event,

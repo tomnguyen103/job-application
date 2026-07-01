@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Multi-Source Job Discovery + Security/Quality Hardening
-**Last completed:** Find Jobs production quota RPC overflow hardening
-**Next:** Set `STRIPE_WEBHOOK_SECRET` and register the webhook endpoint with Stripe before enabling live billing traffic; monitor in production/staging
+**Phase:** Grade-A Hardening
+**Last completed:** PR 1 CI pipeline
+**Next:** PR 2 Billing correctness + billing tests
 
 ---
 
@@ -64,6 +64,7 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Decisions Made During Build
 
+- 2026-07-01: Grade-A hardening PR 1 started from `docs/grade-a-goal-prompt.md`. Added GitHub Actions CI at `.github/workflows/ci.yml` running `npm ci`, `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build` on push and pull requests with public build-time env stubs only, pinned to the repo-documented Node 20 runtime. Added the `typecheck` package script and widened the test pattern to `tests/**/*.test.ts` through `scripts/run-tests.mjs` so nested test files are not silently skipped and Node 20 CI does not depend on newer Node glob expansion. Local verification before PR: `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` (106/106), `npm run build`, and `git diff --check` all passed.
 - 2026-07-01: Updated Remotive search after user review: no hardcoded local city/country gate. `agent/job-sources/remotive.ts` now builds the documented Remotive API query from the Find Jobs text-field inputs by sending both `jobTitle` and `location` through the public API's `search` parameter, plus the app's requested `limit`. Live probing showed Remotive's public API can still return broad remote-region rows for that query, so normalized Remotive rows are also filtered by comparing each returned `candidate_required_location` to tokens from the user's Location text; this keeps the behavior input-driven instead of keyed to Houston or any fixed location list. Cleaned up 10 already-saved Remotive rows from prior Houston searches so the table no longer keeps showing stale broad-region results. Updated `docs/job-search-api-setup-guide.md` with the Remotive API limitation, the exact query shape, and the verification expectation.
 - 2026-07-01: CodeRabbit follow-up after PR #19 merge. Updated the latest `record_usage_with_quota_check` migration definition and added live migrations `20260701203000_prevent-usage-rpc-quota-overflow.sql` and `20260701204500_avoid-usage-rpc-addition-overflow.sql` so usage totals use `bigint` and the quota guard compares against the remaining allowance instead of adding before the denial path can return.
 - 2026-07-01: Fixed a production-only Find Jobs outage. Vercel runtime logs showed `POST /api/agent/find` returning 500 before discovery because `recordUsage` required `INSFORGE_ADMIN_API_KEY`, which was present locally but missing in Vercel production. The quota path now calls an authenticated `SECURITY DEFINER` `record_usage_with_quota_check` RPC through the normal server client instead of requiring an admin API key in web runtime env. The RPC validates owner scope, positive quantities, non-empty idempotency keys, and takes the advisory lock before idempotency/quota checks. Find Jobs records one `job_search_run` when the run starts, then records one `job_match_score` immediately before each Gemini scoring call, avoiding any user-callable quota-reduction RPC.
