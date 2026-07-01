@@ -1,18 +1,6 @@
--- Restore the backwards-compatible RPC signature after moving quota derivation
--- inside the database. p_limit, p_period_start, and p_period_end are ignored.
-
-DROP FUNCTION IF EXISTS record_usage_with_quota_check(
-  uuid,
-  text,
-  integer,
-  text,
-  integer,
-  timestamptz,
-  timestamptz,
-  text,
-  uuid,
-  jsonb
-);
+-- Harden the live usage RPC definitions against NULL user and metadata payloads.
+-- Earlier migrations have been applied already, so this forward migration keeps
+-- production aligned with the corrected definitions.
 
 CREATE OR REPLACE FUNCTION record_usage_with_quota_check(
   p_user_id uuid,
@@ -162,7 +150,7 @@ BEGIN
     v_period_end,
     p_source_route,
     p_reference_id,
-    p_metadata
+    COALESCE(p_metadata, '{}'::jsonb)
   );
 
   RETURN jsonb_build_object(

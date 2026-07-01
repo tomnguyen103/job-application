@@ -40,7 +40,7 @@ DECLARE
   v_limit integer;
   v_already_exists boolean := false;
 BEGIN
-  IF auth.uid() IS NULL OR auth.uid() <> p_user_id THEN
+  IF auth.uid() IS NULL OR auth.uid() IS DISTINCT FROM p_user_id THEN
     RETURN jsonb_build_object('success', false, 'status', 'unauthorized');
   END IF;
 

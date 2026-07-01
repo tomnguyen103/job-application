@@ -21,7 +21,7 @@ BEGIN
     p_period_end => NULL,
     p_source_route => p_source_route,
     p_reference_id => p_reference_id,
-    p_metadata => p_metadata
+    p_metadata => COALESCE(p_metadata, '{}'::jsonb)
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
