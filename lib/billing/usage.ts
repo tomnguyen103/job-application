@@ -1,6 +1,9 @@
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { BILLING_PLANS, BillingEventType, getPeriodBoundaries } from "./plans";
 import { getUserEntitlement, UserEntitlement } from "./entitlements";
+import { isUniqueConstraintViolation } from "./usage-errors";
+
+export { isUniqueConstraintViolation } from "./usage-errors";
 
 export class QuotaExceededError extends Error {
   eventType: BillingEventType;
@@ -17,17 +20,6 @@ export class QuotaExceededError extends Error {
     this.planKey = planKey;
   }
 }
-/**
- * Checks if the database error is a unique constraint violation on the usage ledger
- * idempotency key (PostgreSQL error code 23505).
- * 
- * @param error - An object representing the database error.
- * @returns True if it is a unique constraint violation, otherwise false.
- */
-export function isUniqueConstraintViolation(error: { code?: string; message?: string }): boolean {
-  return error.code === "23505" || !!error.message?.includes("uq_usage_ledger_user_event_idempotency");
-}
-
 /**
  * Computes the total usage quantity recorded for each billing event type
  * within the user's current billing period.

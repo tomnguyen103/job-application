@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_INSFORGE_URL: https://ci.insforge.example
+      NEXT_PUBLIC_INSFORGE_ANON_KEY: ci-anon-key
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_POSTHOG_KEY: phc_ci
+      NEXT_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert";
 
 import { BILLING_PLANS, getPeriodBoundaries, UserEntitlement } from "../lib/billing/plans";
-import { isUniqueConstraintViolation } from "../lib/billing/usage";
+import { isUniqueConstraintViolation } from "../lib/billing/usage-errors";
 
 test("BILLING_PLANS contains free and pro definitions", () => {
   assert.ok(BILLING_PLANS.free);
