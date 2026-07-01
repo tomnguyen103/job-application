@@ -13,7 +13,10 @@ export async function POST() {
   try {
     const user = await getCurrentUser();
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     const insforge = await createInsforgeServer();
@@ -27,14 +30,14 @@ export async function POST() {
     if (profileError) {
       console.error("[resume/generate] profile read error:", profileError);
       return NextResponse.json(
-        { error: "Failed to load your profile. Please try again." },
+        { success: false, error: "Failed to load your profile. Please try again." },
         { status: 500 },
       );
     }
 
     if (!row || row.is_complete !== true) {
       return NextResponse.json(
-        { error: "Complete your profile before generating a resume." },
+        { success: false, error: "Complete your profile before generating a resume." },
         { status: 400 },
       );
     }
@@ -47,7 +50,7 @@ export async function POST() {
     } catch (quotaError) {
       if (quotaError instanceof QuotaExceededError) {
         return NextResponse.json(
-          { error: quotaError.message },
+          { success: false, error: quotaError.message },
           { status: 402 },
         );
       }
@@ -60,7 +63,7 @@ export async function POST() {
     } catch (error) {
       console.error("[resume/generate] content generation failed:", error);
       return NextResponse.json(
-        { error: "Could not generate resume content. Please try again." },
+        { success: false, error: "Could not generate resume content. Please try again." },
         { status: 422 },
       );
     }
@@ -84,7 +87,7 @@ export async function POST() {
     if (uploadError) {
       console.error("[resume/generate] upload error:", uploadError);
       return NextResponse.json(
-        { error: "Failed to save the generated resume. Please try again." },
+        { success: false, error: "Failed to save the generated resume. Please try again." },
         { status: 500 },
       );
     }
@@ -109,6 +112,7 @@ export async function POST() {
       console.error("[resume/generate] DB error:", dbError);
       return NextResponse.json(
         {
+          success: false,
           error:
             "Resume was generated but the reference failed to save. Please try again.",
         },
@@ -131,7 +135,7 @@ export async function POST() {
   } catch (error) {
     console.error("[resume/generate]", error);
     return NextResponse.json(
-      { error: "An unexpected error occurred. Please try again." },
+      { success: false, error: "An unexpected error occurred. Please try again." },
       { status: 500 },
     );
   }

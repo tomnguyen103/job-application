@@ -6,7 +6,10 @@ export async function GET() {
   try {
     const user = await getCurrentUser();
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     const insforge = await createInsforgeServer();
@@ -16,7 +19,7 @@ export async function GET() {
 
     if (error || !blob) {
       return NextResponse.json(
-        { error: "No resume found. Please upload or generate one first." },
+        { success: false, error: "No resume found. Please upload or generate one first." },
         { status: 404 },
       );
     }
@@ -32,7 +35,7 @@ export async function GET() {
   } catch (error) {
     console.error("[resume/download]", error);
     return NextResponse.json(
-      { error: "An unexpected error occurred. Please try again." },
+      { success: false, error: "An unexpected error occurred. Please try again." },
       { status: 500 },
     );
   }
