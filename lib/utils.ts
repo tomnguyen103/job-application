@@ -87,6 +87,8 @@ export function resolveSourceDisplayName(
   }
 
   switch (sourceProvider) {
+    case "adzuna":
+      return "Adzuna";
     case "remotive":
       return "Remotive";
     case "usajobs":
@@ -100,7 +102,7 @@ export function resolveSourceDisplayName(
     case "manual":
       return "Manual import";
     default:
-      return "Adzuna";
+      return "Unknown source";
   }
 }
 

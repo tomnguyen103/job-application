@@ -272,7 +272,9 @@ export async function adjustReservedUsage(
   idempotencyKey: string,
   actualQuantity: number,
 ): Promise<{ success: boolean }> {
-  if (actualQuantity <= 0) {
+  const safeQuantity = Math.floor(actualQuantity);
+
+  if (safeQuantity <= 0) {
     await releaseReservedUsage(userId, eventType, idempotencyKey);
     return { success: true };
   }
@@ -280,38 +282,16 @@ export async function adjustReservedUsage(
   try {
     const insforgeAdmin = createInsforgeAdmin();
 
-    // Down-only: read the reserved quantity first so a bad actualQuantity can
+    // Atomic down-only update: a bad caller can
     // never raise a reservation above what was actually reserved — only the
     // atomic record_usage_with_quota_check RPC is allowed to increase usage.
-    const { data: existing, error: selectError } = await insforgeAdmin.database
-      .from("usage_ledger")
-      .select("quantity")
-      .eq("user_id", userId)
-      .eq("event_type", eventType)
-      .eq("idempotency_key", idempotencyKey)
-      .maybeSingle();
-
-    if (selectError) {
-      console.error("[billing/usage] Failed to read reservation before truing up:", selectError);
-      return { success: false };
-    }
-
-    const reservedQuantity = (existing as { quantity?: number } | null)?.quantity;
-    if (reservedQuantity === undefined) {
-      return { success: true };
-    }
-
-    const safeQuantity = Math.min(actualQuantity, reservedQuantity);
-    if (safeQuantity === reservedQuantity) {
-      return { success: true };
-    }
-
     const { error } = await insforgeAdmin.database
       .from("usage_ledger")
       .update({ quantity: safeQuantity })
       .eq("user_id", userId)
       .eq("event_type", eventType)
-      .eq("idempotency_key", idempotencyKey);
+      .eq("idempotency_key", idempotencyKey)
+      .gt("quantity", safeQuantity);
 
     if (error) {
       console.error("[billing/usage] Failed to true up reserved usage:", error);
