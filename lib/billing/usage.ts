@@ -163,13 +163,8 @@ export async function recordUsage(
   planKey?: "free" | "pro";
 }> {
   try {
-    const entitlement = await getUserEntitlement(userId);
-    const { periodStart, periodEnd } = getPeriodBoundaries(entitlement);
-    const plan = BILLING_PLANS[entitlement.planKey];
-    const limit = plan.quotas[eventType].limit;
-
     // Usage writes go through SECURITY DEFINER RPCs that validate auth.uid()
-    // against p_user_id, so route handlers do not require an admin API key.
+    // against p_user_id and derive quota bounds inside the database.
     const insforge = await createInsforgeServer();
 
     const { data, error } = await insforge.database.rpc("record_usage_with_quota_check", {
@@ -177,9 +172,6 @@ export async function recordUsage(
       p_event_type: eventType,
       p_quantity: quantity,
       p_idempotency_key: idempotencyKey,
-      p_limit: limit,
-      p_period_start: periodStart.toISOString(),
-      p_period_end: periodEnd.toISOString(),
       p_source_route: sourceRoute || null,
       p_reference_id: referenceId || null,
       p_metadata: metadata,
@@ -193,7 +185,13 @@ export async function recordUsage(
       return { success: false, error: error.message };
     }
 
-    const result = data as { success: boolean; status: string; current?: number; limit?: number } | null;
+    const result = data as {
+      success: boolean;
+      status: string;
+      current?: number;
+      limit?: number;
+      plan_key?: "free" | "pro";
+    } | null;
     if (!result) {
       return { success: false, error: "No response from database RPC." };
     }
@@ -206,7 +204,7 @@ export async function recordUsage(
           error: `Quota exceeded for ${eventType}. Current usage: ${result.current}, Limit: ${result.limit}.`,
           current: result.current,
           limit: result.limit,
-          planKey: entitlement.planKey,
+          planKey: result.plan_key ?? "free",
         };
       }
       return { success: false, error: `Failed to record usage: ${result.status}` };

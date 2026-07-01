@@ -1,8 +1,16 @@
--- Allow route handlers to perform quota writes without a Vercel admin API key.
--- This RPC is SECURITY DEFINER for the usage_ledger write, but still requires
--- the authenticated user to match the p_user_id being mutated.
--- p_limit, p_period_start, and p_period_end are ignored compatibility inputs;
--- quota limits and periods are derived below from server-owned entitlement data.
+-- Derive quota limits and billing windows inside the SECURITY DEFINER RPC.
+-- Callers may record usage for their own user only. p_limit, p_period_start,
+-- and p_period_end are ignored compatibility inputs for already-deployed code.
+
+DROP FUNCTION IF EXISTS record_usage_with_quota_check(
+  uuid,
+  text,
+  integer,
+  text,
+  text,
+  uuid,
+  jsonb
+);
 
 DROP FUNCTION IF EXISTS record_usage_with_quota_check(
   uuid,
