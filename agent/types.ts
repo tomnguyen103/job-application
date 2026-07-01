@@ -20,6 +20,57 @@ export type UsableAdzunaJob = AdzunaJob & {
   company: { display_name: string };
 };
 
+export const JOB_SOURCE_KEYS = [
+  "adzuna",
+  "remotive",
+  "usajobs",
+  "greenhouse",
+  "lever",
+  "ashby",
+] as const;
+
+export type JobSourceKey = (typeof JOB_SOURCE_KEYS)[number];
+
+export type JobSearchInput = {
+  jobTitle: string;
+  location: string;
+  limit: number;
+};
+
+export type SourceMetadataValue = string | number | boolean | null;
+
+export type NormalizedJobPosting = {
+  provider: JobSourceKey;
+  sourceDisplayName: string;
+  providerJobId: string | null;
+  title: string;
+  company: string;
+  location: string;
+  description: string;
+  sourceUrl: string;
+  applyUrl: string;
+  salary: string | null;
+  jobType: string | null;
+  postedAt: string | null;
+  metadata: Record<string, SourceMetadataValue>;
+};
+
+export type JobSourceProvider = {
+  key: JobSourceKey;
+  displayName: string;
+  isConfigured: () => boolean;
+  search: (input: JobSearchInput) => Promise<NormalizedJobPosting[]>;
+};
+
+export type DiscoverySourceSummary = {
+  provider: JobSourceKey;
+  displayName: string;
+  found: number;
+  saved: number;
+  strongMatches: number;
+  error?: string;
+};
+
 export type JobMatchContent = {
   matchScore: number;
   matchReason: string;
@@ -30,6 +81,8 @@ export type JobMatchContent = {
 export type SavedJob = {
   id: string;
   matchScore: number;
+  sourceProvider: JobSourceKey;
+  sourceDisplayName: string;
 };
 
 export type DiscoveryResult = {
@@ -37,4 +90,7 @@ export type DiscoveryResult = {
   saved: number;
   strongMatches: number;
   savedJobs: SavedJob[];
+  sources: DiscoverySourceSummary[];
+  skippedDuplicates: number;
+  skippedForQuota: number;
 };

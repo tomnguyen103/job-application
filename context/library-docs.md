@@ -240,6 +240,55 @@ installed SDK types change.
 
 ---
 
+## Multi-Source Job Discovery
+
+Job search flows through `agent/job-discovery.ts` and provider adapters under
+`agent/job-sources/`. The public `POST /api/agent/find` request remains
+`{ jobTitle, location }`; provider selection is server-side config.
+
+### Provider Interface
+
+```typescript
+type JobSourceProvider = {
+  key: JobSourceKey;
+  displayName: string;
+  isConfigured: () => boolean;
+  search: (input: JobSearchInput) => Promise<NormalizedJobPosting[]>;
+};
+```
+
+Adapters must normalize external payloads into `NormalizedJobPosting` before
+scoring or saving. Required fields: `title`, `company`, `description`,
+`sourceUrl`, and `applyUrl`. Drop postings missing required fields inside the
+adapter; do not let raw provider payloads reach `agent/matcher.ts`.
+
+### Enabled Sources
+
+- `JOB_SOURCE_PROVIDERS` defaults to `adzuna,remotive,usajobs`.
+- `remotive` needs no key.
+- `usajobs` requires `USAJOBS_API_KEY` and `USAJOBS_USER_AGENT`.
+- `greenhouse`, `lever`, and `ashby` are company-board sources, not global
+  search. Enable with `JOB_SOURCE_ATS_BOARDS`, for example
+  `greenhouse:openai,lever:anthropic,ashby:example-company`.
+
+### Saving and Dedupe Rules
+
+- Keep `jobs.source = 'search'` for every provider-backed search result.
+- Store provider identity in `source_provider`, `source_display_name`, and
+  `source_provider_job_id`.
+- Store `source_url` as the canonical stable posting URL. Store the provider's
+  full apply/tracking URL in `external_apply_url`.
+- Dedupe with provider-native id plus canonical `source_url`; do not re-score
+  already saved postings.
+- Source metadata must stay a bounded JSON object with primitive values only.
+- Source failures are partial: one provider failure should log a warning and
+  continue when another provider succeeds.
+
+Direct LinkedIn, Indeed, and Glassdoor search integrations stay out of V1
+unless a compliant partner/API path is explicitly configured.
+
+---
+
 ## Adzuna API
 
 **Check first:** Check AGENTS.md for an installed Adzuna skill. If none exists — use this file and the official Adzuna API docs.
@@ -307,17 +356,24 @@ type AdzunaJob = {
 ### Saving Jobs to DB
 
 ```typescript
-// Map Adzuna result to jobs table
+// Map normalized Adzuna result to jobs table
 const jobRecord = {
   user_id: userId,
   run_id: runId,
-  source: "search", // always 'search' for Adzuna jobs
+  source: "search", // search is preserved for compatibility
   source_url: canonicalSourceUrl(job.redirect_url), // stable identity — the dedupe key
   external_apply_url: job.redirect_url, // full tracking URL — used for apply clicks
+  source_provider: "adzuna",
+  source_display_name: "Adzuna",
+  source_provider_job_id: canonicalSourceUrl(job.redirect_url),
+  posted_at: job.created ?? null,
+  source_metadata: {
+    salaryIsPredicted: job.salary_is_predicted,
+  },
   title: job.title,
   company: job.company.display_name,
   location: job.location.display_name,
-  salary: formatSalary(job), // agent/adzuna.ts — equal bounds collapse to "$146k", min-only renders "$146k+", null when absent
+  salary: formatSalary(job), // agent/job-sources/adzuna.ts
   job_type: job.contract_type || "fulltime",
   about_role: job.description, // Adzuna returns snippet — used as description
   match_score: scoredJob.matchScore,
@@ -332,7 +388,7 @@ const jobRecord = {
 
 - Always include `category=it-jobs` — never search Adzuna without this filter
 - Adzuna's `where` is strictly geographic — strip remote markers via `normalizeWhere` and omit the parameter when empty or nothing geographic remains (passing "remote" returns 0 results)
-- `source` is always `'search'` for Adzuna jobs — never any other value
+- `source` remains `'search'` for Adzuna jobs; provider identity goes in `source_provider = 'adzuna'`
 - `salary_is_predicted: "1"` means Adzuna estimated the salary — this is normal
 - Adzuna description is a 500-char snippet — Gemini 2.5-flash (`agent/matcher.ts`) scores from it, not a full description
 - Country comes from `detectCountry(location)` (`lib/adzuna.ts`) — keyword sniff for `gb`/`au`/`ca`, default `'us'`
@@ -352,7 +408,7 @@ const jobRecord = {
 **Rules:**
 
 - The agent runs only from the job details page — the profile Generate Resume button stays unchanged
-- Treat `about_role` as a saved job description that may be an Adzuna snippet, not guaranteed full posting text
+- Treat `about_role` as a saved job description that may be an Adzuna snippet, Remotive/ATS full text, or USAJOBS summary, not guaranteed full posting text
 - Prioritize requirements, responsibilities, and `matched_skills` when choosing keywords
 - Never present `missing_skills` as skills the candidate has
 - Do not keyword-stuff; rewrite bullets only when supported by the profile

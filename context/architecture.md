@@ -8,7 +8,7 @@
 | Auth + DB + Storage + Realtime | InsForge                 | Entire backend                                   |
 | Cloud browser                  | Browserbase              | Company research — browsing company public pages |
 | AI browser control             | Stagehand                | Company page interaction and content extraction  |
-| Job Discovery                  | Adzuna API               | Job search and discovery                         |
+| Job Discovery                  | Provider adapters        | Adzuna, Remotive, USAJOBS, and configured ATS boards |
 | AI model                       | Gemini 2.5 Flash         | Matching, research synthesis, extraction, tailoring |
 | Analytics                      | PostHog                  | Event tracking and dashboard charts              |
 | PDF generation                 | @react-pdf/renderer      | Resume PDF rendering                             |
@@ -52,7 +52,7 @@
 │       │   ├── callback/route.ts          → OAuth callback handler
 │       │   └── refresh/route.ts           → Session refresh handler
 │       ├── agent/
-│       │   ├── find/route.ts              → Trigger Adzuna job discovery
+│       │   ├── find/route.ts              → Trigger multi-source job discovery
 │       │   └── research/route.ts          → Trigger company research agent
 │       ├── resume/
 │       │   ├── generate/route.ts          → Generate base resume PDF from profile
@@ -63,7 +63,8 @@
 │                   ├── route.ts           → Generate job-tailored resume PDF
 │                   └── download/route.ts  → Download latest unexpired tailored resume
 ├── agent/
-│   ├── adzuna.ts                          → Adzuna API job discovery + Gemini scoring
+│   ├── job-discovery.ts                   → Provider orchestration, dedupe, Gemini scoring, save
+│   ├── job-sources/                       → Adzuna, Remotive, USAJOBS, Greenhouse, Lever, Ashby adapters
 │   ├── research.ts                        → Company research — Browserbase + Stagehand + Gemini
 │   ├── matcher.ts                         → Gemini job matching logic
 │   ├── extractor.ts                       → Gemini resume extraction + structuring
@@ -125,7 +126,7 @@
 | Folder        | Owns                                                                                                   |
 | ------------- | ------------------------------------------------------------------------------------------------------ |
 | `app/`        | Pages and API routes only. No business logic.                                                          |
-| `agent/`      | All agent logic. Adzuna discovery, company research, matching, extraction, tailored resumes. Nothing here touches React. |
+| `agent/`      | All agent logic. Job discovery providers, company research, matching, extraction, tailored resumes. Nothing here touches React. |
 | `actions/`    | Server Actions for UI-triggered mutations only. Profile save, profile update.                          |
 | `components/` | UI only. No data fetching logic. No direct DB calls.                                                   |
 | `lib/`        | Third party client initialisation and shared utilities only.                                           |
@@ -154,9 +155,11 @@ User clicks Find Jobs
         ↓
 API route in app/api/agent/find
         ↓
-Calls agent/adzuna.ts
+Calls agent/job-discovery.ts
         ↓
-Adzuna API returns job listings
+Enabled providers return normalized job listings
+        ↓
+Agent tolerates partial source failures and dedupes by provider id + canonical URL
         ↓
 Gemini 2.5 Flash scores each job against user profile
         ↓
@@ -277,6 +280,11 @@ Daily cleanup deletes expired storage objects and rows
 | source             | text        | search / url                                   |
 | source_url         | text        | Original job listing URL                       |
 | external_apply_url | text        | Direct company apply URL                       |
+| source_provider    | text        | adzuna / remotive / usajobs / greenhouse / lever / ashby / manual |
+| source_display_name | text       | Reader-facing source label                     |
+| source_provider_job_id | text    | Provider-native posting identity               |
+| posted_at          | timestamptz | Provider posting date, if supplied             |
+| source_metadata    | jsonb       | Bounded provider-specific metadata object      |
 | title              | text        |                                                |
 | company            | text        |                                                |
 | location           | text        |                                                |
@@ -383,24 +391,26 @@ const session = await bb.sessions.create({
 
 ## Job Discovery Pattern
 
-**Adzuna API — job search**
+`app/api/agent/find/route.ts` keeps the public request shape `{ jobTitle, location }`.
+It calls `agent/job-discovery.ts`, which loads enabled `JobSourceProvider`
+adapters from `JOB_SOURCE_PROVIDERS` plus optional `JOB_SOURCE_ATS_BOARDS`.
 
-```typescript
-const response = await fetch(
-  `https://api.adzuna.com/v1/api/jobs/us/search/1?` +
-    `app_id=${process.env.ADZUNA_APP_ID}&` +
-    `app_key=${process.env.ADZUNA_APP_KEY}&` +
-    `what=${encodeURIComponent(jobTitle)}&` +
-    `where=${encodeURIComponent(location)}&` +
-    `category=it-jobs&` +
-    `results_per_page=10&` +
-    `content-type=application/json`,
-);
-const data = await response.json();
-// data.results — array of job listings
-// Each job: title, company.display_name, location.display_name,
-//           salary_min, salary_max, description, redirect_url, created
-```
+V1 providers:
+
+- `adzuna`: existing Adzuna API path through `lib/adzuna.ts`, including
+  `category=it-jobs`, remote-marker stripping, country detection, and stable
+  canonical URL storage.
+- `remotive`: public remote jobs API.
+- `usajobs`: public USAJOBS search API, only configured when
+  `USAJOBS_API_KEY` and `USAJOBS_USER_AGENT` are present.
+- `greenhouse`, `lever`, `ashby`: public company-board APIs, only useful when
+  board slugs are configured in `JOB_SOURCE_ATS_BOARDS`.
+
+All adapters return `NormalizedJobPosting`. The orchestrator records source
+outcomes independently, continues through partial source failures, dedupes by
+provider-native id plus canonical `source_url`, caps scoring per run based on
+remaining `job_match_score` quota, scores with Gemini, and saves normalized
+jobs with `source = 'search'` plus provider columns.
 
 ---
 
@@ -455,4 +465,7 @@ Rules the AI agent must never violate:
 - Browserbase sessions are always closed with stagehand.close() when done — never leave sessions open.
 - Always scope InsForge queries to the current user_id — never query without a user filter.
 - Adzuna API always includes category=it-jobs — never search without this filter.
+- Job source adapters must return `NormalizedJobPosting`; downstream matching and saving must not depend on raw provider shapes.
+- Source failures are source-scoped. One failed provider must not fail a run when another enabled provider succeeds.
 - jobs.source is always 'search' or 'url' — never any other value.
+- Search jobs keep `jobs.source = 'search'` and store provider identity in `source_provider`, `source_display_name`, and `source_provider_job_id`.
