@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { test } from "node:test";
+import { afterEach, test } from "node:test";
 
 import { POST } from "../app/api/billing/webhook/route";
 
 const SECRET = "whsec_route_test_secret";
+const ORIGINAL_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+
+afterEach(() => {
+  if (ORIGINAL_WEBHOOK_SECRET === undefined) {
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    return;
+  }
+
+  process.env.STRIPE_WEBHOOK_SECRET = ORIGINAL_WEBHOOK_SECRET;
+});
 
 function sign(body: string, timestamp: number): string {
   const signature = createHmac("sha256", SECRET)

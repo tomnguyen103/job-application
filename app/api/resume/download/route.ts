@@ -33,7 +33,10 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("[resume/download]", error);
+    console.error(
+      "[resume/download]",
+      error instanceof Error ? error.message : String(error),
+    );
     return NextResponse.json(
       { success: false, error: "An unexpected error occurred. Please try again." },
       { status: 500 },
