@@ -452,78 +452,79 @@ export async function discoverJobs(
       newPostings,
       scoreLimit,
     );
-    const jobsToScore: NormalizedJobPosting[] = [];
     let skippedForQuota = selectedForScoring.skippedForQuota;
+    const savedJobs: SavedJob[] = [];
+    let reservationErrors = 0;
 
-    for (let index = 0; index < selectedForScoring.jobsToScore.length; index += 1) {
-      const job = selectedForScoring.jobsToScore[index];
-      const reservation = await recordUsage(
-        userId,
-        "job_match_score",
-        1,
-        `run:${runId}:score:${index}`,
-        {
-          jobTitle,
-          location,
-          provider: job.provider,
-          providerJobId: job.providerJobId,
-          title: job.title,
-          company: job.company,
-        },
-        "/api/agent/find",
-        runId,
+    for (let i = 0; i < selectedForScoring.jobsToScore.length; i += SCORING_BATCH_SIZE) {
+      const batch = selectedForScoring.jobsToScore.slice(i, i + SCORING_BATCH_SIZE);
+      let quotaBlocked = false;
+      const outcomes = await Promise.all(
+        batch.map(async (job, batchOffset) => {
+          const jobIndex = i + batchOffset;
+          const reservation = await recordUsage(
+            userId,
+            "job_match_score",
+            1,
+            `run:${runId}:score:${jobIndex}`,
+            {
+              jobTitle,
+              location,
+              provider: job.provider,
+              providerJobId: job.providerJobId,
+              title: job.title,
+              company: job.company,
+            },
+            "/api/agent/find",
+            runId,
+          );
+
+          if (!reservation.success) {
+            return {
+              status: reservation.code === "QUOTA_EXCEEDED" ? "quota_exceeded" : "reservation_failed",
+              job,
+              error: reservation.error,
+            } as const;
+          }
+
+          try {
+            return {
+              status: "scored",
+              job,
+              match: await scoreJobMatch(profile, job),
+            } as const;
+          } catch (reason) {
+            return {
+              status: "score_failed",
+              job,
+              reason,
+            } as const;
+          }
+        }),
       );
 
-      if (!reservation.success) {
-        if (reservation.code === "QUOTA_EXCEEDED") {
-          skippedForQuota += selectedForScoring.jobsToScore.length - index;
+      for (const outcome of outcomes) {
+        const job = outcome.job;
+
+        if (outcome.status === "quota_exceeded") {
+          skippedForQuota += 1;
+          quotaBlocked = true;
+          continue;
+        }
+
+        if (outcome.status === "reservation_failed") {
+          reservationErrors += 1;
+          console.error("[agent/job-discovery] score quota reservation failed:", outcome.error);
           await logAgentEvent(insforge, {
             runId,
             userId,
             level: "warning",
-            message: "Skipped remaining job scoring because your scoring quota was reached.",
+            message: `Could not reserve scoring quota for "${job.title}" at ${job.company} - skipped.`,
           });
-          break;
+          continue;
         }
 
-        console.error("[agent/job-discovery] score quota reservation failed:", reservation.error);
-        await logAgentEvent(insforge, {
-          runId,
-          userId,
-          level: "error",
-          message: "Could not reserve job scoring quota.",
-        });
-        return {
-          success: false,
-          error: reservation.error ?? "Could not reserve job scoring quota.",
-        };
-      }
-
-      jobsToScore.push(job);
-    }
-
-    if (skippedForQuota > 0) {
-      await logAgentEvent(insforge, {
-        runId,
-        userId,
-        level: "warning",
-        message: `Skipped ${skippedForQuota} new job(s) because this run reached the scoring limit.`,
-      });
-    }
-
-    const savedJobs: SavedJob[] = [];
-
-    for (let i = 0; i < jobsToScore.length; i += SCORING_BATCH_SIZE) {
-      const batch = jobsToScore.slice(i, i + SCORING_BATCH_SIZE);
-      const outcomes = await Promise.allSettled(
-        batch.map((job) => scoreJobMatch(profile, job)),
-      );
-
-      for (let index = 0; index < batch.length; index += 1) {
-        const job = batch[index];
-        const outcome = outcomes[index];
-
-        if (outcome.status === "rejected") {
+        if (outcome.status === "score_failed") {
           console.error("[agent/job-discovery] scoring failed:", outcome.reason);
           await logAgentEvent(insforge, {
             runId,
@@ -534,11 +535,15 @@ export async function discoverJobs(
           continue;
         }
 
+        if (outcome.status !== "scored") {
+          continue;
+        }
+
         const saved = await saveJob(insforge, {
           userId,
           runId,
           job,
-          match: outcome.value,
+          match: outcome.match,
         });
 
         if (saved) {
@@ -565,6 +570,33 @@ export async function discoverJobs(
           });
         }
       }
+
+      if (quotaBlocked) {
+        skippedForQuota += selectedForScoring.jobsToScore.length - (i + batch.length);
+        await logAgentEvent(insforge, {
+          runId,
+          userId,
+          level: "warning",
+          message: "Skipped remaining job scoring because your scoring quota was reached.",
+        });
+        break;
+      }
+    }
+
+    if (reservationErrors > 0 && savedJobs.length === 0) {
+      return {
+        success: false,
+        error: "Could not reserve job scoring quota.",
+      };
+    }
+
+    if (skippedForQuota > 0) {
+      await logAgentEvent(insforge, {
+        runId,
+        userId,
+        level: "warning",
+        message: `Skipped ${skippedForQuota} new job(s) because this run reached the scoring limit.`,
+      });
     }
 
     const strongMatches = savedJobs.filter(

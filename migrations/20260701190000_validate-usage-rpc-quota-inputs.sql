@@ -1,6 +1,4 @@
--- Allow route handlers to perform quota writes without a Vercel admin API key.
--- This RPC is SECURITY DEFINER for the usage_ledger write, but still requires
--- the authenticated user to match the p_user_id being mutated.
+-- Apply the final quota input validation to the already-migrated backend.
 
 CREATE OR REPLACE FUNCTION record_usage_with_quota_check(
   p_user_id uuid,

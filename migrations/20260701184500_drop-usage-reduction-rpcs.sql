@@ -29,6 +29,14 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'status', 'invalid_idempotency_key');
   END IF;
 
+  IF p_limit IS NULL OR p_limit < 0 THEN
+    RETURN jsonb_build_object('success', false, 'status', 'invalid_limit');
+  END IF;
+
+  IF p_period_start IS NULL OR p_period_end IS NULL OR p_period_start >= p_period_end THEN
+    RETURN jsonb_build_object('success', false, 'status', 'invalid_period');
+  END IF;
+
   PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text));
 
   SELECT EXISTS(
