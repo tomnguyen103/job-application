@@ -172,6 +172,11 @@ export async function recordUsage(
       p_event_type: eventType,
       p_quantity: quantity,
       p_idempotency_key: idempotencyKey,
+      // Compatibility fields only. The RPC ignores these and derives quota
+      // limits and periods from server-owned entitlement rows.
+      p_limit: null,
+      p_period_start: null,
+      p_period_end: null,
       p_source_route: sourceRoute || null,
       p_reference_id: referenceId || null,
       p_metadata: metadata,

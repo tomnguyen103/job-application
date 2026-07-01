@@ -7,16 +7,6 @@ DROP FUNCTION IF EXISTS record_usage_with_quota_check(
   text,
   integer,
   text,
-  text,
-  uuid,
-  jsonb
-);
-
-DROP FUNCTION IF EXISTS record_usage_with_quota_check(
-  uuid,
-  text,
-  integer,
-  text,
   integer,
   timestamptz,
   timestamptz,
