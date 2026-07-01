@@ -50,7 +50,10 @@ export function remotiveLocationMatchesSearch(
   }
 
   const candidate = `${cleanText(candidateLocation).toLowerCase()} remote`;
-  return tokens.some((token) =>
+  const specificTokens = tokens.filter((token) => token.length >= 3);
+  const matchTokens = specificTokens.length > 0 ? specificTokens : tokens;
+
+  return matchTokens.some((token) =>
     new RegExp(`(?:^|[^a-z0-9])${token}(?:$|[^a-z0-9])`).test(candidate),
   );
 }

@@ -126,6 +126,10 @@ test("Remotive location fallback filters against the user's location text", () =
     remotiveLocationMatchesSearch("Houston, TX", "Houston, TX"),
     true,
   );
+  assert.strictEqual(
+    remotiveLocationMatchesSearch("Portland, OR", "US or Canada"),
+    false,
+  );
   assert.strictEqual(remotiveLocationMatchesSearch("Remote", "Worldwide"), true);
 });
 
