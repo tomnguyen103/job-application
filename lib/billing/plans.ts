@@ -47,7 +47,7 @@ export const BILLING_PLANS: Record<"free" | "pro", BillingPlan> = {
   pro: {
     planKey: "pro",
     displayName: "Pro",
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "price_pro_test",
+    priceId: process.env.STRIPE_PRO_PRICE_ID || "price_pro_test",
     priceAmount: 9,
     quotas: {
       job_search_run: { limit: 50, displayName: "Job searches" },
