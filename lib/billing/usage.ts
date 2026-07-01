@@ -1,4 +1,4 @@
-import { createInsforgeServer, createInsforgeAdmin } from "@/lib/insforge-server";
+import { createInsforgeServer } from "@/lib/insforge-server";
 import { BILLING_PLANS, BillingEventType, getPeriodBoundaries } from "./plans";
 import { getUserEntitlement, UserEntitlement } from "./entitlements";
 
@@ -169,11 +169,11 @@ export async function recordUsage(
     const plan = BILLING_PLANS[entitlement.planKey];
     const limit = plan.quotas[eventType].limit;
 
-    // RLS: Only SELECT is permitted on usage_ledger for authenticated users.
-    // Inserts must bypass RLS via the admin client using the RPC function record_usage_with_quota_check.
-    const insforgeAdmin = createInsforgeAdmin();
+    // Usage writes go through SECURITY DEFINER RPCs that validate auth.uid()
+    // against p_user_id, so route handlers do not require an admin API key.
+    const insforge = await createInsforgeServer();
 
-    const { data, error } = await insforgeAdmin.database.rpc("record_usage_with_quota_check", {
+    const { data, error } = await insforge.database.rpc("record_usage_with_quota_check", {
       p_user_id: userId,
       p_event_type: eventType,
       p_quantity: quantity,
@@ -238,19 +238,20 @@ export async function releaseReservedUsage(
   idempotencyKey: string,
 ): Promise<boolean> {
   try {
-    const insforgeAdmin = createInsforgeAdmin();
-    const { error } = await insforgeAdmin.database
-      .from("usage_ledger")
-      .delete()
-      .eq("user_id", userId)
-      .eq("event_type", eventType)
-      .eq("idempotency_key", idempotencyKey);
+    const insforge = await createInsforgeServer();
+    const { data, error } = await insforge.database.rpc("release_reserved_usage", {
+      p_user_id: userId,
+      p_event_type: eventType,
+      p_idempotency_key: idempotencyKey,
+    });
 
     if (error) {
       console.error("[billing/usage] Failed to release reserved usage:", error);
       return false;
     }
-    return true;
+
+    const result = data as { success?: boolean } | null;
+    return result?.success === true;
   } catch (error) {
     console.error("[billing/usage] Error releasing reserved usage:", error);
     return false;
@@ -284,25 +285,25 @@ export async function adjustReservedUsage(
   }
 
   try {
-    const insforgeAdmin = createInsforgeAdmin();
+    const insforge = await createInsforgeServer();
 
     // Atomic down-only update: a bad caller can
     // never raise a reservation above what was actually reserved — only the
     // atomic record_usage_with_quota_check RPC is allowed to increase usage.
-    const { error } = await insforgeAdmin.database
-      .from("usage_ledger")
-      .update({ quantity: safeQuantity })
-      .eq("user_id", userId)
-      .eq("event_type", eventType)
-      .eq("idempotency_key", idempotencyKey)
-      .gt("quantity", safeQuantity);
+    const { data, error } = await insforge.database.rpc("adjust_reserved_usage", {
+      p_user_id: userId,
+      p_event_type: eventType,
+      p_idempotency_key: idempotencyKey,
+      p_actual_quantity: safeQuantity,
+    });
 
     if (error) {
       console.error("[billing/usage] Failed to true up reserved usage:", error);
       return { success: false };
     }
 
-    return { success: true };
+    const result = data as { success?: boolean } | null;
+    return { success: result?.success === true };
   } catch (error) {
     console.error("[billing/usage] Error truing up reserved usage:", error);
     return { success: false };

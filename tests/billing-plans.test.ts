@@ -88,7 +88,7 @@ test("idempotency check parses unique constraint violations as success", () => {
   assert.strictEqual(isUniqueConstraintViolation({ code: "other" }), false);
 });
 
-test("zero-quantity usage true-up fails when releasing the reservation fails", async (t) => {
+test("zero-quantity usage true-up reports failure when the RPC cannot run", async (t) => {
   t.mock.method(console, "error", () => {});
   const originalAdminApiKey = process.env.INSFORGE_ADMIN_API_KEY;
   const originalBaseUrl = process.env.INSFORGE_BASE_URL;
