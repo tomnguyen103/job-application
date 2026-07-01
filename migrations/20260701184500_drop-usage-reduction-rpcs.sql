@@ -1,6 +1,5 @@
--- Allow route handlers to perform quota writes without a Vercel admin API key.
--- This RPC is SECURITY DEFINER for the usage_ledger write, but still requires
--- the authenticated user to match the p_user_id being mutated.
+-- The pre-merge production hotfix briefly added usage-reduction RPCs. Remove
+-- them and replace record_usage_with_quota_check with the final guarded shape.
 
 CREATE OR REPLACE FUNCTION record_usage_with_quota_check(
   p_user_id uuid,
@@ -84,3 +83,6 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'status', 'recorded');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP FUNCTION IF EXISTS release_reserved_usage(uuid, text, text);
+DROP FUNCTION IF EXISTS adjust_reserved_usage(uuid, text, text, integer);

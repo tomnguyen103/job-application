@@ -10,6 +10,7 @@ import type {
   NormalizedJobPosting,
   SavedJob,
 } from "@/agent/types";
+import { recordUsage } from "@/lib/billing/usage";
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { MATCH_THRESHOLD } from "@/lib/utils";
 import type { Profile } from "@/types";
@@ -447,10 +448,59 @@ export async function discoverJobs(
       });
     }
 
-    const { jobsToScore, skippedForQuota } = selectPostingsForScoring(
+    const selectedForScoring = selectPostingsForScoring(
       newPostings,
       scoreLimit,
     );
+    const jobsToScore: NormalizedJobPosting[] = [];
+    let skippedForQuota = selectedForScoring.skippedForQuota;
+
+    for (let index = 0; index < selectedForScoring.jobsToScore.length; index += 1) {
+      const job = selectedForScoring.jobsToScore[index];
+      const reservation = await recordUsage(
+        userId,
+        "job_match_score",
+        1,
+        `run:${runId}:score:${index}`,
+        {
+          jobTitle,
+          location,
+          provider: job.provider,
+          providerJobId: job.providerJobId,
+          title: job.title,
+          company: job.company,
+        },
+        "/api/agent/find",
+        runId,
+      );
+
+      if (!reservation.success) {
+        if (reservation.code === "QUOTA_EXCEEDED") {
+          skippedForQuota += selectedForScoring.jobsToScore.length - index;
+          await logAgentEvent(insforge, {
+            runId,
+            userId,
+            level: "warning",
+            message: "Skipped remaining job scoring because your scoring quota was reached.",
+          });
+          break;
+        }
+
+        console.error("[agent/job-discovery] score quota reservation failed:", reservation.error);
+        await logAgentEvent(insforge, {
+          runId,
+          userId,
+          level: "error",
+          message: "Could not reserve job scoring quota.",
+        });
+        return {
+          success: false,
+          error: reservation.error ?? "Could not reserve job scoring quota.",
+        };
+      }
+
+      jobsToScore.push(job);
+    }
 
     if (skippedForQuota > 0) {
       await logAgentEvent(insforge, {
