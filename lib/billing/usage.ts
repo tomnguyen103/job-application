@@ -230,12 +230,13 @@ export async function recordUsage(
  * @param userId - The unique identifier of the user.
  * @param eventType - The type of billing event to release.
  * @param idempotencyKey - The idempotency key of the reservation to remove.
+ * @returns True when the release completes without a database error.
  */
 export async function releaseReservedUsage(
   userId: string,
   eventType: BillingEventType,
   idempotencyKey: string,
-): Promise<void> {
+): Promise<boolean> {
   try {
     const insforgeAdmin = createInsforgeAdmin();
     const { error } = await insforgeAdmin.database
@@ -247,9 +248,12 @@ export async function releaseReservedUsage(
 
     if (error) {
       console.error("[billing/usage] Failed to release reserved usage:", error);
+      return false;
     }
+    return true;
   } catch (error) {
     console.error("[billing/usage] Error releasing reserved usage:", error);
+    return false;
   }
 }
 
@@ -275,8 +279,8 @@ export async function adjustReservedUsage(
   const safeQuantity = Math.floor(actualQuantity);
 
   if (safeQuantity <= 0) {
-    await releaseReservedUsage(userId, eventType, idempotencyKey);
-    return { success: true };
+    const released = await releaseReservedUsage(userId, eventType, idempotencyKey);
+    return { success: released };
   }
 
   try {
