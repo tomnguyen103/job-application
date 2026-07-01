@@ -90,7 +90,7 @@ These entries supersede the previous homepage modernization classes for the publ
 - `JobFilters` wrapper: `rounded-md border border-border bg-surface-elevated p-4 shadow-card`
 - `JobsTable` root: `overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card`
 - Mobile jobs render as `MobileJobCard` cards inside `components/find-jobs/JobsTable.tsx`; desktop still renders the table.
-- Show `Jobs by Adzuna` whenever saved listings are visible.
+- Show dynamic source attribution (`Jobs by Adzuna, Remotive, ...`) whenever saved listings are visible.
 
 ### Job Details Modernization
 
@@ -341,7 +341,7 @@ Same stacked-card-on-page-background layout family as the profile page, but full
 - Labels: `text-[11px] font-medium uppercase tracking-wide text-text-secondary` (ProfileForm label primitive)
 - Inputs: Input Field primitive; icon variant wraps in `relative`, icon `pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted`, input swaps `px-3` for `py-2 pl-9 pr-3`
 - Find Jobs button: accent primary + `gap-2` and a 16px white search SVG
-- Success banner: `mt-4 flex items-center gap-2.5 rounded-md bg-success-lightest px-4 py-3 text-sm font-medium text-success-foreground` with a green sparkle SVG — rendered from search-outcome state ("Found X jobs and saved Y strong matches.")
+- Success banner: `mt-4 flex items-start gap-2.5 rounded-md bg-success-lightest px-4 py-3 text-sm font-medium text-success-foreground` with a green sparkle SVG, result summary, and compact source breakdown chips (`rounded-full bg-surface px-2.5 py-1 text-xs font-semibold leading-4 text-text-secondary`).
 - Feature 10 wiring: Client Component taking a `userId` prop. Controlled inputs (+ `disabled:opacity-50`), submit via `<form onSubmit>`; pending state swaps the button content for the shared spinner SVG (`animate-spin`, 14×14, strokeWidth 2.5) + "Searching…" — same in-button spinner as ResumeUpload. Inline error line `mt-4 text-xs font-medium text-error`. Fires `job_search_started` on submit and `router.refresh()` on success so the table re-renders with fresh rows.
 
 ### JobFilters
@@ -355,11 +355,11 @@ Same stacked-card-on-page-background layout family as the profile page, but full
 ### JobsTable
 
 - Path: `components/find-jobs/JobsTable.tsx` (exports the `JobListItem` type)
-- Card classes: `overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card` with an `overflow-x-auto` wrapper and `w-full min-w-[900px] border-collapse` table
+- Card classes: `overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card` with an `overflow-x-auto` wrapper and `w-full min-w-[1040px] border-collapse` table
 - Header row: `bg-surface-secondary`; `th`: `px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-text-secondary`
 - Body rows: `border-t border-border transition-colors hover:bg-surface-secondary`; cells `px-6 py-3.5`
 - Company cell: chip `flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-tertiary text-text-secondary` (building SVG) + name `text-sm font-semibold text-text-primary`
-- Role: `text-sm font-medium text-text-primary`; Location/Salary/Date: `text-sm font-medium text-text-secondary`
+- Role: `text-sm font-medium text-text-primary`; Location/Salary/Date: `text-sm font-medium text-text-secondary`; Source uses `inline-flex min-h-6 max-w-full items-center rounded-full border border-border bg-surface-secondary px-2.5 text-xs font-semibold leading-4 text-text-secondary`
 - Desktop column order: Company, Role, Match Score, Location, Salary Est., Date Found. Mobile cards show Location immediately below the match meter, then Salary and Found.
 - Renders `JobsPagination` inside the same card below the table - only when `totalResults > 0` (Feature 10)
 - Empty state: single `border-t border-border` row, `td colSpan={6}` with `px-6 py-12 text-center text-sm font-medium text-text-secondary`; `emptyMessage` prop (F11): "No jobs match your filters." when filters are active, "No jobs yet - search above to find your first matches." on a fresh account; passes `hrefForPage` through to JobsPagination
@@ -412,6 +412,7 @@ The job details page matches `context/designs/job-details.png`: a centered `max-
 - Company icon box: `flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface-secondary text-text-muted`
 - Title: `truncate text-[30px] font-bold leading-9 text-text-primary`
 - Company line: `mt-1 flex flex-wrap items-center gap-2 text-base font-semibold leading-6 text-text-secondary`
+- Job detail header includes a source badge beside the match badge: `rounded-full border border-border bg-surface px-3 py-1 text-sm font-semibold leading-5 text-text-secondary`
 - Match badge: `rounded-full bg-success-lightest px-3 py-1 text-sm font-semibold leading-5 text-success-foreground`
 - View Job Post button: `inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-5 text-sm font-semibold text-text-primary shadow-card transition-colors hover:bg-surface-secondary`
 - Info grid classes: `grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4`

@@ -35,6 +35,8 @@ type JobDetailsRow = {
   job_type: string | null;
   source_url: string | null;
   external_apply_url: string | null;
+  source_provider: string | null;
+  source_display_name: string | null;
   about_role: string | null;
   responsibilities: string[] | null;
   requirements: string[] | null;
@@ -62,6 +64,7 @@ type JobDetails = {
   salary: string;
   jobType: string;
   postUrl: string | null;
+  sourceDisplayName: string;
   description: string;
   responsibilities: string[];
   requirements: string[];
@@ -114,6 +117,29 @@ function clampScore(score: number | null): number {
   return Math.min(100, Math.max(0, Math.round(score)));
 }
 
+function fallbackSourceName(sourceProvider: string | null): string {
+  if (sourceProvider === "remotive") {
+    return "Remotive";
+  }
+  if (sourceProvider === "usajobs") {
+    return "USAJOBS";
+  }
+  if (sourceProvider === "greenhouse") {
+    return "Greenhouse";
+  }
+  if (sourceProvider === "lever") {
+    return "Lever";
+  }
+  if (sourceProvider === "ashby") {
+    return "Ashby";
+  }
+  if (sourceProvider === "manual") {
+    return "Manual import";
+  }
+
+  return "Adzuna";
+}
+
 // The stored dossier's techStack was already evidence-filtered against the
 // browser research and job posting when the agent saved it (agent/research.ts)
 // Re-filtering here with no research evidence would strip researched tech.
@@ -133,6 +159,8 @@ function mapJobRowToDetails(row: JobDetailsRow): JobDetails {
     salary: cleanText(row.salary, "-"),
     jobType: formatJobType(row.job_type),
     postUrl: row.external_apply_url ?? row.source_url,
+    sourceDisplayName:
+      row.source_display_name ?? fallbackSourceName(row.source_provider),
     description,
     responsibilities: cleanList(row.responsibilities),
     requirements: cleanList(row.requirements),
@@ -204,7 +232,7 @@ export default async function JobDetailsPage({
   const { data, error } = await insforge.database
     .from("jobs")
     .select(
-      "id, title, company, location, salary, job_type, source_url, external_apply_url, about_role, responsibilities, requirements, nice_to_have, benefits, about_company, match_score, match_reason, matched_skills, missing_skills, company_research, found_at",
+      "id, title, company, location, salary, job_type, source_url, external_apply_url, source_provider, source_display_name, about_role, responsibilities, requirements, nice_to_have, benefits, about_company, match_score, match_reason, matched_skills, missing_skills, company_research, found_at",
     )
     .eq("id", id)
     .eq("user_id", user.id)
@@ -269,6 +297,7 @@ export default async function JobDetailsPage({
             company={job.company}
             matchScore={job.matchScore}
             postUrl={job.postUrl}
+            sourceDisplayName={job.sourceDisplayName}
             salary={job.salary}
             location={job.location}
             jobType={job.jobType}

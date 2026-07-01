@@ -10,6 +10,7 @@ export type JobListItem = {
   matchScore: number;
   location: string;
   salary: string;
+  sourceDisplayName: string;
   dateFound: string;
 };
 
@@ -29,6 +30,7 @@ const HEADERS = [
   "Role",
   "Match Score",
   "Location",
+  "Source",
   "Salary Est.",
   "Date Found",
 ];
@@ -93,6 +95,14 @@ function MatchMeter({ score }: { score: number }): ReactElement {
   );
 }
 
+function SourceBadge({ name }: { name: string }): ReactElement {
+  return (
+    <span className="inline-flex min-h-6 max-w-full items-center rounded-full border border-border bg-surface-secondary px-2.5 text-xs font-semibold leading-4 text-text-secondary">
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
 function MobileJobCard({ job }: { job: JobListItem }): ReactElement {
   return (
     <article className="rounded-md border border-border bg-surface p-4">
@@ -122,6 +132,12 @@ function MobileJobCard({ job }: { job: JobListItem }): ReactElement {
           {job.salary}
         </div>
         <div className="rounded-md bg-surface-secondary px-3 py-2">
+          <span className="block font-semibold text-text-primary">Source</span>
+          <span className="mt-1 block">
+            <SourceBadge name={job.sourceDisplayName} />
+          </span>
+        </div>
+        <div className="rounded-md bg-surface-secondary px-3 py-2">
           <span className="block font-semibold text-text-primary">Found</span>
           {job.dateFound}
         </div>
@@ -140,10 +156,16 @@ export function JobsTable({
   emptyMessage,
   hrefForPage,
 }: Props): ReactElement {
+  const sourceNames = Array.from(
+    new Set(jobs.map((job) => job.sourceDisplayName).filter(Boolean)),
+  );
+  const attribution =
+    sourceNames.length > 0 ? `Jobs by ${sourceNames.join(", ")}` : "";
+
   return (
     <div className="overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card">
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[900px] border-collapse">
+        <table className="w-full min-w-[1040px] border-collapse">
           <thead>
             <tr className="bg-surface-secondary">
               {HEADERS.map((header) => (
@@ -200,6 +222,9 @@ export function JobsTable({
                 <td className="max-w-[220px] px-6 py-3.5 text-sm font-medium leading-5 text-text-secondary">
                   {job.location}
                 </td>
+                <td className="px-6 py-3.5">
+                  <SourceBadge name={job.sourceDisplayName} />
+                </td>
                 <td className="px-6 py-3.5 text-sm font-medium text-text-secondary">
                   {job.salary}
                 </td>
@@ -224,7 +249,7 @@ export function JobsTable({
 
       {jobs.length > 0 ? (
         <p className="border-t border-border px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
-          Jobs by Adzuna
+          {attribution}
         </p>
       ) : null}
 

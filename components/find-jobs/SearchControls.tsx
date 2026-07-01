@@ -10,10 +10,21 @@ type Props = {
   userId: string;
 };
 
+type SearchSourceOutcome = {
+  provider: string;
+  displayName: string;
+  found: number;
+  saved: number;
+  strongMatches: number;
+  error?: string;
+};
+
 type SearchOutcome = {
   found: number;
   saved: number;
   strongMatches: number;
+  sources?: SearchSourceOutcome[];
+  skippedForQuota?: number;
 };
 
 function SearchIcon({ className }: { className: string }): ReactElement {
@@ -216,7 +227,7 @@ export function SearchControls({ userId }: Props): ReactElement {
       ) : null}
 
       {outcome && !errorMessage ? (
-        <p className="mt-4 flex items-center gap-2.5 rounded-md bg-success-lightest px-4 py-3 text-sm font-medium text-success-foreground">
+        <div className="mt-4 flex items-start gap-2.5 rounded-md bg-success-lightest px-4 py-3 text-sm font-medium text-success-foreground">
           <svg
             width="16"
             height="16"
@@ -235,8 +246,30 @@ export function SearchControls({ userId }: Props): ReactElement {
               fill="currentColor"
             />
           </svg>
-          {`Found ${outcome.found} jobs and saved ${outcome.strongMatches} strong matches.`}
-        </p>
+          <div className="min-w-0">
+            <p>
+              {`Found ${outcome.found} jobs and saved ${outcome.strongMatches} strong matches.`}
+            </p>
+            {outcome.sources?.length ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {outcome.sources.map((source) => (
+                  <span
+                    key={source.provider}
+                    className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold leading-4 text-text-secondary"
+                    title={source.error}
+                  >
+                    {`${source.displayName}: ${source.found} found, ${source.saved} saved`}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {outcome.skippedForQuota ? (
+              <p className="mt-2 text-xs leading-4">
+                {`${outcome.skippedForQuota} new jobs were left unscored for quota limits.`}
+              </p>
+            ) : null}
+          </div>
+        </div>
       ) : null}
     </div>
   );
