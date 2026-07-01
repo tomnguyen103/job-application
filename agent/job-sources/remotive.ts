@@ -49,13 +49,14 @@ export function remotiveLocationMatchesSearch(
     return true;
   }
 
-  const candidate = `${cleanText(candidateLocation).toLowerCase()} remote`;
+  const candidateTokens = new Set([
+    ...locationSearchTokens(candidateLocation),
+    "remote",
+  ]);
   const specificTokens = tokens.filter((token) => token.length >= 3);
   const matchTokens = specificTokens.length > 0 ? specificTokens : tokens;
 
-  return matchTokens.some((token) =>
-    new RegExp(`(?:^|[^a-z0-9])${token}(?:$|[^a-z0-9])`).test(candidate),
-  );
+  return matchTokens.some((token) => candidateTokens.has(token));
 }
 
 export function normalizeRemotiveJob(
