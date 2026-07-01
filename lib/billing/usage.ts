@@ -1,4 +1,4 @@
-import { createInsforgeServer, createInsforgeAdmin } from "@/lib/insforge-server";
+import { createInsforgeServer } from "@/lib/insforge-server";
 import { BILLING_PLANS, BillingEventType, getPeriodBoundaries } from "./plans";
 import { getUserEntitlement, UserEntitlement } from "./entitlements";
 
@@ -17,7 +17,6 @@ export class QuotaExceededError extends Error {
     this.planKey = planKey;
   }
 }
-
 /**
  * Checks if the database error is a unique constraint violation on the usage ledger
  * idempotency key (PostgreSQL error code 23505).
@@ -164,23 +163,20 @@ export async function recordUsage(
   planKey?: "free" | "pro";
 }> {
   try {
-    const entitlement = await getUserEntitlement(userId);
-    const { periodStart, periodEnd } = getPeriodBoundaries(entitlement);
-    const plan = BILLING_PLANS[entitlement.planKey];
-    const limit = plan.quotas[eventType].limit;
+    // Usage writes go through SECURITY DEFINER RPCs that validate auth.uid()
+    // against p_user_id and derive quota bounds inside the database.
+    const insforge = await createInsforgeServer();
 
-    // RLS: Only SELECT is permitted on usage_ledger for authenticated users.
-    // Inserts must bypass RLS via the admin client using the RPC function record_usage_with_quota_check.
-    const insforgeAdmin = createInsforgeAdmin();
-
-    const { data, error } = await insforgeAdmin.database.rpc("record_usage_with_quota_check", {
+    const { data, error } = await insforge.database.rpc("record_usage_with_quota_check", {
       p_user_id: userId,
       p_event_type: eventType,
       p_quantity: quantity,
       p_idempotency_key: idempotencyKey,
-      p_limit: limit,
-      p_period_start: periodStart.toISOString(),
-      p_period_end: periodEnd.toISOString(),
+      // Compatibility fields only. The RPC ignores these and derives quota
+      // limits and periods from server-owned entitlement rows.
+      p_limit: null,
+      p_period_start: null,
+      p_period_end: null,
       p_source_route: sourceRoute || null,
       p_reference_id: referenceId || null,
       p_metadata: metadata,
@@ -194,7 +190,13 @@ export async function recordUsage(
       return { success: false, error: error.message };
     }
 
-    const result = data as { success: boolean; status: string; current?: number; limit?: number } | null;
+    const result = data as {
+      success: boolean;
+      status: string;
+      current?: number;
+      limit?: number;
+      plan_key?: "free" | "pro";
+    } | null;
     if (!result) {
       return { success: false, error: "No response from database RPC." };
     }
@@ -207,7 +209,7 @@ export async function recordUsage(
           error: `Quota exceeded for ${eventType}. Current usage: ${result.current}, Limit: ${result.limit}.`,
           current: result.current,
           limit: result.limit,
-          planKey: entitlement.planKey,
+          planKey: result.plan_key ?? "free",
         };
       }
       return { success: false, error: `Failed to record usage: ${result.status}` };
@@ -218,93 +220,5 @@ export async function recordUsage(
     const err = error as Error;
     console.error("[billing/usage] Error in recordUsage:", err);
     return { success: false, error: err.message || String(error) };
-  }
-}
-
-/**
- * Releases a previously reserved usage-ledger row that turned out to be unneeded
- * (e.g. a follow-on reservation in the same request failed, so this one must be
- * undone). Safe because the idempotency key scopes the delete to a single row
- * this request itself just inserted — no other request can share that key.
- *
- * @param userId - The unique identifier of the user.
- * @param eventType - The type of billing event to release.
- * @param idempotencyKey - The idempotency key of the reservation to remove.
- * @returns True when the release completes without a database error.
- */
-export async function releaseReservedUsage(
-  userId: string,
-  eventType: BillingEventType,
-  idempotencyKey: string,
-): Promise<boolean> {
-  try {
-    const insforgeAdmin = createInsforgeAdmin();
-    const { error } = await insforgeAdmin.database
-      .from("usage_ledger")
-      .delete()
-      .eq("user_id", userId)
-      .eq("event_type", eventType)
-      .eq("idempotency_key", idempotencyKey);
-
-    if (error) {
-      console.error("[billing/usage] Failed to release reserved usage:", error);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error("[billing/usage] Error releasing reserved usage:", error);
-    return false;
-  }
-}
-
-/**
- * Trues-up a usage-ledger reservation down to the quantity actually consumed.
- * Only ever reduces (never increases) the previously reserved quantity, and
- * deletes the row outright when nothing was actually used — the ledger's
- * `quantity > 0` constraint means a zero-usage outcome must be a delete, not
- * an update. Scoped to a single idempotency key this request created, so no
- * concurrent request can be racing against this specific row.
- *
- * @param userId - The unique identifier of the user.
- * @param eventType - The type of billing event to true up.
- * @param idempotencyKey - The idempotency key of the reservation to adjust.
- * @param actualQuantity - The quantity actually consumed (may be less than reserved).
- */
-export async function adjustReservedUsage(
-  userId: string,
-  eventType: BillingEventType,
-  idempotencyKey: string,
-  actualQuantity: number,
-): Promise<{ success: boolean }> {
-  const safeQuantity = Math.floor(actualQuantity);
-
-  if (safeQuantity <= 0) {
-    const released = await releaseReservedUsage(userId, eventType, idempotencyKey);
-    return { success: released };
-  }
-
-  try {
-    const insforgeAdmin = createInsforgeAdmin();
-
-    // Atomic down-only update: a bad caller can
-    // never raise a reservation above what was actually reserved — only the
-    // atomic record_usage_with_quota_check RPC is allowed to increase usage.
-    const { error } = await insforgeAdmin.database
-      .from("usage_ledger")
-      .update({ quantity: safeQuantity })
-      .eq("user_id", userId)
-      .eq("event_type", eventType)
-      .eq("idempotency_key", idempotencyKey)
-      .gt("quantity", safeQuantity);
-
-    if (error) {
-      console.error("[billing/usage] Failed to true up reserved usage:", error);
-      return { success: false };
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("[billing/usage] Error truing up reserved usage:", error);
-    return { success: false };
   }
 }

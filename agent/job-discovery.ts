@@ -10,6 +10,7 @@ import type {
   NormalizedJobPosting,
   SavedJob,
 } from "@/agent/types";
+import { recordUsage } from "@/lib/billing/usage";
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { MATCH_THRESHOLD } from "@/lib/utils";
 import type { Profile } from "@/types";
@@ -447,30 +448,71 @@ export async function discoverJobs(
       });
     }
 
-    const { jobsToScore, skippedForQuota } = selectPostingsForScoring(
+    const selectedForScoring = selectPostingsForScoring(
       newPostings,
       scoreLimit,
     );
-
-    if (skippedForQuota > 0) {
-      await logAgentEvent(insforge, {
-        runId,
-        userId,
-        level: "warning",
-        message: `Skipped ${skippedForQuota} new job(s) because this run reached the scoring limit.`,
-      });
-    }
-
+    const skippedForRunLimit = selectedForScoring.skippedForQuota;
+    let skippedForQuota = selectedForScoring.skippedForQuota;
+    let skippedForUserQuota = 0;
     const savedJobs: SavedJob[] = [];
+    let reservationErrors = 0;
 
-    for (let i = 0; i < jobsToScore.length; i += SCORING_BATCH_SIZE) {
-      const batch = jobsToScore.slice(i, i + SCORING_BATCH_SIZE);
+    for (let i = 0; i < selectedForScoring.jobsToScore.length; i += SCORING_BATCH_SIZE) {
+      const batch = selectedForScoring.jobsToScore.slice(i, i + SCORING_BATCH_SIZE);
+      const reservedBatch: NormalizedJobPosting[] = [];
+      let quotaBlocked = false;
+
+      for (let batchOffset = 0; batchOffset < batch.length; batchOffset += 1) {
+        const job = batch[batchOffset];
+        const jobIndex = i + batchOffset;
+        const jobUsageIdentity = job.providerJobId ?? job.sourceUrl;
+        const reservation = await recordUsage(
+          userId,
+          "job_match_score",
+          1,
+          `run:${runId}:score:${job.provider}:${jobUsageIdentity}`,
+          {
+            jobTitle,
+            location,
+            provider: job.provider,
+            providerJobId: job.providerJobId,
+            title: job.title,
+            company: job.company,
+          },
+          "/api/agent/find",
+          runId,
+        );
+
+        if (!reservation.success) {
+          if (reservation.code === "QUOTA_EXCEEDED") {
+            const remainingJobs = selectedForScoring.jobsToScore.length - jobIndex;
+            skippedForQuota += remainingJobs;
+            skippedForUserQuota += remainingJobs;
+            quotaBlocked = true;
+            break;
+          }
+
+          reservationErrors += 1;
+          console.error("[agent/job-discovery] score quota reservation failed:", reservation.error);
+          await logAgentEvent(insforge, {
+            runId,
+            userId,
+            level: "warning",
+            message: `Could not reserve scoring quota for "${job.title}" at ${job.company} - skipped.`,
+          });
+          continue;
+        }
+
+        reservedBatch.push(job);
+      }
+
       const outcomes = await Promise.allSettled(
-        batch.map((job) => scoreJobMatch(profile, job)),
+        reservedBatch.map((job) => scoreJobMatch(profile, job)),
       );
 
-      for (let index = 0; index < batch.length; index += 1) {
-        const job = batch[index];
+      for (let index = 0; index < reservedBatch.length; index += 1) {
+        const job = reservedBatch[index];
         const outcome = outcomes[index];
 
         if (outcome.status === "rejected") {
@@ -515,6 +557,41 @@ export async function discoverJobs(
           });
         }
       }
+
+      if (quotaBlocked) {
+        await logAgentEvent(insforge, {
+          runId,
+          userId,
+          level: "warning",
+          message: "Skipped remaining job scoring because your scoring quota was reached.",
+        });
+        break;
+      }
+    }
+
+    if (reservationErrors > 0 && savedJobs.length === 0) {
+      return {
+        success: false,
+        error: "Could not reserve job scoring quota.",
+      };
+    }
+
+    if (skippedForRunLimit > 0) {
+      await logAgentEvent(insforge, {
+        runId,
+        userId,
+        level: "warning",
+        message: `Skipped ${skippedForRunLimit} new job(s) because this run reached the scoring limit.`,
+      });
+    }
+
+    if (skippedForUserQuota > 0) {
+      await logAgentEvent(insforge, {
+        runId,
+        userId,
+        level: "warning",
+        message: `Skipped ${skippedForUserQuota} new job(s) because your scoring quota was reached.`,
+      });
     }
 
     const strongMatches = savedJobs.filter(

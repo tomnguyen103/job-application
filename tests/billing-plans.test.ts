@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert";
 
 import { BILLING_PLANS, getPeriodBoundaries, UserEntitlement } from "../lib/billing/plans";
-import { adjustReservedUsage, isUniqueConstraintViolation } from "../lib/billing/usage";
+import { isUniqueConstraintViolation } from "../lib/billing/usage";
 
 test("BILLING_PLANS contains free and pro definitions", () => {
   assert.ok(BILLING_PLANS.free);
@@ -86,45 +86,5 @@ test("idempotency check parses unique constraint violations as success", () => {
   assert.ok(isUniqueConstraintViolation({ code: "23505" }));
   assert.ok(isUniqueConstraintViolation({ message: "duplicate key value violates unique constraint uq_usage_ledger_user_event_idempotency" }));
   assert.strictEqual(isUniqueConstraintViolation({ code: "other" }), false);
-});
-
-test("zero-quantity usage true-up fails when releasing the reservation fails", async (t) => {
-  t.mock.method(console, "error", () => {});
-  const originalAdminApiKey = process.env.INSFORGE_ADMIN_API_KEY;
-  const originalBaseUrl = process.env.INSFORGE_BASE_URL;
-  const originalPublicUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-
-  delete process.env.INSFORGE_ADMIN_API_KEY;
-  delete process.env.INSFORGE_BASE_URL;
-  delete process.env.NEXT_PUBLIC_INSFORGE_URL;
-
-  try {
-    const result = await adjustReservedUsage(
-      "user-1",
-      "job_match_score",
-      "job-search:user-1:test:score-reservation",
-      0,
-    );
-
-    assert.equal(result.success, false);
-  } finally {
-    if (originalAdminApiKey === undefined) {
-      delete process.env.INSFORGE_ADMIN_API_KEY;
-    } else {
-      process.env.INSFORGE_ADMIN_API_KEY = originalAdminApiKey;
-    }
-
-    if (originalBaseUrl === undefined) {
-      delete process.env.INSFORGE_BASE_URL;
-    } else {
-      process.env.INSFORGE_BASE_URL = originalBaseUrl;
-    }
-
-    if (originalPublicUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_INSFORGE_URL;
-    } else {
-      process.env.NEXT_PUBLIC_INSFORGE_URL = originalPublicUrl;
-    }
-  }
 });
 

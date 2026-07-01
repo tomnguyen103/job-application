@@ -6,8 +6,6 @@ import type { DiscoveryResult } from "@/agent/types";
 import {
   checkQuotaAvailable,
   recordUsage,
-  releaseReservedUsage,
-  adjustReservedUsage,
 } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 import { capturePostHogServerEvent } from "@/lib/posthog-server";
@@ -118,25 +116,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Phase 6S.2 - Reserve quota atomically BEFORE any expensive work. Reservation
-    // goes through the record_usage_with_quota_check RPC (a per-user advisory
-    // transaction lock around an atomic check-then-insert), so two concurrent
-    // searches from the same user cannot both pass a stale read and jointly
-    // exceed the plan's quota — the previous version checked quota with a plain
-    // SELECT and only recorded usage after the run finished, which left a race
-    // window where concurrent requests could each pass the check.
-    //
-    // This whole reservation-through-discovery sequence has its own try/catch:
-    // once a reservation is made it holds real (debited) quota, so an
-    // unexpected throw here — not just a discriminated {success:false} result —
-    // must still release what was reserved and mark the run failed, rather
-    // than falling through to the outer catch and leaking the reservation
-    // with the run stuck at status "running" forever.
+    // Reserve quota atomically before expensive work. Search runs are recorded
+    // once the run starts; job_match_score usage is recorded one job at a time
+    // inside discoverJobs immediately before each Gemini scoring call.
     const searchIdempotencyKey = `run:${run.id}:search`;
-    const scoresIdempotencyKey = `run:${run.id}:scores`;
     let result: DiscoveryResult;
 
     try {
+      const scoreQuota = await checkQuotaAvailable(user.id, "job_match_score", 1);
+      const scoreLimit = Math.min(
+        MAX_JOBS_TO_SCORE_PER_RUN,
+        Math.max(0, scoreQuota.limit - scoreQuota.current),
+      );
+
+      if (!scoreQuota.allowed || scoreLimit <= 0) {
+        await finalizeRun(insforge, run.id, { status: "failed", jobsFound: 0 });
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Quota exceeded for job_match_score. Current usage: ${scoreQuota.current}, Limit: ${scoreQuota.limit} on plan ${scoreQuota.planKey}.`,
+            code: "QUOTA_EXCEEDED",
+            eventType: "job_match_score",
+            current: scoreQuota.current,
+            limit: scoreQuota.limit,
+            planKey: scoreQuota.planKey,
+          },
+          { status: 402 },
+        );
+      }
+
       const searchReservation = await recordUsage(
         user.id,
         "job_search_run",
@@ -169,65 +177,6 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Estimate a scoring ceiling, then reserve exactly that ceiling atomically too —
-      // discoverJobs is hard-capped to whatever is reserved here, so the DB write
-      // that actually spends quota happens before any Gemini scoring call runs.
-      const scoreQuota = await checkQuotaAvailable(user.id, "job_match_score", 1);
-      const scoreLimit = Math.min(
-        MAX_JOBS_TO_SCORE_PER_RUN,
-        Math.max(0, scoreQuota.limit - scoreQuota.current),
-      );
-
-      if (!scoreQuota.allowed || scoreLimit <= 0) {
-        await releaseReservedUsage(user.id, "job_search_run", searchIdempotencyKey);
-        await finalizeRun(insforge, run.id, { status: "failed", jobsFound: 0 });
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Quota exceeded for job_match_score. Current usage: ${scoreQuota.current}, Limit: ${scoreQuota.limit} on plan ${scoreQuota.planKey}.`,
-            code: "QUOTA_EXCEEDED",
-            eventType: "job_match_score",
-            current: scoreQuota.current,
-            limit: scoreQuota.limit,
-            planKey: scoreQuota.planKey,
-          },
-          { status: 402 },
-        );
-      }
-
-      const scoreReservation = await recordUsage(
-        user.id,
-        "job_match_score",
-        scoreLimit,
-        scoresIdempotencyKey,
-        { jobTitle, location, reserved: scoreLimit },
-        "/api/agent/find",
-        run.id,
-      );
-
-      if (!scoreReservation.success) {
-        await releaseReservedUsage(user.id, "job_search_run", searchIdempotencyKey);
-        await finalizeRun(insforge, run.id, { status: "failed", jobsFound: 0 });
-        if (scoreReservation.code === "QUOTA_EXCEEDED") {
-          return NextResponse.json(
-            {
-              success: false,
-              error: scoreReservation.error,
-              code: "QUOTA_EXCEEDED",
-              eventType: "job_match_score",
-              current: scoreReservation.current,
-              limit: scoreReservation.limit,
-              planKey: scoreReservation.planKey,
-            },
-            { status: 402 },
-          );
-        }
-        return NextResponse.json(
-          { success: false, error: "Could not start the search. Please try again." },
-          { status: 500 },
-        );
-      }
-
       const discovery = await discoverJobs({
         insforge,
         userId: user.id,
@@ -239,8 +188,6 @@ export async function POST(req: NextRequest) {
       });
 
       if (!discovery.success) {
-        await releaseReservedUsage(user.id, "job_search_run", searchIdempotencyKey);
-        await releaseReservedUsage(user.id, "job_match_score", scoresIdempotencyKey);
         await finalizeRun(insforge, run.id, { status: "failed", jobsFound: 0 });
         return NextResponse.json(
           { success: false, error: "Job search failed. Please try again." },
@@ -250,8 +197,6 @@ export async function POST(req: NextRequest) {
 
       result = discovery.result;
     } catch (innerError) {
-      await releaseReservedUsage(user.id, "job_search_run", searchIdempotencyKey);
-      await releaseReservedUsage(user.id, "job_match_score", scoresIdempotencyKey);
       await finalizeRun(insforge, run.id, { status: "failed", jobsFound: 0 });
       throw innerError;
     }
@@ -260,20 +205,6 @@ export async function POST(req: NextRequest) {
       status: "completed",
       jobsFound: result.saved,
     });
-
-    // True-up the job_match_score reservation down to what was actually scored —
-    // the ceiling above was reserved before discoverJobs knew the real count.
-    const trueUp = await adjustReservedUsage(
-      user.id,
-      "job_match_score",
-      scoresIdempotencyKey,
-      result.saved,
-    );
-    if (!trueUp.success) {
-      console.error(
-        `[agent/find] Failed to true up job_match_score reservation for run ${run.id} — quota usage may read as overstated until the next billing period.`,
-      );
-    }
 
     await Promise.all(
       result.savedJobs.map((savedJob) =>
