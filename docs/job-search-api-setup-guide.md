@@ -60,7 +60,7 @@ Get-Content .env.local |
 | Source | Needs API Key? | App Env | What It Searches |
 | --- | --- | --- | --- |
 | Adzuna | Yes | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Global job ads through Adzuna search |
-| Remotive | No | none | Remote jobs from Remotive |
+| Remotive | No | none | Remote jobs from Remotive. The app sends Job Title + Location through Remotive's `search` query and applies an input-derived fallback filter to `candidate_required_location`. |
 | USAJOBS | Yes | `USAJOBS_API_KEY`, `USAJOBS_USER_AGENT` | US federal jobs |
 | Greenhouse | No | `JOB_SOURCE_ATS_BOARDS` | Specific company Greenhouse boards |
 | Lever | No | `JOB_SOURCE_ATS_BOARDS` | Specific company Lever boards |
@@ -99,11 +99,22 @@ Remotive does not require a key for the public remote jobs endpoint.
 1. Keep `remotive` in `JOB_SOURCE_PROVIDERS`.
 2. No extra env vars are needed.
 3. The app stores Remotive as the source and links back to the Remotive URL.
+4. The app passes both Find Jobs text fields into Remotive's public API:
+   `search={jobTitle} {location}` and `limit={per-source limit}`.
+
+Remotive's public API documents `search` and `limit`, but it does not provide a
+dedicated city/state/country location parameter. Because live API responses can
+still include broad remote-region rows even when the location text is included in
+`search`, the app also filters returned Remotive rows by comparing
+`candidate_required_location` against tokens from the user's Location field. Keep
+that behavior input-driven; do not add hardcoded city/country allowlists or
+provider-wide skips for concrete locations.
 
 Quick PowerShell test:
 
 ```powershell
-Invoke-RestMethod "https://remotive.com/api/remote-jobs?search=frontend%20engineer"
+$search = [uri]::EscapeDataString("Software Engineer Houston, TX")
+Invoke-RestMethod "https://remotive.com/api/remote-jobs?search=$search&limit=10"
 ```
 
 Compliance note: Remotive's API page says to mention Remotive as the source and
@@ -242,8 +253,12 @@ npm run build
 ```
 
 4. In the app, run Find Jobs with a title like `Frontend Engineer`.
-5. Confirm the success banner shows per-source counts.
-6. Confirm saved jobs show source badges in Find Jobs and on the job detail
+5. Run a concrete-location search, for example `Software Engineer` in
+   `Houston, TX`. Remotive should not save broad remote-region rows unless the
+   returned `candidate_required_location` actually matches tokens from the
+   Location text.
+6. Confirm the success banner shows per-source counts.
+7. Confirm saved jobs show source badges in Find Jobs and on the job detail
    header.
 
 ## Official References
@@ -251,6 +266,7 @@ npm run build
 - [Adzuna API](https://developer.adzuna.com/)
 - [Adzuna API signup](https://developer.adzuna.com/signup)
 - [Remotive API](https://remotive.com/remote-jobs/api)
+- [Remotive public API docs](https://github.com/remotive-com/remote-jobs-api)
 - [USAJOBS Quick Start](https://developer.usajobs.gov/General/Quick-Start)
 - [USAJOBS Authentication](https://developer.usajobs.gov/Guides/Authentication)
 - [Greenhouse Job Board API](https://developers.greenhouse.io/job-board.html)

@@ -3,7 +3,11 @@ import { test } from "node:test";
 
 import { normalizeAdzunaJob } from "../agent/job-sources/adzuna";
 import { parseAtsBoards, parseEnabledSourceKeys } from "../agent/job-sources";
-import { normalizeRemotiveJob } from "../agent/job-sources/remotive";
+import {
+  buildRemotiveSearchParams,
+  normalizeRemotiveJob,
+  remotiveLocationMatchesSearch,
+} from "../agent/job-sources/remotive";
 import { normalizeUsaJobsItem } from "../agent/job-sources/usajobs";
 import { normalizeGreenhouseJob } from "../agent/job-sources/greenhouse";
 import { normalizeLeverJob } from "../agent/job-sources/lever";
@@ -100,6 +104,29 @@ test("Remotive normalization filters missing required fields and strips HTML", (
   assert.strictEqual(normalized.providerJobId, "42");
   assert.strictEqual(normalized.sourceUrl, "https://remotive.com/jobs/backend");
   assert.strictEqual(normalized.sourceDisplayName, "Remotive");
+});
+
+test("Remotive search params use the user's title, location, and limit", () => {
+  const params = buildRemotiveSearchParams({
+    jobTitle: "Software Engineer",
+    location: "Houston, TX",
+    limit: 10,
+  });
+
+  assert.strictEqual(params.get("search"), "Software Engineer Houston, TX");
+  assert.strictEqual(params.get("limit"), "10");
+});
+
+test("Remotive location fallback filters against the user's location text", () => {
+  assert.strictEqual(
+    remotiveLocationMatchesSearch("Houston, TX", "Americas, Europe, Israel"),
+    false,
+  );
+  assert.strictEqual(
+    remotiveLocationMatchesSearch("Houston, TX", "Houston, TX"),
+    true,
+  );
+  assert.strictEqual(remotiveLocationMatchesSearch("Remote", "Worldwide"), true);
 });
 
 test("USAJOBS normalization reads nested federal search fields", () => {
