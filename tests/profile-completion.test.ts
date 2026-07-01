@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { CompletionIndicator } from "../components/profile/CompletionIndicator";
 import { computeProfileCompletion } from "../lib/utils";
@@ -63,16 +65,21 @@ test("computeProfileCompletion reports 92% with Job Titles missing", () => {
 });
 
 test("CompletionIndicator renders nothing for a complete profile", () => {
-  const rendered = CompletionIndicator({ percentage: 100, missingFields: [] });
+  const rendered = renderToStaticMarkup(
+    createElement(CompletionIndicator, { percentage: 100, missingFields: [] }),
+  );
 
-  assert.equal(rendered, null);
+  assert.equal(rendered, "");
 });
 
 test("CompletionIndicator renders the card while fields are missing", () => {
-  const rendered = CompletionIndicator({
-    percentage: 92,
-    missingFields: ["Job Titles"],
-  });
+  const rendered = renderToStaticMarkup(
+    createElement(CompletionIndicator, {
+      percentage: 92,
+      missingFields: ["Job Titles"],
+    }),
+  );
 
-  assert.notEqual(rendered, null);
+  assert.match(rendered, /Profile needs attention/);
+  assert.match(rendered, /Job Titles/);
 });

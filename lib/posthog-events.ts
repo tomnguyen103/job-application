@@ -10,6 +10,8 @@ export type PostHogProductEventProperties = {
   job_found: PostHogEventBaseProperties & {
     source: "search";
     matchScore: number;
+    sourceProvider?: string;
+    sourceDisplayName?: string;
   };
   profile_completed: PostHogEventBaseProperties;
   company_researched: PostHogEventBaseProperties & {

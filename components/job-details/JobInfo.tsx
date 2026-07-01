@@ -5,6 +5,7 @@ type Props = {
   company: string;
   matchScore: number;
   postUrl: string | null;
+  sourceDisplayName: string;
   salary: string;
   location: string;
   jobType: string;
@@ -225,6 +226,7 @@ export function JobInfo({
   company,
   matchScore,
   postUrl,
+  sourceDisplayName,
   salary,
   location,
   jobType,
@@ -254,6 +256,9 @@ export function JobInfo({
                 />
                 <span className="rounded-full bg-success-lightest px-3 py-1 text-sm font-semibold leading-5 text-success-foreground">
                   {matchScore}% match
+                </span>
+                <span className="rounded-full border border-border bg-surface px-3 py-1 text-sm font-semibold leading-5 text-text-secondary">
+                  {sourceDisplayName}
                 </span>
               </div>
             </div>

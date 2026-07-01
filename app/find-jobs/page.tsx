@@ -9,7 +9,11 @@ import {
   createInsforgeServer,
   requireCurrentUser,
 } from "@/lib/insforge-server";
-import { MATCH_THRESHOLD, formatRelativeTime } from "@/lib/utils";
+import {
+  MATCH_THRESHOLD,
+  formatRelativeTime,
+  resolveSourceDisplayName,
+} from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +33,8 @@ type JobRow = {
   location: string | null;
   salary: string | null;
   found_at: string | null;
+  source_provider: string | null;
+  source_display_name: string | null;
 };
 
 function firstValue(value: string | string[] | undefined): string {
@@ -91,6 +97,10 @@ function mapJobRowToListItem(row: JobRow): JobListItem {
     matchScore: row.match_score ?? 0,
     location: row.location ?? "-",
     salary: row.salary ?? "-",
+    sourceDisplayName: resolveSourceDisplayName(
+      row.source_display_name,
+      row.source_provider,
+    ),
     dateFound: row.found_at ? formatRelativeTime(row.found_at) : "-",
   };
 }
@@ -124,9 +134,10 @@ export default async function FindJobsPage({
 
     let query = insforge.database
       .from("jobs")
-      .select("id, company, title, match_score, location, salary, found_at", {
-        count: "exact",
-      })
+      .select(
+        "id, company, title, match_score, location, salary, found_at, source_provider, source_display_name",
+        { count: "exact" },
+      )
       .eq("user_id", user.id);
 
     if (matchFilter === "high") {
@@ -185,7 +196,7 @@ export default async function FindJobsPage({
               Search, score, and shortlist roles
             </h1>
             <p className="mt-3 max-w-[720px] text-sm font-medium leading-6 text-text-secondary">
-              Start a new Adzuna discovery run, then filter saved roles by
+              Start a multi-source discovery run, then filter saved roles by
               company, title, match score, and recency.
             </p>
           </div>

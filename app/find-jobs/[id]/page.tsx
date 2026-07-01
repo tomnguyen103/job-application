@@ -19,7 +19,7 @@ import {
   createInsforgeServer,
   requireCurrentUser,
 } from "@/lib/insforge-server";
-import { formatRelativeTime } from "@/lib/utils";
+import { formatRelativeTime, resolveSourceDisplayName } from "@/lib/utils";
 import type { CompanyResearchDossier } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +35,8 @@ type JobDetailsRow = {
   job_type: string | null;
   source_url: string | null;
   external_apply_url: string | null;
+  source_provider: string | null;
+  source_display_name: string | null;
   about_role: string | null;
   responsibilities: string[] | null;
   requirements: string[] | null;
@@ -62,6 +64,7 @@ type JobDetails = {
   salary: string;
   jobType: string;
   postUrl: string | null;
+  sourceDisplayName: string;
   description: string;
   responsibilities: string[];
   requirements: string[];
@@ -133,6 +136,10 @@ function mapJobRowToDetails(row: JobDetailsRow): JobDetails {
     salary: cleanText(row.salary, "-"),
     jobType: formatJobType(row.job_type),
     postUrl: row.external_apply_url ?? row.source_url,
+    sourceDisplayName: resolveSourceDisplayName(
+      row.source_display_name,
+      row.source_provider,
+    ),
     description,
     responsibilities: cleanList(row.responsibilities),
     requirements: cleanList(row.requirements),
@@ -204,7 +211,7 @@ export default async function JobDetailsPage({
   const { data, error } = await insforge.database
     .from("jobs")
     .select(
-      "id, title, company, location, salary, job_type, source_url, external_apply_url, about_role, responsibilities, requirements, nice_to_have, benefits, about_company, match_score, match_reason, matched_skills, missing_skills, company_research, found_at",
+      "id, title, company, location, salary, job_type, source_url, external_apply_url, source_provider, source_display_name, about_role, responsibilities, requirements, nice_to_have, benefits, about_company, match_score, match_reason, matched_skills, missing_skills, company_research, found_at",
     )
     .eq("id", id)
     .eq("user_id", user.id)
@@ -269,6 +276,7 @@ export default async function JobDetailsPage({
             company={job.company}
             matchScore={job.matchScore}
             postUrl={job.postUrl}
+            sourceDisplayName={job.sourceDisplayName}
             salary={job.salary}
             location={job.location}
             jobType={job.jobType}

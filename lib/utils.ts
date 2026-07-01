@@ -77,6 +77,35 @@ export function computeProfileCompletion(profile: Profile): {
   return { percentage, missingFields, isComplete };
 }
 
+export function resolveSourceDisplayName(
+  sourceDisplayName: string | null | undefined,
+  sourceProvider: string | null | undefined,
+): string {
+  const trimmed = sourceDisplayName?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+
+  switch (sourceProvider) {
+    case "adzuna":
+      return "Adzuna";
+    case "remotive":
+      return "Remotive";
+    case "usajobs":
+      return "USAJOBS";
+    case "greenhouse":
+      return "Greenhouse";
+    case "lever":
+      return "Lever";
+    case "ashby":
+      return "Ashby";
+    case "manual":
+      return "Manual import";
+    default:
+      return "Unknown source";
+  }
+}
+
 export function formatRelativeTime(isoDate: string): string {
   const timestamp = new Date(isoDate).getTime();
 

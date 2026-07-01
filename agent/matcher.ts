@@ -1,8 +1,8 @@
 import { createGeminiClient, parseGeminiJsonResponse } from "@/agent/gemini";
-import type { JobMatchContent, UsableAdzunaJob } from "@/agent/types";
+import type { JobMatchContent, NormalizedJobPosting } from "@/agent/types";
 import type { Profile } from "@/types";
 
-function buildPrompt(profile: Profile, job: UsableAdzunaJob): string {
+function buildPrompt(profile: Profile, job: NormalizedJobPosting): string {
   const candidate = {
     currentTitle: profile.currentTitle,
     experienceLevel: profile.experienceLevel,
@@ -22,9 +22,10 @@ function buildPrompt(profile: Profile, job: UsableAdzunaJob): string {
 
   const jobPosting = {
     title: job.title,
-    company: job.company.display_name,
-    location: job.location?.display_name ?? "",
-    contractType: job.contract_type ?? "",
+    company: job.company,
+    source: job.sourceDisplayName,
+    location: job.location,
+    contractType: job.jobType ?? "",
     descriptionSnippet: job.description,
   };
 
@@ -49,7 +50,7 @@ Rules:
 - matchReason: one paragraph of 2-4 sentences explaining the score, referencing the candidate's actual skills or experience and the job's stated needs
 - matchedSkills: skills from the candidate's profile that this job needs, using the candidate's own wording
 - missingSkills: skills the job clearly asks for that the candidate's profile lacks
-- Ground everything strictly in the provided data — the description is only a snippet, so never invent requirements beyond it
+- Ground everything strictly in the provided data — the description may be a full posting, snippet, or HTML-stripped board summary, so never invent requirements beyond it
 - If the job is unrelated to the candidate's field, score it low honestly`;
 }
 
@@ -90,7 +91,7 @@ function sanitize(raw: unknown): JobMatchContent {
 
 export async function scoreJobMatch(
   profile: Profile,
-  job: UsableAdzunaJob,
+  job: NormalizedJobPosting,
 ): Promise<JobMatchContent> {
   const ai = createGeminiClient();
   const result = await ai.models.generateContent({

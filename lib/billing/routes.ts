@@ -1,4 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+// Stripe object IDs (customer/subscription/price) are always alphanumeric + underscore.
+// Reject anything else before it reaches a PostgREST filter string.
+const SAFE_STRIPE_ID = /^[A-Za-z0-9_]+$/;
+
+function isSafeStripeId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && SAFE_STRIPE_ID.test(value);
+}
+
+// Defaults to "test" per InsForge's payments guidance (stay on test until the
+// developer explicitly approves live Stripe traffic and configures live prices).
+function getStripeEnvironment(): "test" | "live" {
+  return process.env.STRIPE_ENVIRONMENT === "live" ? "live" : "test";
+}
+
 export interface CheckoutResult {
   success: boolean;
   fallback?: boolean;
@@ -40,7 +55,7 @@ export async function handleCheckout({
   insforge: any;
 }): Promise<CheckoutResult> {
   try {
-    const stripePriceId = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "price_pro_test";
+    const stripePriceId = process.env.STRIPE_PRO_PRICE_ID || "price_pro_test";
 
     const sessionRequest = {
       mode: "subscription" as const,
@@ -65,7 +80,7 @@ export async function handleCheckout({
       mode: "subscription",
     });
 
-    const { data, error } = await insforge.payments.createCheckoutSession("test", sessionRequest);
+    const { data, error } = await insforge.payments.createCheckoutSession(getStripeEnvironment(), sessionRequest);
 
     if (error) {
       console.warn("[billing/checkout] InsForge payments endpoint returned error:", error);
@@ -145,9 +160,9 @@ export async function handlePortal({
       returnUrl: `${requestUrl.origin}/profile`,
     };
 
-    console.log("[billing/portal] Creating customer portal session:", portalRequest);
+    console.log("[billing/portal] Creating customer portal session for subject type:", portalRequest.subject.type);
 
-    const { data, error } = await insforge.payments.createCustomerPortalSession("test", portalRequest);
+    const { data, error } = await insforge.payments.createCustomerPortalSession(getStripeEnvironment(), portalRequest);
 
     if (error) {
       console.warn("[billing/portal] InsForge customer portal endpoint returned error:", error);
@@ -256,7 +271,7 @@ export async function handleWebhook({
   // 2. Handle event
   try {
     const dataObject = event.data.object;
-    const stripeProPriceId = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "price_pro_test";
+    const stripeProPriceId = process.env.STRIPE_PRO_PRICE_ID || "price_pro_test";
 
     let processed = false;
     let userId: string | null = null;
@@ -317,12 +332,25 @@ export async function handleWebhook({
         planKey = "pro";
       }
 
-      // Try to find the user_id by customer_id or subscription_id
-      const { data: entitlementRow } = await insforgeAdmin.database
-        .from("user_entitlements")
-        .select("user_id")
-        .or(`stripe_customer_id.eq.${customerId},stripe_subscription_id.eq.${subscriptionId}`)
-        .maybeSingle();
+      // Try to find the user_id by customer_id or subscription_id.
+      // Only interpolate values matching Stripe's own ID shape into the filter string.
+      const safeCustomerId = isSafeStripeId(customerId) ? customerId : null;
+      const safeSubscriptionId = isSafeStripeId(subscriptionId) ? subscriptionId : null;
+
+      let entitlementRow: { user_id?: string } | null = null;
+      if (safeCustomerId || safeSubscriptionId) {
+        const filterClauses = [
+          safeCustomerId ? `stripe_customer_id.eq.${safeCustomerId}` : null,
+          safeSubscriptionId ? `stripe_subscription_id.eq.${safeSubscriptionId}` : null,
+        ].filter((clause): clause is string => Boolean(clause));
+
+        const { data } = await insforgeAdmin.database
+          .from("user_entitlements")
+          .select("user_id")
+          .or(filterClauses.join(","))
+          .maybeSingle();
+        entitlementRow = data;
+      }
 
       userId = entitlementRow?.user_id || dataObject.metadata?.userId || null;
 
