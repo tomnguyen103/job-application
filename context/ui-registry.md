@@ -18,6 +18,20 @@ After building any component - update this file with the component name, file pa
 
 ## Components
 
+## Grade-A UX/A11y PR6 (2026-07-02)
+
+- Shared tabs path: `components/layout/Tabs.tsx`
+- Tab list shell: `overflow-x-auto rounded-md border border-border bg-surface-elevated p-2 shadow-card`
+- Tab button active: `inline-flex min-h-11 items-center justify-center rounded-md px-4 text-sm font-semibold bg-accent text-accent-foreground shadow-card`
+- Tab button inactive: `inline-flex min-h-11 items-center justify-center rounded-md px-4 text-sm font-semibold text-text-secondary hover:bg-surface-secondary hover:text-text-primary`
+- Behavior: tabs use `role="tablist"`, `role="tab"`, `aria-selected`, `aria-controls`, roving `tabIndex`, Arrow/Home/End keyboard activation, instance-scoped ids from `useId`, and one `role="tabpanel"` per tab with inactive panels hidden. Panels render unframed so existing card components are not nested inside a tab card.
+- Job Details route: `app/(app)/find-jobs/[id]/page.tsx`
+- Job Details layout: JobInfo remains above the workspace, followed by `grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start`; left column is tabbed Overview, Company Research, Interview Prep; right rail uses `flex flex-col gap-6 lg:sticky lg:top-24` for Apply and Tailored Resume actions. `JobInfo` stacks its icon/title row on mobile and returns to horizontal at `sm`. `TailoredResumeAction` stacks its header/action and uses full-width action buttons so the 320px rail does not cramp button text.
+- Job Details heading alignment: `JobDescription`, `CompanyResearch`, `TailoredResumeAction`, and `JobActions` use `text-sm font-bold uppercase leading-5 tracking-wide text-text-secondary` for section headers under the hero.
+- Profile tabs: `components/profile/ProfilePageContent.tsx` owns extraction state and routes Profile, Resume, and Billing through `Tabs`. `CareerReadinessSummary` and `CompletionIndicator` remain above the tabs as persistent readiness status.
+- Sticky save row: `components/profile/ProfileForm.tsx` wraps Save Profile in `sticky bottom-0 -mx-6 mt-8 border-t border-border bg-surface-elevated px-6 py-4`; it is sticky, not fixed.
+- Pricing feature rows: `components/billing/FeatureItem.tsx` renders pricing list rows with `flex items-start gap-2 text-sm font-medium leading-6 text-text-secondary` and a tokenized success check icon.
+
 ## Grade-A UX/A11y PR5 (2026-07-02)
 
 - Shared authenticated shell path: `app/(app)/layout.tsx`

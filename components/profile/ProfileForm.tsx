@@ -741,13 +741,15 @@ export function ProfileForm({ profile }: Props): ReactElement {
           <p className="mt-4 text-sm font-medium text-error">{state.error}</p>
         )}
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark disabled:opacity-60"
-        >
-          {isPending ? "Saving..." : "Save Profile"}
-        </button>
+        <div className="sticky bottom-0 -mx-6 mt-8 border-t border-border bg-surface-elevated px-6 py-4">
+          <button
+            type="submit"
+            disabled={isPending}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark disabled:opacity-60"
+          >
+            {isPending ? "Saving..." : "Save Profile"}
+          </button>
+        </div>
       </form>
     </section>
   );

@@ -95,6 +95,37 @@ export default async function ProfilePage(): Promise<ReactElement> {
 
   const { percentage, missingFields } = computeProfileCompletion(profile);
   const resumeUrl = row?.resume_pdf_url ?? undefined;
+  const billingContent = (
+    <section className="rounded-md border border-border bg-surface p-6 shadow-card">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
+            Billing & Subscription
+          </h2>
+          <p className="mt-2 text-sm leading-5 text-text-secondary">
+            Manage your subscription tier, pricing plan, and billing history.
+          </p>
+        </div>
+        <Link
+          href="/pricing"
+          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary"
+        >
+          View plans
+        </Link>
+      </div>
+      <div className="mt-6 grid items-start gap-6 md:grid-cols-2">
+        <PlanSummary entitlement={entitlement} />
+        <div className="space-y-4">
+          <UsageMeter
+            usage={usage}
+            planKey={entitlement.planKey}
+            showPlansLink={false}
+          />
+          <BillingActions isPro={entitlement.planKey === "pro"} />
+        </div>
+      </div>
+    </section>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -108,37 +139,11 @@ export default async function ProfilePage(): Promise<ReactElement> {
         <CompletionIndicator percentage={percentage} missingFields={missingFields} />
       )}
 
-      <div className="rounded-md border border-border bg-surface p-6 shadow-card">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
-              Billing & Subscription
-            </h2>
-            <p className="mt-2 text-sm leading-5 text-text-secondary">
-              Manage your subscription tier, pricing plan, and billing history.
-            </p>
-          </div>
-          <Link
-            href="/pricing"
-            className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary"
-          >
-            View plans
-          </Link>
-        </div>
-        <div className="mt-6 grid items-start gap-6 md:grid-cols-2">
-          <PlanSummary entitlement={entitlement} />
-          <div className="space-y-4">
-            <UsageMeter
-              usage={usage}
-              planKey={entitlement.planKey}
-              showPlansLink={false}
-            />
-            <BillingActions isPro={entitlement.planKey === "pro"} />
-          </div>
-        </div>
-      </div>
-
-      <ProfilePageContent profile={profile} resumeUrl={resumeUrl} />
+      <ProfilePageContent
+        profile={profile}
+        resumeUrl={resumeUrl}
+        billingContent={billingContent}
+      />
     </div>
   );
 }

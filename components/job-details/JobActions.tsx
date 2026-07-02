@@ -19,7 +19,7 @@ export function JobActions({ company, applyUrl }: Props): ReactElement {
   return (
     <section className="rounded-md border border-border bg-surface-elevated p-6 shadow-card">
       <div className="mb-4">
-        <h2 className="text-xl font-bold leading-7 text-text-primary">
+        <h2 className="text-sm font-bold uppercase leading-5 tracking-wide text-text-secondary">
           Ready to apply?
         </h2>
         <p className="mt-1 text-sm font-medium leading-5 text-text-secondary">

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
+import { Tabs } from "@/components/layout/Tabs";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { ResumeUpload } from "@/components/profile/ResumeUpload";
 import type { Profile } from "@/types";
@@ -10,9 +11,14 @@ import type { Profile } from "@/types";
 type Props = {
   profile: Profile;
   resumeUrl?: string;
+  billingContent: ReactNode;
 };
 
-export function ProfilePageContent({ profile, resumeUrl }: Props): ReactElement {
+export function ProfilePageContent({
+  profile,
+  resumeUrl,
+  billingContent,
+}: Props): ReactElement {
   const [mergedProfile, setMergedProfile] = useState<Profile>(profile);
   const [extractionKey, setExtractionKey] = useState(0);
 
@@ -54,9 +60,27 @@ export function ProfilePageContent({ profile, resumeUrl }: Props): ReactElement 
   }
 
   return (
-    <>
-      <ResumeUpload resumeUrl={resumeUrl} onExtract={handleExtract} />
-      <ProfileForm key={extractionKey} profile={mergedProfile} />
-    </>
+    <Tabs
+      ariaLabel="Profile sections"
+      items={[
+        {
+          id: "profile",
+          label: "Profile",
+          children: <ProfileForm key={extractionKey} profile={mergedProfile} />,
+        },
+        {
+          id: "resume",
+          label: "Resume",
+          children: (
+            <ResumeUpload resumeUrl={resumeUrl} onExtract={handleExtract} />
+          ),
+        },
+        {
+          id: "billing",
+          label: "Billing",
+          children: billingContent,
+        },
+      ]}
+    />
   );
 }

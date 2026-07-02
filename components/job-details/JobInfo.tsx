@@ -257,7 +257,7 @@ export function JobInfo({
             Decision workspace
           </p>
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div className="mt-5 flex min-w-0 items-center gap-5">
+          <div className="mt-5 flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
             <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-border bg-surface-glass text-text-muted">
               <CompanyIcon />
             </span>
