@@ -103,7 +103,17 @@ export async function POST(request: Request) {
       );
       return NextResponse.json(failure.body, { status: failure.status });
     }
-    shouldReleaseGenerationReservation = !generationReservation.idempotent;
+    if (generationReservation.idempotent) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "This generation request has already been received. Please refresh or start a new request.",
+        },
+        { status: 409 },
+      );
+    }
+    shouldReleaseGenerationReservation = true;
 
     let content;
     try {
