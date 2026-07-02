@@ -2,7 +2,7 @@
 
 ## About the Project
 
-JobApplication is a full stack AI-powered job hunting assistant. The user sets up their profile once, uploads their resume, and the agent automatically discovers relevant jobs from Adzuna — scoring each one against the user's profile using Gemini 2.5 Flash. For jobs they're interested in, the agent researches the company across their public web pages and builds a structured dossier — company overview, tech stack, culture, why the role exists, and interview prep. The user reviews everything and applies with one click.
+JobApplication is a full stack AI-powered job hunting assistant. The user sets up their profile once, uploads their resume, and the agent automatically discovers relevant jobs through provider adapters — Adzuna, Remotive, USAJOBS, and optional Greenhouse, Lever, or Ashby company-board sources — scoring each one against the user's profile using Gemini 2.5 Flash. For jobs they're interested in, the agent researches the company across their public web pages and builds a structured dossier — company overview, tech stack, culture, why the role exists, and interview prep. The user reviews everything and applies with one click.
 
 The entire process is tracked on a dashboard with PostHog-powered analytics and a recent activity feed.
 
@@ -66,12 +66,14 @@ Full width layout on all pages. No sidebar.
 - User can generate a clean professional PDF resume from their current profile data using Gemini 2.5 Flash
 - Job-specific resume generation happens only from a saved job's detail page, not from the profile page
 
-### Finding Jobs — Adzuna Discovery
+### Finding Jobs — Multi-Source Discovery
 
 - User goes to Find Jobs page
 - Enters job title and location
 - Clicks Find Jobs button
-- Agent calls Adzuna API with user's search criteria
+- Agent calls enabled job-source providers with user's search criteria
+- Default global providers are Adzuna, Remotive, and USAJOBS
+- Optional ATS board providers are Greenhouse, Lever, and Ashby when configured by company slug
 - Gemini 2.5 Flash scores each job 0-100 against user profile
 - Jobs appear in the job list below
 - After search completes a message shows: "Found 8 jobs and saved 4 strong matches"
@@ -142,7 +144,7 @@ Full width layout on all pages. No sidebar.
   - Each job row: company, title, match score badge, salary, source badge, date found
   - Click job row → opens job details page
   - Pagination — 20 jobs per page
-  - "Jobs by Adzuna" credit displayed on job listings
+  - Source/provider attribution displayed on job listings
 
 ---
 
@@ -180,7 +182,7 @@ Full width layout on all pages. No sidebar.
 - Resume PDF upload with optional profile auto-fill via Gemini 2.5 Flash
 - Resume PDF generation from profile data using Gemini 2.5 Flash
 - Job-detail tailored resume generation with temporary 15-day PDF storage
-- Adzuna API job discovery — searches by title and location, category filtered to IT jobs
+- Multi-source job discovery — searches by title and location through Adzuna, Remotive, USAJOBS, and optional ATS board sources
 - Gemini 2.5 Flash job matching with score, reason, matched skills, missing skills
 - Job details page with full structured description
 - Company Research Agent — single Browserbase session browses company public pages, Gemini 2.5 Flash builds dossier
@@ -189,7 +191,7 @@ Full width layout on all pages. No sidebar.
 - PostHog event tracking throughout
 - PostHog analytics charts on dashboard
 - Incomplete profile banner on dashboard
-- "Jobs by Adzuna" credit on all job listings
+- Source/provider attribution on all job listings
 - Individual SaaS billing with Free/Pro plans, pricing, quota tracking, Stripe checkout/customer portal through InsForge payments, and webhook-backed entitlements
 
 ---
@@ -242,7 +244,7 @@ A developer or technical job seeker who:
 ## Success Criteria
 
 - User can sign up, fill profile, upload resume, and start finding jobs in under 5 minutes
-- Adzuna job discovery returns relevant tech jobs for any title and location search
+- Multi-source job discovery returns relevant tech jobs for title and location searches
 - Gemini 2.5 Flash match scores feel accurate and the reasoning makes sense
 - Company Research Agent returns a useful dossier for well-known tech companies
 - Company Research Agent gracefully handles companies with minimal web presence

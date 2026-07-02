@@ -14,6 +14,12 @@ import {
   baseResumeGenerationReleaseTokenHash,
   baseResumeGenerationUsageKey,
 } from "@/lib/resume-generation-quota";
+import {
+  buildResumeStorageKey,
+  PROFILE_RESUME_BUCKET,
+  replaceResumeReferenceIfCurrent,
+  resolveResumeStorageKey,
+} from "@/lib/resume-storage";
 import { removeExistingResumeFile } from "@/lib/storage-errors";
 import { mapProfileRowToProfile } from "@/lib/utils";
 
@@ -141,13 +147,13 @@ export async function POST(request: Request) {
       type: "application/pdf",
     });
 
-    const path = `${user.id}/resume.pdf`;
-
-    // Remove existing file first; ignore not-found errors
-    await removeExistingResumeFile(insforge, path, "[resume/generate]");
+    const previousPath = row.resume_pdf_url
+      ? resolveResumeStorageKey(user.id, row.resume_pdf_key)
+      : null;
+    const path = buildResumeStorageKey(user.id);
 
     const { data: uploadData, error: uploadError } = await insforge.storage
-      .from("resumes")
+      .from(PROFILE_RESUME_BUCKET)
       .upload(path, file);
 
     if (uploadError) {
@@ -166,24 +172,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const url = insforge.storage.from("resumes").getPublicUrl(path);
+    const uploadedPath = uploadData?.key ?? path;
+    const url = insforge.storage.from(PROFILE_RESUME_BUCKET).getPublicUrl(uploadedPath);
 
-    const { error: dbError } = await insforge.database
-      .from("profiles")
-      .upsert(
-        {
-          id: user.id,
-          resume_pdf_url: url,
-          resume_pdf_key: uploadData?.key ?? path,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" },
-      )
-      .select()
-      .single();
+    const saveResult = await replaceResumeReferenceIfCurrent(insforge, {
+      userId: user.id,
+      profileExists: true,
+      currentResumePdfKey: row.resume_pdf_key,
+      nextResumePdfKey: uploadedPath,
+      nextResumePdfUrl: url,
+    });
 
-    if (dbError) {
-      console.error("[resume/generate] DB error:", dbError);
+    if (saveResult.status !== "saved") {
+      if (saveResult.status === "error") {
+        console.error("[resume/generate] DB error:", saveResult.error);
+      }
       if (shouldReleaseGenerationReservation) {
         await releaseBaseGenerationReservationWithLog(
           user.id,
@@ -192,6 +195,25 @@ export async function POST(request: Request) {
           "[resume/generate] reservation release failed after profile save error:",
         );
       }
+      await removeExistingResumeFile(
+        insforge,
+        uploadedPath,
+        saveResult.status === "stale"
+          ? "[resume/generate] stale upload cleanup"
+          : "[resume/generate] uploaded file cleanup after profile save error",
+      );
+
+      if (saveResult.status === "stale") {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Your profile changed while the resume was generated. Please try again.",
+          },
+          { status: 409 },
+        );
+      }
+
       return NextResponse.json(
         {
           success: false,
@@ -203,6 +225,13 @@ export async function POST(request: Request) {
     }
 
     shouldReleaseGenerationReservation = false;
+    if (previousPath && previousPath !== uploadedPath) {
+      await removeExistingResumeFile(
+        insforge,
+        previousPath,
+        "[resume/generate] previous file cleanup",
+      );
+    }
     revalidatePath("/profile");
     return NextResponse.json({ success: true });
   } catch (error) {

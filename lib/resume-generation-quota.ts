@@ -13,10 +13,18 @@ export function baseResumeGenerationUsageKey(
   return `generate:${randomUUID()}`;
 }
 
-export function baseResumeGenerationReleaseToken(): string {
+export function usageReservationReleaseToken(): string {
   return randomUUID();
 }
 
-export function baseResumeGenerationReleaseTokenHash(token: string): string {
+export function usageReservationReleaseTokenHash(token: string): string {
   return createHash(RELEASE_TOKEN_HASH_ALGORITHM).update(token).digest("hex");
+}
+
+export function baseResumeGenerationReleaseToken(): string {
+  return usageReservationReleaseToken();
+}
+
+export function baseResumeGenerationReleaseTokenHash(token: string): string {
+  return usageReservationReleaseTokenHash(token);
 }

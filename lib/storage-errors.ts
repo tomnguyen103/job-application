@@ -1,3 +1,5 @@
+import { PROFILE_RESUME_BUCKET } from "@/lib/resume-storage";
+
 export function isStorageNotFoundError(error: unknown): boolean {
   if (!error) {
     return false;
@@ -26,7 +28,7 @@ export function isStorageNotFoundError(error: unknown): boolean {
 
 type ResumeStorageClient = {
   storage: {
-    from(bucket: "resumes"): {
+    from(bucket: typeof PROFILE_RESUME_BUCKET): {
       remove(path: string): Promise<{ error: unknown | null }>;
     };
   };
@@ -37,10 +39,14 @@ export async function removeExistingResumeFile(
   path: string,
   logPrefix: string,
 ): Promise<void> {
-  const { error: removeError } = await insforge.storage
-    .from("resumes")
-    .remove(path);
-  if (removeError && !isStorageNotFoundError(removeError)) {
-    console.error(`${logPrefix} remove error:`, removeError);
+  try {
+    const { error: removeError } = await insforge.storage
+      .from(PROFILE_RESUME_BUCKET)
+      .remove(path);
+    if (removeError && !isStorageNotFoundError(removeError)) {
+      console.error(`${logPrefix} remove error:`, removeError);
+    }
+  } catch (error) {
+    console.error(`${logPrefix} remove threw:`, error);
   }
 }

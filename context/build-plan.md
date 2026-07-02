@@ -174,19 +174,21 @@ Build the complete Find Jobs page UI with mock data. No logic yet.
 
 ---
 
-### 10 Adzuna Job Discovery
+### 10 Multi-Source Job Discovery
 
-Agent calls Adzuna API to find jobs matching user's search criteria, scores them against user profile, saves to DB.
+Agent calls enabled job-source providers to find jobs matching user's search criteria, scores them against user profile, saves to DB. The current implementation uses provider adapters: Adzuna, Remotive, and USAJOBS are the default global sources; Greenhouse, Lever, and Ashby can be enabled as company-board sources.
 
 **Logic:**
 
 - POST /api/agent/find receives jobTitle and location from client
-- Call Adzuna API:
-  - GET https://api.adzuna.com/v1/api/jobs/{country}/search/1
-  - params: what={jobTitle}, where={location}, results_per_page=10, app_id, app_key
-  - Detect country from location input — default to 'us'
-- For each job returned:
-  - Extract title, company, location, salary, description snippet, redirect_url
+- Call enabled providers from `JOB_SOURCE_PROVIDERS` / `JOB_SOURCE_ATS_BOARDS`
+  - Adzuna: global job search with IT category filtering and country detection
+  - Remotive: public remote-job API, filtered against the user's location text
+  - USAJOBS: federal search API using configured API key and user agent
+  - Greenhouse, Lever, Ashby: configured company-board sources by board slug
+- For each normalized job returned:
+  - Extract title, company, location, salary, description/about-role text, canonical source URL, and external apply URL
+  - Store provider identity in `source_provider`, `source_display_name`, `source_provider_job_id`, and bounded `source_metadata`
   - Gemini 2.5-flash scores job against user profile:
     - matchScore — integer 0-100
     - matchReason — one paragraph explanation
@@ -233,7 +235,7 @@ Build the complete job details page UI. Job data from DB is already available fr
 - Info cards row — Salary Est., Location, Job Type, Date Found
 - AI Match Reasoning section — match reason paragraph from Gemini 2.5-flash
 - Required Skills vs Your Profile — matched skills as green badges, missing skills as red/orange badges
-- Job Description section — description content from Adzuna
+- Job Description section — description/about-role content from the saved provider posting
 - Company Research card — empty state with Research Company button. After research: structured dossier with company overview, tech stack, culture, why this role, interview prep
 - Apply Now button (links to redirect_url, opens in new tab)
 
@@ -248,12 +250,10 @@ Agent researches the company using their public website and builds a structured 
 - POST /api/agent/research receives jobId
 - Load job data from DB — extract company_name, job description, matched_skills, missing_skills
 - Load user profile from DB — skills, experience, work history
-- Derive company homepage URL by following the Adzuna redirect with server-side fetch() — no browser needed for this step:
-  - fetch(redirect_url, { redirect: "follow" }) follows HTTP redirects natively before the browser opens
-  - Use response.url as the real employer job page URL
-  - Strip subdomain from response.url hostname (e.g. jobs.stripe.com → stripe.com)
-  - Construct homepage URL as https://{rootDomain}
-  - If response.url still contains "adzuna.com" or fetch throws — fall back to https://www.{company}.com (company name from DB)
+- Derive company homepage URL from the saved provider/apply URL — no browser needed for this step:
+  - Trusted Adzuna redirect URLs may be followed manually server-side before the browser opens
+  - Any resolved redirect hop must pass public-URL checks before another fetch
+  - Non-Adzuna or untrusted saved URLs skip redirect-following and fall back to https://www.{company}.com (company name from DB)
   - If Stagehand gets no meaningful content (oneLiner and productSummary empty) — skip browser research entirely, proceed to Gemini 2.5-flash synthesis with job description and profile only
 - Open single Browserbase session with Stagehand
   **Stagehand homepage extraction:**
@@ -463,7 +463,7 @@ Generate a temporary ATS-friendly resume PDF from the job details page, tailored
 - POST /api/jobs/[id]/tailored-resume
 - Load current user, selected jobs row scoped by id + user_id, and saved profile
 - Tailored resume agent uses title, company, about_role, responsibilities, requirements, nice_to_have, matched_skills, missing_skills, and profile data
-- Saved Adzuna description may be only a snippet — agent must not claim it saw the full posting
+- Saved provider description may be an Adzuna snippet, a Remotive/ATS full description, or a USAJOBS summary — agent must not claim it saw more than the saved posting contains
 - Agent prioritizes requirements and matched_skills, avoids claiming missing_skills, and never invents metrics, tools, employers, or achievements
 - @react-pdf/renderer renders ATS-simple PDF: standard headings, single column, no tables, no graphics, no headers/footers
 - Save PDF to tailored-resumes storage path with expires_at = generated_at + 15 days

@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 import { extractProfileFromPdf } from "@/agent/extractor";
 import { recordUsage, releaseResumeExtractReservation, usageFailureToHttpResult } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
+import {
+  usageReservationReleaseToken,
+  usageReservationReleaseTokenHash,
+} from "@/lib/resume-generation-quota";
+import { PROFILE_RESUME_BUCKET, resolveResumeStorageKey } from "@/lib/resume-storage";
 
 export const maxDuration = 60;
 
@@ -18,9 +23,37 @@ export async function POST() {
     }
 
     const insforge = await createInsforgeServer();
+    const { data: profileRow, error: profileError } = await insforge.database
+      .from("profiles")
+      .select("resume_pdf_key, resume_pdf_url")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("[resume/extract] profile read error:", profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to load your resume. Please try again.",
+        },
+        { status: 500 },
+      );
+    }
+
+    if (!profileRow?.resume_pdf_url) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No resume found. Please upload your resume first.",
+        },
+        { status: 404 },
+      );
+    }
+
+    const storageKey = resolveResumeStorageKey(user.id, profileRow.resume_pdf_key);
     const { data: blob, error: downloadError } = await insforge.storage
-      .from("resumes")
-      .download(`${user.id}/resume.pdf`);
+      .from(PROFILE_RESUME_BUCKET)
+      .download(storageKey);
 
     if (downloadError) {
       console.error("[resume/extract] storage download error:", downloadError);
@@ -46,12 +79,17 @@ export async function POST() {
     const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
     const hash = crypto.createHash("sha256").update(base64).digest("hex");
     const extractIdempotencyKey = `extract:${crypto.randomUUID()}`;
+    const extractReleaseToken = usageReservationReleaseToken();
     const extractReservation = await recordUsage(
       user.id,
       "resume_extract",
       1,
       extractIdempotencyKey,
-      { resumeHash: hash, reservationKind: "resume_extract_parse" },
+      {
+        resumeHash: hash,
+        reservationKind: "resume_extract_parse",
+        releaseTokenHash: usageReservationReleaseTokenHash(extractReleaseToken),
+      },
       "/api/resume/extract",
     );
 
@@ -63,12 +101,26 @@ export async function POST() {
       );
       return NextResponse.json(failure.body, { status: failure.status });
     }
+    if (extractReservation.idempotent) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "This extraction request has already been received. Please refresh or start a new request.",
+        },
+        { status: 409 },
+      );
+    }
 
     let extracted: Awaited<ReturnType<typeof extractProfileFromPdf>>;
     try {
       extracted = await extractProfileFromPdf(base64);
     } catch (error) {
-      const release = await releaseResumeExtractReservation(user.id, extractIdempotencyKey);
+      const release = await releaseResumeExtractReservation(
+        user.id,
+        extractIdempotencyKey,
+        extractReleaseToken,
+      );
       if (!release.success) {
         console.error("[resume/extract] reservation release failed after extractor error:", release.error);
       }
@@ -76,7 +128,11 @@ export async function POST() {
     }
 
     if (Object.keys(extracted).length === 0) {
-      const release = await releaseResumeExtractReservation(user.id, extractIdempotencyKey);
+      const release = await releaseResumeExtractReservation(
+        user.id,
+        extractIdempotencyKey,
+        extractReleaseToken,
+      );
       if (!release.success) {
         console.error("[resume/extract] reservation release failed after empty extraction:", release.error);
         return NextResponse.json(

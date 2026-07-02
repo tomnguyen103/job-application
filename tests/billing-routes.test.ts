@@ -267,6 +267,31 @@ test("handleWebhook uses subscription metadata user id when entitlement lookup m
   assert.equal(upsertEntitlement.row?.user_id, "user-meta");
 });
 
+test("handleWebhook marks entitlement lookup failures as failed", async () => {
+  const { client, calls } = createWebhookAdminClient({
+    selectResult: (table) =>
+      table === "user_entitlements"
+        ? { data: null, error: { message: "temporary outage" } }
+        : { data: null, error: null },
+  });
+
+  const result = await handleWebhook({
+    event: subscriptionEvent("customer.subscription.created"),
+    insforgeAdmin: client,
+  });
+
+  assert.equal(result.received, false);
+  assert.equal(result.status, "failed");
+  assert.match(result.error ?? "", /Failed to find subscription entitlement/);
+  const failedEventUpdate = calls.find(
+    (call) =>
+      call.method === "update" &&
+      call.table === "billing_webhook_events" &&
+      call.row?.processing_status === "failed",
+  );
+  assert.ok(failedEventUpdate);
+});
+
 test("handleWebhook processes subscription deletion", async () => {
   const { client, calls } = createWebhookAdminClient({
     selectResult: (table) =>

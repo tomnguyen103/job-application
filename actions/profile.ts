@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 
 import { capturePostHogServerEvent } from "@/lib/posthog-server";
 import { createInsforgeServer, requireCurrentUser } from "@/lib/insforge-server";
+import {
+  buildResumeStorageKey,
+  PROFILE_RESUME_BUCKET,
+  replaceResumeReferenceIfCurrent,
+  resolveResumeStorageKey,
+} from "@/lib/resume-storage";
 import { removeExistingResumeFile } from "@/lib/storage-errors";
 import { computeProfileCompletion } from "@/lib/utils";
 import type { WorkExperience, Education } from "@/types";
@@ -261,13 +267,28 @@ export async function saveResume(
       };
     }
 
-    const path = `${user.id}/resume.pdf`;
+    const { data: existingProfile, error: existingProfileError } =
+      await insforge.database
+        .from("profiles")
+        .select("resume_pdf_key, resume_pdf_url")
+        .eq("id", user.id)
+        .maybeSingle();
 
-    // Remove existing file first; ignore not-found errors
-    await removeExistingResumeFile(insforge, path, "[actions/profile] saveResume");
+    if (existingProfileError) {
+      console.error(
+        "[actions/profile] saveResume existing profile read error:",
+        existingProfileError,
+      );
+      return { success: false, error: "Failed to prepare resume upload. Please try again." };
+    }
+
+    const previousPath = existingProfile?.resume_pdf_url
+      ? resolveResumeStorageKey(user.id, existingProfile.resume_pdf_key)
+      : null;
+    const path = buildResumeStorageKey(user.id);
 
     const { data: uploadData, error: uploadError } = await insforge.storage
-      .from("resumes")
+      .from(PROFILE_RESUME_BUCKET)
       .upload(path, file);
 
     if (uploadError) {
@@ -275,25 +296,45 @@ export async function saveResume(
       return { success: false, error: "Failed to upload resume. Please try again." };
     }
 
-    const url = insforge.storage.from("resumes").getPublicUrl(path);
+    const uploadedPath = uploadData?.key ?? path;
+    const url = insforge.storage.from(PROFILE_RESUME_BUCKET).getPublicUrl(uploadedPath);
 
-    const { error: dbError } = await insforge.database
-      .from("profiles")
-      .upsert(
-        {
-          id: user.id,
-          resume_pdf_url: url,
-          resume_pdf_key: uploadData?.key ?? path,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" },
-      )
-      .select()
-      .single();
+    const saveResult = await replaceResumeReferenceIfCurrent(insforge, {
+      userId: user.id,
+      profileExists: Boolean(existingProfile),
+      currentResumePdfKey: existingProfile?.resume_pdf_key,
+      nextResumePdfKey: uploadedPath,
+      nextResumePdfUrl: url,
+    });
 
-    if (dbError) {
-      console.error("[actions/profile] saveResume DB error:", dbError);
-      return { success: false, error: "Resume uploaded but failed to save reference." };
+    if (saveResult.status === "error") {
+      console.error("[actions/profile] saveResume DB error:", saveResult.error);
+      await removeExistingResumeFile(
+        insforge,
+        uploadedPath,
+        "[actions/profile] saveResume uploaded file cleanup",
+      );
+      return { success: false, error: "Failed to save resume. Please try again." };
+    }
+
+    if (saveResult.status === "stale") {
+      await removeExistingResumeFile(
+        insforge,
+        uploadedPath,
+        "[actions/profile] saveResume stale upload cleanup",
+      );
+      return {
+        success: false,
+        error: "Your resume changed while saving. Please try again.",
+      };
+    }
+
+    if (previousPath && previousPath !== uploadedPath) {
+      await removeExistingResumeFile(
+        insforge,
+        previousPath,
+        "[actions/profile] saveResume previous file cleanup",
+      );
     }
 
     revalidatePath("/profile");

@@ -25,7 +25,7 @@ You stay in control of the final application.
 
 ### Job Discovery and Matching
 
-- Search tech jobs by title and location through the Adzuna API.
+- Search tech jobs by title and location through provider adapters. Defaults are Adzuna, Remotive, and USAJOBS, with optional Greenhouse, Lever, and Ashby company-board sources.
 - Score each job from 0-100 with Gemini 2.5 Flash using your saved profile, skills, and experience.
 - Store matched and missing skill tags plus a written match reason.
 - Filter, sort, and paginate saved jobs by match strength, score, and recency.
@@ -72,7 +72,7 @@ Research and tailored resume generation never overwrite your saved profile. The 
 | Backend | InsForge: Postgres, auth, private file storage, RLS, functions |
 | AI | Google Gemini 2.5 Flash through `@google/genai` |
 | Browser automation | Browserbase + Stagehand |
-| Job data | Adzuna API |
+| Job data | Provider adapters for Adzuna, Remotive, USAJOBS, Greenhouse, Lever, and Ashby |
 | Analytics | PostHog browser events, server events, and HogQL dashboard queries |
 | PDF rendering | `@react-pdf/renderer` |
 | Validation | Zod |
@@ -85,7 +85,7 @@ Research and tailored resume generation never overwrite your saved profile. The 
 - Node.js 20+
 - InsForge project credentials
 - Google AI Studio Gemini API key
-- Adzuna API credentials
+- Job-source credentials. Adzuna is recommended, Remotive needs no key, USAJOBS needs an API key/user agent, and ATS boards are configured by slug.
 - Browserbase credentials
 - PostHog project credentials
 
@@ -111,7 +111,10 @@ Research and tailored resume generation never overwrite your saved profile. The 
    | `NEXT_PUBLIC_INSFORGE_ANON_KEY` | InsForge anonymous browser key |
    | `NEXT_PUBLIC_APP_URL` | App origin used for OAuth redirects, for example `http://localhost:3000` |
    | `GEMINI_API_KEY` | Gemini API key for matching, extraction, generation, and research |
+   | `JOB_SOURCE_PROVIDERS` | Comma-separated enabled global providers, defaulting to `adzuna,remotive,usajobs` |
+   | `JOB_SOURCE_ATS_BOARDS` | Optional company-board sources, for example `greenhouse:openai,lever:anthropic` |
    | `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | Adzuna job-search credentials |
+   | `USAJOBS_API_KEY` / `USAJOBS_USER_AGENT` | USAJOBS provider credentials |
    | `BROWSERBASE_API_KEY` / `BROWSERBASE_PROJECT_ID` | Browserbase session credentials |
    | `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | Browser-side PostHog event capture |
    | `POSTHOG_PERSONAL_API_KEY` / `POSTHOG_PROJECT_ID` / `POSTHOG_API_HOST` | PostHog Query API for dashboard charts |
@@ -201,4 +204,4 @@ The test suite covers company-research URL trust rules, tech-stack evidence filt
 
 ---
 
-Job listings powered by [Adzuna](https://www.adzuna.com/).
+Job listings show their source provider. Default sources include [Adzuna](https://www.adzuna.com/), Remotive, and USAJOBS; optional ATS board sources include Greenhouse, Lever, and Ashby.
