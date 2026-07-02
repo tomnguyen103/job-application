@@ -1,5 +1,10 @@
 import type { ReactElement } from "react";
 
+import {
+  MATCH_VISUAL_INFO_THRESHOLD,
+  MATCH_VISUAL_SUCCESS_THRESHOLD,
+} from "@/lib/utils";
+
 type Props = {
   title: string;
   company: string;
@@ -202,11 +207,11 @@ function iconClassByTone(tone: InfoCardProps["tone"]): string {
 }
 
 function matchScoreBadgeClass(score: number): string {
-  if (score >= 90) {
+  if (score >= MATCH_VISUAL_SUCCESS_THRESHOLD) {
     return "bg-success-lightest text-success-foreground";
   }
 
-  if (score >= 80) {
+  if (score >= MATCH_VISUAL_INFO_THRESHOLD) {
     return "bg-info-lightest text-info-foreground";
   }
 

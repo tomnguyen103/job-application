@@ -105,6 +105,18 @@ function chartYAxis(points: { count: number }[]): YAxisConfig {
   );
 }
 
+function chartCardData<T extends { count: number }>(
+  result: T[] | null,
+): {
+  data: T[];
+  emptyMessage?: string;
+} {
+  return {
+    data: hasAnyCount(result) ? result : [],
+    emptyMessage: result === null ? CHART_LOAD_ERROR_MESSAGE : undefined,
+  };
+}
+
 function clampScore(score: number | null): number {
   if (score === null || !Number.isFinite(score)) {
     return 0;
@@ -163,18 +175,15 @@ async function ResearchActivityChartCard({
   userId: string;
   now: Date;
 }): Promise<ReactElement> {
-  const researchActivityResult = await fetchResearchActivity(userId, now);
-  const researchActivityData = hasAnyCount(researchActivityResult)
-    ? researchActivityResult
-    : [];
+  const { data, emptyMessage } = chartCardData(
+    await fetchResearchActivity(userId, now),
+  );
 
   return (
     <ResearchActivityChart
-      data={researchActivityData}
-      yAxis={chartYAxis(researchActivityData)}
-      emptyMessage={
-        researchActivityResult === null ? CHART_LOAD_ERROR_MESSAGE : undefined
-      }
+      data={data}
+      yAxis={chartYAxis(data)}
+      emptyMessage={emptyMessage}
     />
   );
 }
@@ -186,18 +195,15 @@ async function JobsOverTimeChartCard({
   userId: string;
   now: Date;
 }): Promise<ReactElement> {
-  const jobsOverTimeResult = await fetchJobsOverTime(userId, now);
-  const jobsOverTimeData = hasAnyCount(jobsOverTimeResult)
-    ? jobsOverTimeResult
-    : [];
+  const { data, emptyMessage } = chartCardData(
+    await fetchJobsOverTime(userId, now),
+  );
 
   return (
     <JobsOverTimeChart
-      data={jobsOverTimeData}
-      yAxis={chartYAxis(jobsOverTimeData)}
-      emptyMessage={
-        jobsOverTimeResult === null ? CHART_LOAD_ERROR_MESSAGE : undefined
-      }
+      data={data}
+      yAxis={chartYAxis(data)}
+      emptyMessage={emptyMessage}
     />
   );
 }
@@ -207,20 +213,15 @@ async function MatchDistributionChartCard({
 }: {
   userId: string;
 }): Promise<ReactElement> {
-  const matchDistributionResult = await fetchMatchDistribution(userId);
-  const matchDistributionData = hasAnyCount(matchDistributionResult)
-    ? matchDistributionResult
-    : [];
+  const { data, emptyMessage } = chartCardData(
+    await fetchMatchDistribution(userId),
+  );
 
   return (
     <MatchDistributionChart
-      data={matchDistributionData}
-      yAxis={chartYAxis(matchDistributionData)}
-      emptyMessage={
-        matchDistributionResult === null
-          ? CHART_LOAD_ERROR_MESSAGE
-          : undefined
-      }
+      data={data}
+      yAxis={chartYAxis(data)}
+      emptyMessage={emptyMessage}
     />
   );
 }

@@ -34,7 +34,7 @@ After building any component - update this file with the component name, file pa
 - SearchControls busy state: `components/find-jobs/SearchControls.tsx` adds expectation-setting copy, `aria-busy` on the form and submit button, and a polite status message while a search runs.
 - JobInfo match badge: `components/job-details/JobInfo.tsx` now mirrors JobsTable thresholds: 90+ uses `bg-success-lightest text-success-foreground`, 80-89 uses `bg-info-lightest text-info-foreground`, and below 80 uses `bg-warning text-warning-foreground`.
 - Root fallback pages: `app/error.tsx` and `app/not-found.tsx` use tokenized card shells and primary/secondary button primitives.
-- Legal pages: `app/privacy/page.tsx` and `app/terms/page.tsx` resolve footer links with minimal tokenized public pages using static Navbar and Footer.
+- Legal pages: `app/privacy/page.tsx` and `app/terms/page.tsx` resolve footer links through `components/layout/LegalPageLayout.tsx`, a shared tokenized public shell using static Navbar and Footer.
 
 ## Backend-Only Updates
 

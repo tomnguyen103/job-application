@@ -1,6 +1,8 @@
 import type { Profile, ProfileRow } from "@/types";
 
 export const MATCH_THRESHOLD = 70;
+export const MATCH_VISUAL_SUCCESS_THRESHOLD = 90;
+export const MATCH_VISUAL_INFO_THRESHOLD = 80;
 
 export function mapProfileRowToProfile(
   row: ProfileRow,

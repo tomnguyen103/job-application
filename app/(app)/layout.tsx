@@ -8,11 +8,13 @@ export default function AppLayout({
   children: ReactNode;
 }): ReactElement {
   return (
-    <main className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <section className="mx-auto w-full max-w-[1280px] px-6 py-8 lg:px-0">
-        {children}
-      </section>
-    </main>
+      <main>
+        <section className="mx-auto w-full max-w-[1280px] px-6 py-8 lg:px-0">
+          {children}
+        </section>
+      </main>
+    </div>
   );
 }

@@ -12,11 +12,7 @@ export function DashboardChartLoading({
   title,
 }: DashboardChartLoadingProps): ReactElement {
   return (
-    <section
-      role="status"
-      aria-label={`${title} loading`}
-      className="h-full rounded-md border border-border bg-surface-elevated p-6 shadow-card"
-    >
+    <section className="h-full rounded-md border border-border bg-surface-elevated p-6 shadow-card">
       <h2 className="text-base font-semibold leading-6 text-text-primary">
         {title}
       </h2>

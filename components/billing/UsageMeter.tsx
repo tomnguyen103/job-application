@@ -6,16 +6,23 @@ import { BILLING_PLANS, type BillingEventType } from "@/lib/billing/plans";
 type Props = {
   usage: Record<BillingEventType, number>;
   planKey: "free" | "pro";
+  showPlansLink?: boolean;
 };
 
-export function UsageMeter({ usage, planKey }: Props): ReactElement {
+export function UsageMeter({
+  usage,
+  planKey,
+  showPlansLink = true,
+}: Props): ReactElement {
   const plan = BILLING_PLANS[planKey];
   const eventTypes = Object.keys(plan.quotas) as BillingEventType[];
-  const hasNearLimitUsage = eventTypes.some((type) => {
+  const getPercent = (type: BillingEventType): number => {
     const current = usage[type] || 0;
     const limit = plan.quotas[type].limit;
-    return Math.round((current / limit) * 100) >= 90;
-  });
+    return Math.min(100, Math.round((current / limit) * 100));
+  };
+  const hasNearLimitUsage =
+    showPlansLink && eventTypes.some((type) => getPercent(type) >= 90);
 
   return (
     <div className="rounded-md border border-border bg-surface p-4 shadow-card">
@@ -27,7 +34,7 @@ export function UsageMeter({ usage, planKey }: Props): ReactElement {
           const current = usage[type] || 0;
           const quota = plan.quotas[type];
           const limit = quota.limit;
-          const percent = Math.min(100, Math.round((current / limit) * 100));
+          const percent = getPercent(type);
 
           let colorClass = "bg-success";
           if (percent >= 90) {

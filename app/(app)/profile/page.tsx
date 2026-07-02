@@ -128,7 +128,11 @@ export default async function ProfilePage(): Promise<ReactElement> {
         <div className="mt-6 grid items-start gap-6 md:grid-cols-2">
           <PlanSummary entitlement={entitlement} />
           <div className="space-y-4">
-            <UsageMeter usage={usage} planKey={entitlement.planKey} />
+            <UsageMeter
+              usage={usage}
+              planKey={entitlement.planKey}
+              showPlansLink={false}
+            />
             <BillingActions isPro={entitlement.planKey === "pro"} />
           </div>
         </div>
