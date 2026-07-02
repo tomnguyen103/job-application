@@ -115,7 +115,7 @@ export function JobDescription({
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-secondary text-text-secondary">
           <DocumentIcon />
         </span>
-        <h2 className="text-xl font-bold leading-7 text-text-primary">
+        <h2 className="text-sm font-bold uppercase leading-5 tracking-wide text-text-secondary">
           Job Description
         </h2>
       </div>

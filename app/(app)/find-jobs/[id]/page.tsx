@@ -12,6 +12,7 @@ import {
   TailoredResumeAction,
   type TailoredResumeInitialState,
 } from "@/components/job-details/TailoredResumeAction";
+import { Tabs } from "@/components/layout/Tabs";
 import { parseCompanyResearchDossier } from "@/lib/company-research";
 import { buildInterviewPrepHighlights } from "@/lib/engagement-insights";
 import {
@@ -280,32 +281,59 @@ export default async function JobDetailsPage({
           dateFound={job.dateFound}
         />
 
-        <MatchScore
-          reason={job.matchReason}
-          matchedSkills={job.matchedSkills}
-          missingSkills={job.missingSkills}
-        />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          <Tabs
+            ariaLabel="Job detail sections"
+            items={[
+              {
+                id: "overview",
+                label: "Overview",
+                children: (
+                  <div className="flex flex-col gap-6">
+                    <MatchScore
+                      reason={job.matchReason}
+                      matchedSkills={job.matchedSkills}
+                      missingSkills={job.missingSkills}
+                    />
+                    <JobDescription
+                      description={job.description}
+                      postUrl={job.postUrl}
+                      responsibilities={job.responsibilities}
+                      requirements={job.requirements}
+                      niceToHave={job.niceToHave}
+                      benefits={job.benefits}
+                      aboutCompany={job.aboutCompany}
+                    />
+                  </div>
+                ),
+              },
+              {
+                id: "company-research",
+                label: "Company Research",
+                children: (
+                  <CompanyResearch
+                    jobId={data.id}
+                    company={job.company}
+                    initialResearch={job.companyResearch}
+                  />
+                ),
+              },
+              {
+                id: "interview-prep",
+                label: "Interview Prep",
+                children: <InterviewPrepExpansion prep={interviewPrep} />,
+              },
+            ]}
+          />
 
-        <CompanyResearch
-          jobId={data.id}
-          company={job.company}
-          initialResearch={job.companyResearch}
-        />
-        <InterviewPrepExpansion prep={interviewPrep} />
-        <TailoredResumeAction
-          jobId={data.id}
-          initialState={tailoredResumeInitialState}
-        />
-        <JobActions company={job.company} applyUrl={job.postUrl} />
-        <JobDescription
-          description={job.description}
-          postUrl={job.postUrl}
-          responsibilities={job.responsibilities}
-          requirements={job.requirements}
-          niceToHave={job.niceToHave}
-          benefits={job.benefits}
-          aboutCompany={job.aboutCompany}
-        />
+          <aside className="flex flex-col gap-6 lg:sticky lg:top-24">
+            <JobActions company={job.company} applyUrl={job.postUrl} />
+            <TailoredResumeAction
+              jobId={data.id}
+              initialState={tailoredResumeInitialState}
+            />
+          </aside>
+        </div>
       </div>
     </div>
   );

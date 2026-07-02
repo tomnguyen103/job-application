@@ -225,12 +225,12 @@ export function TailoredResumeAction({
 
   return (
     <section className="overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card">
-      <div className="flex flex-col gap-4 border-b border-border px-8 py-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-border px-8 py-6">
         <div className="flex items-center gap-4">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-muted text-accent">
             <DocumentIcon />
           </span>
-          <h2 className="text-xl font-bold leading-7 text-text-primary">
+          <h2 className="text-sm font-bold uppercase leading-5 tracking-wide text-text-secondary">
             Tailored Resume
           </h2>
         </div>
@@ -240,7 +240,7 @@ export function TailoredResumeAction({
             href={resume.downloadUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-border bg-surface px-5 text-base font-semibold text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary"
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-border bg-surface px-5 text-base font-semibold text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary"
           >
             <DownloadIcon />
             Download Tailored Resume
@@ -251,7 +251,7 @@ export function TailoredResumeAction({
             onClick={handleGenerate}
             disabled={isGenerating}
             aria-busy={isGenerating}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-5 text-base font-semibold text-accent-foreground shadow-card transition-colors hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-accent px-5 text-base font-semibold text-accent-foreground shadow-card transition-colors hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isGenerating ? <SpinnerIcon /> : <GenerateIcon />}
             {isGenerating ? "Generating..." : "Generate Tailored Resume"}
