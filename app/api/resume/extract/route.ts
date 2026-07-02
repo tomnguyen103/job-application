@@ -47,8 +47,8 @@ export async function POST() {
       user.id,
       "resume_extract",
       1,
-      `extract:${hash}`,
-      {},
+      `extract:${crypto.randomUUID()}`,
+      { resumeHash: hash },
       "/api/resume/extract",
     );
 

@@ -252,6 +252,21 @@ test("handleWebhook processes subscription created and updated events", async ()
   }
 });
 
+test("handleWebhook uses subscription metadata user id when entitlement lookup misses", async () => {
+  const { client, calls } = createWebhookAdminClient();
+
+  const result = await handleWebhook({
+    event: subscriptionEvent("customer.subscription.created"),
+    insforgeAdmin: client,
+  });
+
+  assert.equal(result.received, true);
+  assert.equal(result.status, "processed");
+
+  const upsertEntitlement = findCall(calls, "upsert", "user_entitlements");
+  assert.equal(upsertEntitlement.row?.user_id, "user-meta");
+});
+
 test("handleWebhook processes subscription deletion", async () => {
   const { client, calls } = createWebhookAdminClient({
     selectResult: (table) =>
@@ -336,6 +351,32 @@ test("handleWebhook treats already processed duplicate events as idempotent", as
   assert.equal(calls.some((call) => call.method === "upsert"), false);
 });
 
+test("handleWebhook leaves active pending webhook events alone", async () => {
+  const { client, calls } = createWebhookAdminClient({
+    insertError: { code: "23505", message: "duplicate key" },
+    selectResult: (table) =>
+      table === "billing_webhook_events"
+        ? {
+            data: {
+              processing_status: "pending",
+              processed_at: new Date().toISOString(),
+            },
+            error: null,
+          }
+        : { data: null, error: null },
+  });
+
+  const result = await handleWebhook({
+    event: checkoutEvent(),
+    insforgeAdmin: client,
+  });
+
+  assert.equal(result.received, false);
+  assert.equal(result.status, "failed");
+  assert.equal(result.error, "Event currently processing");
+  assert.equal(calls.some((call) => call.method === "upsert"), false);
+});
+
 test("handleWebhook reclaims stale pending webhook events", async () => {
   const staleProcessedAt = new Date(Date.now() - 11 * 60 * 1000).toISOString();
   const { client, calls } = createWebhookAdminClient({
@@ -346,6 +387,41 @@ test("handleWebhook reclaims stale pending webhook events", async () => {
             data: {
               processing_status: "pending",
               processed_at: staleProcessedAt,
+            },
+            error: null,
+          }
+        : { data: null, error: null },
+  });
+
+  const result = await handleWebhook({
+    event: checkoutEvent(),
+    insforgeAdmin: client,
+  });
+
+  assert.equal(result.received, true);
+  assert.equal(result.status, "processed");
+
+  const reclaim = calls.find(
+    (call) =>
+      call.method === "update" &&
+      call.table === "billing_webhook_events" &&
+      call.row?.processing_status === "pending",
+  );
+  assert.ok(reclaim);
+
+  const upsertEntitlement = findCall(calls, "upsert", "user_entitlements");
+  assert.equal(upsertEntitlement.row?.user_id, "user-abc");
+});
+
+test("handleWebhook reclaims failed webhook events", async () => {
+  const { client, calls } = createWebhookAdminClient({
+    insertError: { code: "23505", message: "duplicate key" },
+    selectResult: (table) =>
+      table === "billing_webhook_events"
+        ? {
+            data: {
+              processing_status: "failed",
+              processed_at: new Date().toISOString(),
             },
             error: null,
           }

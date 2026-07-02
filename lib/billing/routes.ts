@@ -358,7 +358,7 @@ export async function handleWebhook({
       ]);
 
     if (insertError) {
-      let reclaimedStaleEvent = false;
+      let reclaimedDuplicateEvent = false;
 
       if (isDuplicateError(insertError)) {
         // Retrieve status of the existing event
@@ -380,9 +380,9 @@ export async function handleWebhook({
             return { received: true, status: "ignored", duplicate: true };
           }
 
-          if (existingStatus === "pending") {
+          if (existingStatus === "pending" || existingStatus === "failed") {
             const processedAt = stringField(existingEvent, "processed_at");
-            if (!isPendingWebhookStale(processedAt, now)) {
+            if (existingStatus === "pending" && !isPendingWebhookStale(processedAt, now)) {
               console.log(`[billing/webhook] Event ${stripeEventId} is currently being processed by another worker.`);
               return { received: false, status: "failed", error: "Event currently processing" };
             }
@@ -399,12 +399,12 @@ export async function handleWebhook({
               .eq("stripe_event_id", stripeEventId);
 
             if (reclaimError) {
-              console.error("[billing/webhook] Error reclaiming stale pending event:", reclaimError);
+              console.error("[billing/webhook] Error reclaiming duplicate event:", reclaimError);
               return { received: false, status: "failed", error: "Database error" };
             }
 
-            console.warn(`[billing/webhook] Reclaimed stale pending event ${stripeEventId}.`);
-            reclaimedStaleEvent = true;
+            console.warn(`[billing/webhook] Reclaimed ${existingStatus} event ${stripeEventId}.`);
+            reclaimedDuplicateEvent = true;
           } else {
             console.error("[billing/webhook] Duplicate event has unexpected status:", existingStatus);
             return { received: false, status: "failed", error: "Event currently processing" };
@@ -412,7 +412,7 @@ export async function handleWebhook({
         }
       }
 
-      if (!reclaimedStaleEvent) {
+      if (!reclaimedDuplicateEvent) {
         console.error("[billing/webhook] Error inserting pending event:", insertError);
         return { received: false, status: "failed", error: "Database error" };
       }

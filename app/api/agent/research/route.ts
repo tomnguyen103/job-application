@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -159,7 +160,7 @@ export async function POST(req: NextRequest) {
       user.id,
       "company_research_run",
       1,
-      `research:${job.id}`,
+      `research:${job.id}:${randomUUID()}`,
       { company: job.company, title: job.title },
       "/api/agent/research",
       job.id,
