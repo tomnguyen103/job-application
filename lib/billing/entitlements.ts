@@ -1,5 +1,3 @@
-import { createInsforgeServer } from "@/lib/insforge-server";
-
 export interface UserEntitlement {
   planKey: "free" | "pro";
   status: string;
@@ -8,6 +6,61 @@ export interface UserEntitlement {
   cancelAtPeriodEnd: boolean;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+}
+
+export type UserEntitlementRow = {
+  plan_key?: string | null;
+  status?: string | null;
+  current_period_start?: string | null;
+  current_period_end?: string | null;
+  cancel_at_period_end?: boolean | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+};
+
+const DEFAULT_FREE_ENTITLEMENT: UserEntitlement = {
+  planKey: "free",
+  status: "active",
+  currentPeriodStart: null,
+  currentPeriodEnd: null,
+  cancelAtPeriodEnd: false,
+  stripeCustomerId: null,
+  stripeSubscriptionId: null,
+};
+
+function isDowngradableStatus(status: string): boolean {
+  return status === "past_due" || status === "canceled" || status === "unpaid";
+}
+
+export function resolveEntitlement(
+  row: UserEntitlementRow | null,
+  now = new Date(),
+): UserEntitlement {
+  if (!row) {
+    return { ...DEFAULT_FREE_ENTITLEMENT };
+  }
+
+  const currentPeriodEnd = row.current_period_end ? new Date(row.current_period_end) : null;
+  let planKey: "free" | "pro" = row.plan_key === "pro" ? "pro" : "free";
+  let status = row.status || "active";
+
+  if (planKey === "pro" && currentPeriodEnd && !Number.isNaN(currentPeriodEnd.getTime())) {
+    const gracePeriodEnd = new Date(currentPeriodEnd.getTime() + 3 * 24 * 60 * 60 * 1000);
+    if (now > gracePeriodEnd && isDowngradableStatus(status)) {
+      planKey = "free";
+      status = "active";
+    }
+  }
+
+  return {
+    planKey,
+    status,
+    currentPeriodStart: row.current_period_start ?? null,
+    currentPeriodEnd: row.current_period_end ?? null,
+    cancelAtPeriodEnd: row.cancel_at_period_end ?? false,
+    stripeCustomerId: row.stripe_customer_id ?? null,
+    stripeSubscriptionId: row.stripe_subscription_id ?? null,
+  };
 }
 
 /**
@@ -20,17 +73,8 @@ export interface UserEntitlement {
  * @returns The resolved UserEntitlement object.
  */
 export async function getUserEntitlement(userId: string): Promise<UserEntitlement> {
-  const defaultFree: UserEntitlement = {
-    planKey: "free",
-    status: "active",
-    currentPeriodStart: null,
-    currentPeriodEnd: null,
-    cancelAtPeriodEnd: false,
-    stripeCustomerId: null,
-    stripeSubscriptionId: null,
-  };
-
   try {
+    const { createInsforgeServer } = await import("@/lib/insforge-server");
     const insforge = await createInsforgeServer();
     const { data, error } = await insforge.database
       .from("user_entitlements")
@@ -40,40 +84,12 @@ export async function getUserEntitlement(userId: string): Promise<UserEntitlemen
 
     if (error) {
       console.error("[billing/entitlements] Error fetching user entitlement:", error);
-      return defaultFree;
+      return { ...DEFAULT_FREE_ENTITLEMENT };
     }
 
-    if (!data) {
-      return defaultFree;
-    }
-
-    // Downgrade check: if plan is pro but period has ended and status is past_due/canceled
-    // or if current_period_end is set and we've passed it by more than 3 days (grace period)
-    const now = new Date();
-    const currentPeriodEnd = data.current_period_end ? new Date(data.current_period_end) : null;
-    
-    let planKey = data.plan_key as "free" | "pro";
-    let status = data.status;
-
-    if (planKey === "pro" && currentPeriodEnd) {
-      const gracePeriodEnd = new Date(currentPeriodEnd.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days grace
-      if (now > gracePeriodEnd && (status === "past_due" || status === "canceled" || status === "unpaid")) {
-        planKey = "free";
-        status = "active";
-      }
-    }
-
-    return {
-      planKey,
-      status,
-      currentPeriodStart: data.current_period_start,
-      currentPeriodEnd: data.current_period_end,
-      cancelAtPeriodEnd: data.cancel_at_period_end,
-      stripeCustomerId: data.stripe_customer_id,
-      stripeSubscriptionId: data.stripe_subscription_id,
-    };
+    return resolveEntitlement(data as UserEntitlementRow | null);
   } catch (error) {
     console.error("[billing/entitlements] Error in getUserEntitlement:", error);
-    return defaultFree;
+    return { ...DEFAULT_FREE_ENTITLEMENT };
   }
 }

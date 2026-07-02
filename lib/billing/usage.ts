@@ -1,9 +1,105 @@
-import { createInsforgeServer } from "@/lib/insforge-server";
 import { BILLING_PLANS, BillingEventType, getPeriodBoundaries } from "./plans";
 import { getUserEntitlement, UserEntitlement } from "./entitlements";
 import { isUniqueConstraintViolation } from "./usage-errors";
 
 export { isUniqueConstraintViolation } from "./usage-errors";
+
+type BillingUsageError = {
+  message?: string;
+};
+
+type UsageLedgerRow = {
+  event_type?: string | null;
+  quantity?: number | null;
+};
+
+type UsageLedgerQuery = {
+  select(columns: string): UsageLedgerQuery;
+  eq(column: string, value: string): UsageLedgerQuery;
+  gte(column: string, value: string): UsageLedgerQuery;
+  lt(column: string, value: string): Promise<{
+    data: UsageLedgerRow[] | null;
+    error: BillingUsageError | null;
+  }>;
+};
+
+export type BillingUsageClient = {
+  database: {
+    from(table: "usage_ledger"): UsageLedgerQuery;
+  };
+};
+
+export type QuotaCheckResult = {
+  allowed: boolean;
+  limit: number;
+  current: number;
+  planKey: "free" | "pro";
+};
+
+export type RecordUsageResult = {
+  success: boolean;
+  error?: string;
+  code?: string;
+  current?: number;
+  limit?: number;
+  planKey?: "free" | "pro";
+};
+
+export type BillingUsageRpcClient = {
+  database: {
+    rpc(
+      functionName: string,
+      args: Record<string, unknown>,
+    ): Promise<{ data: unknown; error: BillingUsageError | null }>;
+  };
+};
+
+export type UsageFailureHttpResult = {
+  status: 402 | 500;
+  body: {
+    success: false;
+    error: string;
+    code?: "QUOTA_EXCEEDED";
+    eventType?: BillingEventType;
+    current?: number;
+    limit?: number;
+    planKey?: "free" | "pro";
+  };
+};
+
+type QuotaCheckOptions = {
+  insforge?: BillingUsageClient;
+  getEntitlement?: (userId: string) => Promise<UserEntitlement>;
+};
+
+export function usageFailureToHttpResult(
+  eventType: BillingEventType,
+  result: RecordUsageResult,
+  fallbackError: string,
+): UsageFailureHttpResult {
+  if (result.code === "QUOTA_EXCEEDED") {
+    return {
+      status: 402,
+      body: {
+        success: false,
+        error: result.error ?? `Quota exceeded for ${eventType}.`,
+        code: "QUOTA_EXCEEDED",
+        eventType,
+        current: result.current,
+        limit: result.limit,
+        planKey: result.planKey,
+      },
+    };
+  }
+
+  return {
+    status: 500,
+    body: {
+      success: false,
+      error: fallbackError,
+    },
+  };
+}
 
 export class QuotaExceededError extends Error {
   eventType: BillingEventType;
@@ -29,7 +125,11 @@ export class QuotaExceededError extends Error {
  * @returns A record mapping event types to their accumulated usage counts.
  * @throws Error if the database query fails.
  */
-export async function getCurrentPeriodUsage(userId: string, entitlement: UserEntitlement): Promise<Record<BillingEventType, number>> {
+export async function getCurrentPeriodUsage(
+  userId: string,
+  entitlement: UserEntitlement,
+  options: { insforge?: BillingUsageClient } = {},
+): Promise<Record<BillingEventType, number>> {
   const usage: Record<BillingEventType, number> = {
     job_search_run: 0,
     job_match_score: 0,
@@ -41,7 +141,11 @@ export async function getCurrentPeriodUsage(userId: string, entitlement: UserEnt
 
   try {
     const { periodStart, periodEnd } = getPeriodBoundaries(entitlement);
-    const insforge = await createInsforgeServer();
+    let insforge = options.insforge;
+    if (!insforge) {
+      const { createInsforgeServer } = await import("@/lib/insforge-server");
+      insforge = await createInsforgeServer() as unknown as BillingUsageClient;
+    }
 
     const { data, error } = await insforge.database
       .from("usage_ledger")
@@ -59,7 +163,7 @@ export async function getCurrentPeriodUsage(userId: string, entitlement: UserEnt
       for (const row of data) {
         const type = row.event_type as BillingEventType;
         if (type in usage) {
-          usage[type] += row.quantity || 0;
+          usage[type] += row.quantity ?? 0;
         }
       }
     }
@@ -82,14 +186,18 @@ export async function getCurrentPeriodUsage(userId: string, entitlement: UserEnt
 export async function checkQuotaAvailable(
   userId: string,
   eventType: BillingEventType,
-  quantity: number = 1
-): Promise<{ allowed: boolean; limit: number; current: number; planKey: "free" | "pro" }> {
+  quantity: number = 1,
+  options: QuotaCheckOptions = {},
+): Promise<QuotaCheckResult> {
   try {
-    const entitlement = await getUserEntitlement(userId);
+    const resolveEntitlement = options.getEntitlement ?? getUserEntitlement;
+    const entitlement = await resolveEntitlement(userId);
     const plan = BILLING_PLANS[entitlement.planKey];
     const limit = plan.quotas[eventType].limit;
 
-    const usage = await getCurrentPeriodUsage(userId, entitlement);
+    const usage = await getCurrentPeriodUsage(userId, entitlement, {
+      insforge: options.insforge,
+    });
     const current = usage[eventType];
 
     return {
@@ -118,8 +226,13 @@ export async function checkQuotaAvailable(
  * @param quantity - The quantity requested (defaults to 1).
  * @throws QuotaExceededError if the quota is exceeded.
  */
-export async function assertQuotaAvailable(userId: string, eventType: BillingEventType, quantity: number = 1): Promise<void> {
-  const check = await checkQuotaAvailable(userId, eventType, quantity);
+export async function assertQuotaAvailable(
+  userId: string,
+  eventType: BillingEventType,
+  quantity: number = 1,
+  options: QuotaCheckOptions = {},
+): Promise<void> {
+  const check = await checkQuotaAvailable(userId, eventType, quantity, options);
   if (!check.allowed) {
     throw new QuotaExceededError(eventType, check.current, check.limit, check.planKey);
   }
@@ -146,17 +259,11 @@ export async function recordUsage(
   metadata: Record<string, unknown> = {},
   sourceRoute?: string,
   referenceId?: string
-): Promise<{
-  success: boolean;
-  error?: string;
-  code?: string;
-  current?: number;
-  limit?: number;
-  planKey?: "free" | "pro";
-}> {
+): Promise<RecordUsageResult> {
   try {
     // Usage writes go through SECURITY DEFINER RPCs that validate auth.uid()
     // against p_user_id and derive quota bounds inside the database.
+    const { createInsforgeServer } = await import("@/lib/insforge-server");
     const insforge = await createInsforgeServer();
 
     const { data, error } = await insforge.database.rpc("record_usage_with_quota_check", {
@@ -211,6 +318,41 @@ export async function recordUsage(
   } catch (error) {
     const err = error as Error;
     console.error("[billing/usage] Error in recordUsage:", err);
+    return { success: false, error: err.message || String(error) };
+  }
+}
+
+export async function releaseResumeExtractReservation(
+  userId: string,
+  idempotencyKey: string,
+  options: { insforge?: BillingUsageRpcClient } = {},
+): Promise<RecordUsageResult> {
+  try {
+    let insforge = options.insforge;
+    if (!insforge) {
+      const { createInsforgeServer } = await import("@/lib/insforge-server");
+      insforge = await createInsforgeServer() as unknown as BillingUsageRpcClient;
+    }
+
+    const { data, error } = await insforge.database.rpc("release_resume_extract_reservation", {
+      p_user_id: userId,
+      p_idempotency_key: idempotencyKey,
+    });
+
+    if (error) {
+      console.error("[billing/usage] RPC Error in releaseResumeExtractReservation:", error);
+      return { success: false, error: error.message };
+    }
+
+    const result = data as { success?: boolean; status?: string } | null;
+    if (!result?.success) {
+      return { success: false, error: `Failed to release resume extract reservation: ${result?.status ?? "unknown"}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    const err = error as Error;
+    console.error("[billing/usage] Error in releaseResumeExtractReservation:", err);
     return { success: false, error: err.message || String(error) };
   }
 }
