@@ -18,6 +18,12 @@ After building any component - update this file with the component name, file pa
 
 ## Components
 
+## Grade-A Audit Follow-up PR8 (2026-07-02)
+
+- Dashboard charts now render through client loader wrappers in `components/dashboard/*ChartLoader.tsx`.
+- The loaders use `next/dynamic` with the existing `components/layout/DashboardChartLoading.tsx` skeleton fallback so Recharts chart implementations are loaded behind dynamic imports.
+- No new visual classes, app tokens, or interaction patterns were added.
+
 ## Grade-A Maintainability PR7 (2026-07-02)
 
 - No new app UI components, visual classes, or tokens were added.

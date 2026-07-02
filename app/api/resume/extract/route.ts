@@ -5,6 +5,8 @@ import { extractProfileFromPdf } from "@/agent/extractor";
 import { recordUsage, releaseResumeExtractReservation, usageFailureToHttpResult } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 
+export const maxDuration = 60;
+
 export async function POST() {
   try {
     const user = await getCurrentUser();

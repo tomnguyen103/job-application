@@ -23,6 +23,7 @@ import type { ProfileRow } from "@/types";
 import { buildTailoredResumeDocument } from "./TailoredResumeDocument";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -83,6 +84,17 @@ async function removeTailoredResumeFile(
   key: string,
 ): Promise<{ error: unknown }> {
   return bucket.remove(key);
+}
+
+async function cleanupGeneratedTailoredResumeFile(
+  bucket: RemovableStorageBucket,
+  key: string,
+  context: string,
+): Promise<void> {
+  const { error } = await removeTailoredResumeFile(bucket, key);
+  if (error) {
+    console.error(context, error);
+  }
 }
 
 export async function POST(_request: Request, { params }: RouteContext) {
@@ -218,7 +230,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       );
     }
 
-    let uploadedKey = storageKey;
+    let uploadedKey: string | null = null;
 
     try {
       const buffer = await renderToBuffer(
@@ -266,7 +278,11 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
       if (insertError) {
         console.error("[tailored-resume] metadata insert error:", insertError);
-        await removeTailoredResumeFile(bucket, uploadedKey);
+        await cleanupGeneratedTailoredResumeFile(
+          bucket,
+          uploadedKey,
+          "[tailored-resume] generated file cleanup failed after metadata insert error:",
+        );
         return NextResponse.json(
           {
             success: false,
@@ -330,7 +346,13 @@ export async function POST(_request: Request, { params }: RouteContext) {
       });
     } catch (error) {
       console.error("[tailored-resume]", error);
-      await removeTailoredResumeFile(bucket, uploadedKey);
+      if (uploadedKey) {
+        await cleanupGeneratedTailoredResumeFile(
+          bucket,
+          uploadedKey,
+          "[tailored-resume] generated file cleanup failed after unexpected error:",
+        );
+      }
       return NextResponse.json(
         {
           success: false,

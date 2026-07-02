@@ -5,10 +5,13 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { generateResumeContent } from "@/agent/generator";
 import { recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
+import { baseResumeGenerationUsageKey } from "@/lib/resume-generation-quota";
 import { removeExistingResumeFile } from "@/lib/storage-errors";
 import { mapProfileRowToProfile } from "@/lib/utils";
 
 import { buildResumeDocument } from "./ResumeDocument";
+
+export const maxDuration = 60;
 
 export async function POST() {
   try {
@@ -45,13 +48,11 @@ export async function POST() {
 
     const profile = mapProfileRowToProfile(row, user.email ?? "");
 
-    const profileUpdatedAt =
-      typeof row.updated_at === "string" ? row.updated_at : user.id;
     const generationReservation = await recordUsage(
       user.id,
       "base_resume_generate",
       1,
-      `generate:${profileUpdatedAt}`,
+      baseResumeGenerationUsageKey(),
       {},
       "/api/resume/generate",
     );

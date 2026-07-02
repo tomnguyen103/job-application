@@ -2,20 +2,21 @@
 
 ## Purpose
 
-Complete Job Application as a polished, modern product website before adding
-SaaS billing, subscriptions, or admin controls.
+Complete Job Application as a polished, modern product website with the
+implemented individual SaaS billing layer. Team billing and admin controls
+remain future scope.
 
 The redesign goal is simple: a visitor should quickly understand the product,
 trust it, want to explore it, and feel that the logged-in app is a place worth
 returning to during an active job search.
 
-## Implementation Status - 2026-06-14
+## Implementation Status - 2026-07-02
 
 - The original product build plan is complete through Phase 6 / Feature 18
   (Job-Tailored Resume Agent).
-- Website modernization Phases 1-5 are implemented in the current worktree:
+- Website modernization Phases 1-6 are implemented in the current worktree:
   visual/theme refresh, homepage redesign, login polish, authenticated
-  workspace polish, and engagement features without billing.
+  workspace polish, engagement features, and individual SaaS billing.
 - The dark-mode CTA contrast review finding has been addressed by keeping
   primary buttons on `bg-accent text-accent-foreground` and making
   `--color-accent-foreground` dark in dark mode. Overlay surfaces and overlay
@@ -23,14 +24,12 @@ returning to during an active job search.
 - Phase 5 added dashboard Today actions, repeated skill-gap insights, and
   job-detail interview prep using existing profile, job, research, and
   tailored-resume data only.
-- Phase 6 - SaaS Readiness Later remains future-only. Do not add payment,
-  subscription, billing, team, or admin features yet.
-- Phase 6 readiness audit has started as documentation only. The linked
-  InsForge backend currently reports Stripe payments unavailable via
-  `npx @insforge/cli payments stripe status --json`, so checkout, billing,
-  pricing, subscription status, admin, and plan-management implementation stay
-  gated until the backend is enabled and the product decisions below are
-  explicitly approved.
+- Phase 6 added the single-user Free/Pro billing layer: `/pricing`, checkout
+  and portal routes, usage quotas, user entitlements, webhook idempotency, and
+  graceful fallback when InsForge payments are unavailable.
+- Future-only billing scope is limited to team accounts, multi-seat billing,
+  admin billing controls, direct Stripe secret-key integration, trials,
+  coupons, invoices, and usage overages unless separately approved.
 
 ## Design Read
 
@@ -89,8 +88,8 @@ Reasoning:
   guide the user to the next useful action.
 - There is no public interactive demo or sample journey for a visitor who is not
   ready to sign in.
-- There is no pricing or SaaS framing yet, which is fine for this phase. Billing
-  should wait until the product experience feels desirable.
+- Pricing and individual SaaS framing now exist. Future billing work should
+  stay focused on explicit product decisions rather than broad expansion.
 
 ## Non-Negotiable Constraints
 
@@ -103,8 +102,8 @@ Reasoning:
   require Inter.
 - Do not rename the approved PostHog events without updating
   `context/code-standards.md`.
-- Do not add payment, subscription, team accounts, or admin controls in this
-  modernization phase.
+- Do not add team accounts, multi-seat billing, direct Stripe secret-key
+  integration, or admin controls in this modernization track.
 - Do not add a new visual dependency without checking `package.json`, updating
   project docs, and having a clear reason.
 - Add a light/dark theme toggle during the redesign. The toggle changes the
@@ -367,68 +366,36 @@ Recommended order:
 3. Interview prep expansion on job details.
 4. Applications pipeline as a later product feature, because it needs new state.
 
-Do not introduce payment yet.
+Phase 5 intentionally shipped before payment surfaces; Phase 6 later added the
+single-user billing layer.
 
-## Phase 6 - SaaS Readiness Later
+## Phase 6 - Stripe SaaS Integration
 
-Start this only after the modernized site feels complete.
+Implemented for single-user Free/Pro billing.
 
-Detailed Stripe review plan: `context/stripe-saas-integration-plan.md`.
+Detailed plan: `context/stripe-saas-integration-plan.md`.
 
-Current readiness status (2026-06-14):
+Current status (2026-07-02):
 
-- Status: docs-only readiness audit started; implementation is not approved.
-- Provider direction for review: Stripe, with InsForge payments as the
-  preferred integration path once backend payments are enabled.
-- Backend capability: `npx @insforge/cli payments stripe status --json`
-  returns `Payments are not available on this backend.` Do not work around this
-  with generic secrets or custom Stripe key storage.
-- CLI shape: the installed CLI namespaces Stripe commands under
-  `payments stripe` even though older docs and skill snapshots may show
-  `payments status`.
-- SDK shape: the installed `@insforge/sdk` types expose
-  `insforge.payments.createCheckoutSession(environment, request)` and
-  `createCustomerPortalSession(environment, request)`. Trust installed package
-  types before copying examples from generated docs.
-- Stripe integration principle: success and cancel URLs are navigation only.
-  Fulfillment and subscription access must come from webhook-backed payment
-  projections and app-owned entitlement/order tables.
-- Product decision still required: define whether billing belongs to a single
-  user only. Team, organization, admin, or multi-seat billing remains out of
-  scope unless separately approved.
-- Tracking decision still required: define usage events, quota counters, and
-  limits for expensive AI, Browserbase, tailored-resume, and company-research
-  operations before any plan UI ships.
+- `/pricing` exists with Free/Pro comparison and context-aware CTAs.
+- Authenticated checkout and portal routes use InsForge payments SDK calls.
+- `user_entitlements`, `usage_ledger`, `billing_webhook_events`, and
+  `plan_quotas` own app billing state and usage limits.
+- Expensive operations reserve usage through the database-backed quota RPC
+  before running Gemini, Browserbase, or PDF generation work.
+- Stripe webhook fulfillment is signed, idempotent, and projects subscription
+  state into app-owned entitlements.
+- Checkout success and cancel URLs are navigation only; fulfillment and access
+  come from webhook-backed entitlement state.
+- When InsForge payments are unavailable, billing UI degrades gracefully instead
+  of adding direct Stripe secret handling.
 
-Future SaaS planning should include:
+Future SaaS scope requires a separate plan:
 
-- Pricing page
-- Plan limits
-- Usage quotas for expensive AI and browser research operations
-- Subscription status
-- Billing portal
-- Admin view for users, subscriptions, usage, and errors
-
-Before implementing payment:
-
-- Fetch current InsForge payment docs and Stripe docs.
-- Decide what is free, pro, and premium.
-- Add explicit tracking and product limits.
-- Update project docs before backend work.
-
-Additional gates before any Phase 6 code:
-
-- Get explicit approval to move from readiness planning to payment or pricing
-  implementation.
-- Enable InsForge payments for the linked backend and confirm
-  `payments stripe status` reports availability.
-- Use Stripe test mode first; live mode requires separate explicit approval.
-- Add RLS for `payments.checkout_sessions` and
-  `payments.customer_portal_sessions` before exposing checkout or portal UI.
-- Design app-owned fulfillment state, such as `user_entitlements`,
-  `usage_ledger`, or `orders`, before granting access from any payment.
-- Add tests for RLS, idempotency, webhook-driven fulfillment, and unauthenticated
-  access boundaries before visual billing surfaces.
+- Team accounts, organizations, or multi-seat billing.
+- Admin billing views for users, subscriptions, usage, and errors.
+- Direct Stripe SDK or secret-key handling in this app.
+- Trials, coupons, invoices, custom pricing, or usage overages.
 
 ## Implementation Sequence
 

@@ -1,11 +1,11 @@
 import { Suspense, type ReactElement } from "react";
 
 import { IncompleteProfileBanner } from "@/components/dashboard/IncompleteProfileBanner";
-import { JobsOverTimeChart } from "@/components/dashboard/JobsOverTimeChart";
-import { MatchDistributionChart } from "@/components/dashboard/MatchDistributionChart";
+import { JobsOverTimeChartLoader } from "@/components/dashboard/JobsOverTimeChartLoader";
+import { MatchDistributionChartLoader } from "@/components/dashboard/MatchDistributionChartLoader";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import type { ActivityEntry } from "@/components/dashboard/RecentActivity";
-import { ResearchActivityChart } from "@/components/dashboard/ResearchActivityChart";
+import { ResearchActivityChartLoader } from "@/components/dashboard/ResearchActivityChartLoader";
 import { SkillGapInsights } from "@/components/dashboard/SkillGapInsights";
 import {
   DASHBOARD_STAT_LABELS,
@@ -180,7 +180,7 @@ async function ResearchActivityChartCard({
   );
 
   return (
-    <ResearchActivityChart
+    <ResearchActivityChartLoader
       data={data}
       yAxis={chartYAxis(data)}
       emptyMessage={emptyMessage}
@@ -200,7 +200,7 @@ async function JobsOverTimeChartCard({
   );
 
   return (
-    <JobsOverTimeChart
+    <JobsOverTimeChartLoader
       data={data}
       yAxis={chartYAxis(data)}
       emptyMessage={emptyMessage}
@@ -218,7 +218,7 @@ async function MatchDistributionChartCard({
   );
 
   return (
-    <MatchDistributionChart
+    <MatchDistributionChartLoader
       data={data}
       yAxis={chartYAxis(data)}
       emptyMessage={emptyMessage}
