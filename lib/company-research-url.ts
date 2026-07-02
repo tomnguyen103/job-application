@@ -95,6 +95,7 @@ function isPrivateIpv4(hostname: string): boolean {
     first === 0 ||
     first === 10 ||
     first === 127 ||
+    (first === 100 && second >= 64 && second <= 127) ||
     (first === 169 && second === 254) ||
     (first === 172 && second >= 16 && second <= 31) ||
     (first === 192 && second === 168)
@@ -133,20 +134,22 @@ export function isPublicResearchUrl(value: string): boolean {
       return false;
     }
 
-    const hostname = normalizedHostname(url.hostname);
-
-    if (
-      hostname === "localhost" ||
-      hostname.endsWith(".localhost") ||
-      hostname.endsWith(".local")
-    ) {
-      return false;
-    }
-
-    return !isPrivateIpv4(hostname) && !isPrivateIpv6(hostname);
+    return !isPrivateResearchHost(url.hostname);
   } catch {
     return false;
   }
+}
+
+export function isPrivateResearchHost(hostname: string): boolean {
+  const normalized = normalizedHostname(hostname);
+
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized.endsWith(".local") ||
+    isPrivateIpv4(normalized) ||
+    isPrivateIpv6(normalized)
+  );
 }
 
 export function fallbackCompanyHomepage(company: string): string | null {

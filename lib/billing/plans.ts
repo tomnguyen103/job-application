@@ -113,8 +113,17 @@ export const PLAN_QUOTA_ROWS: readonly PlanQuotaRow[] = [
   },
 ];
 
+const BILLING_EVENT_TYPES: readonly BillingEventType[] = [
+  "job_search_run",
+  "job_match_score",
+  "company_research_run",
+  "tailored_resume_generate",
+  "base_resume_generate",
+  "resume_extract",
+];
+
 function quotasFor(planKey: BillingPlanKey): Record<BillingEventType, PlanQuota> {
-  return Object.fromEntries(
+  const entries = Object.fromEntries(
     PLAN_QUOTA_ROWS
       .filter((row) => row.planKey === planKey)
       .map((row) => [
@@ -124,7 +133,15 @@ function quotasFor(planKey: BillingPlanKey): Record<BillingEventType, PlanQuota>
           displayName: row.displayName,
         },
       ]),
-  ) as Record<BillingEventType, PlanQuota>;
+  ) as Partial<Record<BillingEventType, PlanQuota>>;
+
+  for (const eventType of BILLING_EVENT_TYPES) {
+    if (!entries[eventType]) {
+      throw new Error(`Missing plan quota row for ${planKey}/${eventType}`);
+    }
+  }
+
+  return entries as Record<BillingEventType, PlanQuota>;
 }
 
 export const BILLING_PLANS: Record<BillingPlanKey, BillingPlan> = {

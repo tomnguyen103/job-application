@@ -9,38 +9,39 @@ import { compactMetadata } from "@/agent/job-sources/utils";
 
 type AdzunaCountry = "us" | "gb" | "au" | "ca";
 
-const COUNTRY_KEYWORDS: { country: AdzunaCountry; keywords: string[] }[] = [
+const COUNTRY_MARKERS: { country: AdzunaCountry; markers: string[] }[] = [
   {
     country: "gb",
-    keywords: [
+    markers: [
+      "gb",
       "united kingdom",
       "uk",
+      "great britain",
       "england",
       "scotland",
       "wales",
-      "london",
-      "manchester",
+      "northern ireland",
     ],
   },
   {
     country: "au",
-    keywords: ["australia", "sydney", "melbourne", "brisbane", "perth"],
+    markers: ["au", "australia"],
   },
   {
     country: "ca",
-    keywords: ["canada", "toronto", "vancouver", "montreal", "ottawa"],
+    markers: ["canada"],
   },
 ];
 
 function detectCountry(location: string): AdzunaCountry {
-  const normalized = location.toLowerCase();
+  const normalized = ` ${location
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()} `;
 
-  for (const { country, keywords } of COUNTRY_KEYWORDS) {
-    const matches = keywords.some((keyword) =>
-      new RegExp(`\\b${keyword}\\b`).test(normalized),
-    );
-
-    if (matches) {
+  for (const { country, markers } of COUNTRY_MARKERS) {
+    if (markers.some((marker) => normalized.includes(` ${marker} `))) {
       return country;
     }
   }
@@ -67,7 +68,7 @@ function normalizeWhere(location: string): string {
     .replace(/\bremote\b/gi, "")
     .replace(/\bwork from home\b/gi, "")
     .replace(/\bwfh\b/gi, "")
-    .replace(/[.,/|]+/g, " ")
+    .replace(/[.,/|\-–—]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

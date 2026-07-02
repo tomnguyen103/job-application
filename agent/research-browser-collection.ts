@@ -1,3 +1,7 @@
+import { lookup } from "node:dns/promises";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+
 import type { Stagehand } from "@browserbasehq/stagehand";
 import { z } from "zod";
 
@@ -9,6 +13,7 @@ import {
   fallbackCompanyHomepage,
   getRootDomain,
   homepageFromResolvedUrl,
+  isPrivateResearchHost,
   isPublicResearchUrl,
   trustedResearchRedirectUrl,
   verifiedCompanyResearchSources,
@@ -71,6 +76,9 @@ const LINK_PRIORITY: Record<PageLinkKind, number> = {
 const RESEARCH_PAGE_TIMEOUT_MS = 30_000;
 const MAX_RESEARCH_SUB_PAGES = 2;
 const MAX_REDIRECT_HOPS = 5;
+const REDIRECT_FOLLOW_TIMEOUT_MS = 15_000;
+const RESEARCH_USER_AGENT =
+  "Mozilla/5.0 (compatible; JobApplicationResearch/1.0)";
 
 function cleanText(value: string | null | undefined): string {
   return value?.trim() ?? "";
@@ -83,6 +91,63 @@ function cleanList(value: string[] | null | undefined, limit = 8): string[] {
     .slice(0, limit);
 }
 
+async function resolvePublicAddress(hostname: string): Promise<string | null> {
+  if (isPrivateResearchHost(hostname)) {
+    return null;
+  }
+
+  const records = await lookup(hostname, { all: true, verbatim: false });
+  const publicRecord = records.find(
+    (record) => !isPrivateResearchHost(record.address),
+  );
+
+  return publicRecord?.address ?? null;
+}
+
+function pinnedRedirectRequest(
+  targetUrl: string,
+  address: string,
+): Promise<{ location: string | null; status: number }> {
+  const url = new URL(targetUrl);
+  const request = url.protocol === "https:" ? httpsRequest : httpRequest;
+
+  return new Promise((resolve, reject) => {
+    const clientRequest = request(
+      {
+        protocol: url.protocol,
+        hostname: address,
+        port: url.port || undefined,
+        path: `${url.pathname}${url.search}`,
+        method: "GET",
+        headers: {
+          host: url.host,
+          "user-agent": RESEARCH_USER_AGENT,
+        },
+        servername: url.hostname,
+        timeout: REDIRECT_FOLLOW_TIMEOUT_MS,
+      },
+      (response) => {
+        const locationHeader = response.headers.location;
+        const location = Array.isArray(locationHeader)
+          ? locationHeader[0] ?? null
+          : locationHeader ?? null;
+
+        resolve({
+          location,
+          status: response.statusCode ?? 0,
+        });
+        response.destroy();
+      },
+    );
+
+    clientRequest.on("timeout", () => {
+      clientRequest.destroy(new Error("Research redirect follow timed out."));
+    });
+    clientRequest.on("error", reject);
+    clientRequest.end();
+  });
+}
+
 async function fetchPublicRedirectUrl(redirectUrl: string): Promise<string | null> {
   let currentUrl = redirectUrl;
 
@@ -91,15 +156,14 @@ async function fetchPublicRedirectUrl(redirectUrl: string): Promise<string | nul
       return null;
     }
 
-    const response = await fetch(currentUrl, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(15_000),
-      headers: {
-        "user-agent":
-          "Mozilla/5.0 (compatible; JobApplicationResearch/1.0)",
-      },
-    });
-    const location = response.headers.get("location");
+    const url = new URL(currentUrl);
+    const address = await resolvePublicAddress(url.hostname);
+    if (!address) {
+      return null;
+    }
+
+    const response = await pinnedRedirectRequest(currentUrl, address);
+    const { location } = response;
 
     if (
       response.status >= 300 &&
@@ -110,7 +174,7 @@ async function fetchPublicRedirectUrl(redirectUrl: string): Promise<string | nul
       continue;
     }
 
-    return isPublicResearchUrl(response.url) ? response.url : null;
+    return currentUrl;
   }
 
   return null;

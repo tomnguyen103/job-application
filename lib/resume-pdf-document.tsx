@@ -2,6 +2,7 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { DocumentProps } from "@react-pdf/renderer";
 import type { ReactElement } from "react";
 
+import { PDF_COLORS } from "@/lib/pdf-tokens";
 import type { Profile, WorkExperience } from "@/types";
 
 type ResumePdfContent = {
@@ -18,14 +19,6 @@ type ResumePdfDocumentProps = {
   targetRole?: string | null;
 };
 
-// Print-document palette. React PDF cannot consume the app's CSS variables,
-// so neutral ink tones are centralized here instead of ui-tokens.
-const COLORS = {
-  ink: "#111111",
-  body: "#333333",
-  muted: "#666666",
-};
-
 const DEGREE_LABELS: Record<string, string> = {
   high_school: "High School Diploma",
   associate: "Associate Degree",
@@ -39,28 +32,28 @@ const styles = StyleSheet.create({
     padding: 48,
     fontFamily: "Helvetica",
     fontSize: 9.5,
-    color: COLORS.body,
+    color: PDF_COLORS.body,
     lineHeight: 1.45,
   },
   name: {
     fontSize: 22,
     fontWeight: "bold",
-    color: COLORS.ink,
+    color: PDF_COLORS.ink,
     lineHeight: 1.15,
   },
-  title: { fontSize: 11, color: COLORS.muted, marginTop: 2 },
+  title: { fontSize: 11, color: PDF_COLORS.muted, marginTop: 2 },
   targetRole: {
     fontSize: 9.5,
     fontWeight: "bold",
-    color: COLORS.ink,
+    color: PDF_COLORS.ink,
     marginTop: 7,
   },
-  contactLine: { fontSize: 9, color: COLORS.muted, marginTop: 6 },
+  contactLine: { fontSize: 9, color: PDF_COLORS.muted, marginTop: 6 },
   section: { marginTop: 14 },
   sectionHeading: {
     fontSize: 10,
     fontWeight: "bold",
-    color: COLORS.ink,
+    color: PDF_COLORS.ink,
     marginBottom: 6,
   },
   bodyText: { fontSize: 9.5, lineHeight: 1.5 },
@@ -70,12 +63,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
-  roleTitle: { fontSize: 10.5, fontWeight: "bold", color: COLORS.ink },
-  roleCompany: { fontSize: 9.5, color: COLORS.muted, marginTop: 1 },
-  roleDates: { fontSize: 9, color: COLORS.muted },
+  roleTitle: { fontSize: 10.5, fontWeight: "bold", color: PDF_COLORS.ink },
+  roleCompany: { fontSize: 9.5, color: PDF_COLORS.muted, marginTop: 1 },
+  roleDates: { fontSize: 9, color: PDF_COLORS.muted },
   bullet: { fontSize: 9.5, lineHeight: 1.5, marginTop: 3 },
-  eduDegree: { fontSize: 10, fontWeight: "bold", color: COLORS.ink },
-  eduDetail: { fontSize: 9.5, color: COLORS.body, marginTop: 1 },
+  eduDegree: { fontSize: 10, fontWeight: "bold", color: PDF_COLORS.ink },
+  eduDetail: { fontSize: 9.5, color: PDF_COLORS.body, marginTop: 1 },
 });
 
 function formatDates(role: WorkExperience): string {

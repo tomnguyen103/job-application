@@ -50,6 +50,7 @@ test("isPublicResearchUrl rejects loopback, private, and metadata hosts", () => 
   assert.equal(isPublicResearchUrl("http://localhost:3000/admin"), false);
   assert.equal(isPublicResearchUrl("https://127.0.0.1/admin"), false);
   assert.equal(isPublicResearchUrl("https://10.0.0.10/admin"), false);
+  assert.equal(isPublicResearchUrl("https://100.64.0.1/admin"), false);
   assert.equal(isPublicResearchUrl("https://172.16.0.10/admin"), false);
   assert.equal(isPublicResearchUrl("https://192.168.1.1/admin"), false);
   assert.equal(isPublicResearchUrl("https://169.254.169.254/latest"), false);
