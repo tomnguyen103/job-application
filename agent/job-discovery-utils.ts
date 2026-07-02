@@ -26,7 +26,7 @@ export async function searchProviders(
   providers: JobSourceProvider[],
   input: JobSearchInput,
 ): Promise<ProviderSearchOutcome[]> {
-  const outcomes = await Promise.all(
+  const outcomes = await Promise.allSettled(
     providers.map(async (provider) => {
       if (!provider.isConfigured()) {
         return {
@@ -37,25 +37,28 @@ export async function searchProviders(
         };
       }
 
-      try {
-        const postings = await provider.search(input);
-        return {
-          provider: provider.key,
-          displayName: provider.displayName,
-          postings,
-        };
-      } catch (error) {
-        return {
-          provider: provider.key,
-          displayName: provider.displayName,
-          postings: [],
-          error: errorMessage(error),
-        };
-      }
+      const postings = await provider.search(input);
+      return {
+        provider: provider.key,
+        displayName: provider.displayName,
+        postings,
+      };
     }),
   );
 
-  return outcomes;
+  return outcomes.map((outcome, index) => {
+    if (outcome.status === "fulfilled") {
+      return outcome.value;
+    }
+
+    const provider = providers[index];
+    return {
+      provider: provider.key,
+      displayName: provider.displayName,
+      postings: [],
+      error: errorMessage(outcome.reason),
+    };
+  });
 }
 
 export function postingDedupeKeys(posting: NormalizedJobPosting): string[] {

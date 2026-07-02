@@ -1,4 +1,8 @@
-import { createGeminiClient, parseGeminiJsonResponse } from "@/agent/gemini";
+import {
+  createGeminiClient,
+  parseGeminiJsonResponse,
+  withGeminiTimeout,
+} from "@/agent/gemini";
 import type { Education, Profile, WorkExperience } from "@/types";
 
 const VALID_DEGREES = new Set([
@@ -226,11 +230,11 @@ export async function extractProfileFromPdf(
     // Thinking disabled — extraction is structured extraction, and the default
     // thinking budget dominates per-call latency on flash (minutes for a full
     // PDF; same finding as agent/matcher.ts scoring).
-    config: {
+    config: withGeminiTimeout({
       temperature: 0.3,
       responseMimeType: "application/json",
       thinkingConfig: { thinkingBudget: 0 },
-    },
+    }),
   });
 
   const raw = parseGeminiJsonResponse<RawExtracted>(result.text ?? "");

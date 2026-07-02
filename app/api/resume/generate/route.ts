@@ -5,6 +5,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { generateResumeContent } from "@/agent/generator";
 import { recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
+import { removeExistingResumeFile } from "@/lib/storage-errors";
 import { mapProfileRowToProfile } from "@/lib/utils";
 
 import { buildResumeDocument } from "./ResumeDocument";
@@ -85,7 +86,7 @@ export async function POST() {
     const path = `${user.id}/resume.pdf`;
 
     // Remove existing file first; ignore not-found errors
-    await insforge.storage.from("resumes").remove(path);
+    await removeExistingResumeFile(insforge, path, "[resume/generate]");
 
     const { data: uploadData, error: uploadError } = await insforge.storage
       .from("resumes")

@@ -11,6 +11,7 @@ import { mapProfileRowToProfile } from "@/lib/utils";
 import type { ProfileRow } from "@/types";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 type JobResearchRow = {
   id: string;

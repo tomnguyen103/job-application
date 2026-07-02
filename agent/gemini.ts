@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import type { GenerateContentConfig } from "@google/genai";
 
 import { requireEnv } from "@/lib/env";
 
@@ -6,6 +7,24 @@ import { requireEnv } from "@/lib/env";
 // a clear error instead of crashing every importing module at load time.
 export function createGeminiClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
+}
+
+export const GEMINI_GENERATE_CONTENT_TIMEOUT_MS = 30_000;
+
+export function withGeminiTimeout(
+  config: GenerateContentConfig,
+): GenerateContentConfig {
+  return {
+    ...config,
+    httpOptions: {
+      ...config.httpOptions,
+      timeout:
+        config.httpOptions?.timeout ?? GEMINI_GENERATE_CONTENT_TIMEOUT_MS,
+    },
+    abortSignal:
+      config.abortSignal ??
+      AbortSignal.timeout(GEMINI_GENERATE_CONTENT_TIMEOUT_MS),
+  };
 }
 
 function findBalancedObject(text: string, start: number): string | null {

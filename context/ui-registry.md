@@ -18,6 +18,14 @@ After building any component - update this file with the component name, file pa
 
 ## Components
 
+## Backend-Only Updates
+
+### Grade-A Reliability PR3 (2026-07-02)
+
+- No UI components, classes, tokens, or layouts changed.
+- Backend/API-only reliability work touched Gemini timeouts, find/research route duration settings, PostHog server capture, provider failure isolation, storage cleanup logging, and find-route orchestration tests.
+- Continue using the existing component registry entries for all future UI work.
+
 ## Website Modernization Overrides (2026-06-13)
 
 These entries supersede older light-only registry notes below. Keep future UI work on semantic tokens and the top navbar pattern.

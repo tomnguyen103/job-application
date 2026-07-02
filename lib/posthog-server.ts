@@ -10,6 +10,8 @@ type PostHogServerConfig = {
   host: string;
 };
 
+let postHogServer: PostHog | null = null;
+
 function getPostHogServerConfig(): PostHogServerConfig | null {
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
@@ -30,18 +32,35 @@ function warnMissingPostHogServerConfig(): void {
 }
 
 export const createPostHogServer = (): PostHog => {
-  const config = getPostHogServerConfig();
+  const posthog = getPostHogServer();
 
-  if (!config) {
+  if (!posthog) {
     throw new Error("PostHog server environment variables are not configured.");
   }
 
-  return new PostHog(config.key, {
+  return posthog;
+};
+
+function getPostHogServer(): PostHog | null {
+  if (postHogServer) {
+    return postHogServer;
+  }
+
+  const config = getPostHogServerConfig();
+
+  if (!config) {
+    warnMissingPostHogServerConfig();
+    return null;
+  }
+
+  postHogServer = new PostHog(config.key, {
     host: config.host,
     flushAt: 1,
     flushInterval: 0,
   });
-};
+
+  return postHogServer;
+}
 
 export async function capturePostHogServerEvent<
   EventName extends PostHogProductEventName,
@@ -49,18 +68,11 @@ export async function capturePostHogServerEvent<
   event: EventName,
   properties: PostHogProductEventProperties[EventName],
 ): Promise<void> {
-  const config = getPostHogServerConfig();
+  const posthog = getPostHogServer();
 
-  if (!config) {
-    warnMissingPostHogServerConfig();
+  if (!posthog) {
     return;
   }
-
-  const posthog = new PostHog(config.key, {
-    host: config.host,
-    flushAt: 1,
-    flushInterval: 0,
-  });
 
   try {
     posthog.capture({
@@ -68,7 +80,8 @@ export async function capturePostHogServerEvent<
       event,
       properties,
     });
-  } finally {
-    await posthog.shutdown();
+    await posthog.flush();
+  } catch (error) {
+    console.error("[posthog/server] event capture failed:", error);
   }
 }

@@ -1,6 +1,10 @@
 import { Type, type Schema } from "@google/genai";
 
-import { createGeminiClient, parseGeminiJsonResponse } from "@/agent/gemini";
+import {
+  createGeminiClient,
+  parseGeminiJsonResponse,
+  withGeminiTimeout,
+} from "@/agent/gemini";
 import type { Profile } from "@/types";
 
 export type GeneratedResumeContent = {
@@ -140,12 +144,12 @@ export async function generateResumeContent(
   const result = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{ role: "user", parts: [{ text: buildPrompt(profile) }] }],
-    config: {
+    config: withGeminiTimeout({
       temperature: 0.7,
       responseMimeType: "application/json",
       responseSchema: RESUME_RESPONSE_SCHEMA as unknown as Schema,
       thinkingConfig: { thinkingBudget: 0 },
-    },
+    }),
   });
 
   const raw = parseGeminiJsonResponse<unknown>(result.text ?? "");
