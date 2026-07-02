@@ -43,6 +43,15 @@ type SavedJobWithPosting = SavedJob & {
   job: NormalizedJobPosting;
 };
 
+type InsertedJobRow = {
+  id?: string;
+  match_score?: number | null;
+  source_provider?: JobSourceKey | null;
+  source_display_name?: string | null;
+  source_provider_job_id?: string | null;
+  source_url?: string | null;
+};
+
 type DiscoverJobsArgs = {
   insforge: InsforgeServer;
   userId: string;
@@ -191,77 +200,52 @@ function jobDedupeKey(job: Pick<NormalizedJobPosting, "provider" | "providerJobI
   return JSON.stringify([job.provider, job.providerJobId, job.sourceUrl]);
 }
 
-async function saveJobBatch(
-  insforge: InsforgeServer,
-  args: {
-    userId: string;
-    runId: string;
-    scoredJobs: ScoredJob[];
-  },
-): Promise<{
+function buildJobInsertRow(
+  userId: string,
+  runId: string,
+  scoredJob: ScoredJob,
+): Record<string, unknown> {
+  const { job, match } = scoredJob;
+
+  return {
+    user_id: userId,
+    run_id: runId,
+    source: "search",
+    source_url: job.sourceUrl,
+    external_apply_url: job.applyUrl,
+    source_provider: job.provider,
+    source_display_name: job.sourceDisplayName,
+    source_provider_job_id: job.providerJobId,
+    posted_at: job.postedAt,
+    source_metadata: job.metadata,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    salary: job.salary,
+    job_type: job.jobType || null,
+    about_role: job.description,
+    match_score: match.matchScore,
+    match_reason: match.matchReason,
+    matched_skills: match.matchedSkills,
+    missing_skills: match.missingSkills,
+    found_at: new Date().toISOString(),
+  };
+}
+
+function mapInsertedJobRows(
+  scoredJobs: ScoredJob[],
+  rows: InsertedJobRow[],
+): {
   savedJobs: SavedJobWithPosting[];
   failedJobs: NormalizedJobPosting[];
-}> {
-  const { userId, runId, scoredJobs } = args;
-
-  if (scoredJobs.length === 0) {
-    return { savedJobs: [], failedJobs: [] };
-  }
-
-  const { data, error } = await insforge.database
-    .from("jobs")
-    .insert(
-      scoredJobs.map(({ job, match }) => ({
-        user_id: userId,
-        run_id: runId,
-        source: "search",
-        source_url: job.sourceUrl,
-        external_apply_url: job.applyUrl,
-        source_provider: job.provider,
-        source_display_name: job.sourceDisplayName,
-        source_provider_job_id: job.providerJobId,
-        posted_at: job.postedAt,
-        source_metadata: job.metadata,
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        salary: job.salary,
-        job_type: job.jobType || null,
-        about_role: job.description,
-        match_score: match.matchScore,
-        match_reason: match.matchReason,
-        matched_skills: match.matchedSkills,
-        missing_skills: match.missingSkills,
-        found_at: new Date().toISOString(),
-      })),
-    )
-    .select(
-      "id, match_score, source_provider, source_display_name, source_provider_job_id, source_url",
-    );
-
-  if (error) {
-    console.error("[agent/job-discovery] job batch insert failed:", error);
-    return {
-      savedJobs: [],
-      failedJobs: scoredJobs.map(({ job }) => job),
-    };
-  }
-
+} {
   const scoredByKey = new Map(
     scoredJobs.map((scored) => [jobDedupeKey(scored.job), scored]),
   );
-  const insertedRows = (data ?? []) as {
-    id?: string;
-    match_score?: number | null;
-    source_provider?: JobSourceKey | null;
-    source_display_name?: string | null;
-    source_provider_job_id?: string | null;
-    source_url?: string | null;
-  }[];
   const savedJobs: SavedJobWithPosting[] = [];
   const savedKeys = new Set<string>();
 
-  for (const row of insertedRows) {
+  for (const row of rows) {
     const scored =
       row.source_provider && row.source_url
         ? scoredByKey.get(
@@ -296,6 +280,64 @@ async function saveJobBatch(
   };
 }
 
+async function saveJobBatch(
+  insforge: InsforgeServer,
+  args: {
+    userId: string;
+    runId: string;
+    scoredJobs: ScoredJob[];
+  },
+): Promise<{
+  savedJobs: SavedJobWithPosting[];
+  failedJobs: NormalizedJobPosting[];
+}> {
+  const { userId, runId, scoredJobs } = args;
+
+  if (scoredJobs.length === 0) {
+    return { savedJobs: [], failedJobs: [] };
+  }
+
+  const selectColumns =
+    "id, match_score, source_provider, source_display_name, source_provider_job_id, source_url";
+  const { data, error } = await insforge.database
+    .from("jobs")
+    .insert(
+      scoredJobs.map((scoredJob) => buildJobInsertRow(userId, runId, scoredJob)),
+    )
+    .select(selectColumns);
+
+  if (!error) {
+    return mapInsertedJobRows(scoredJobs, (data ?? []) as InsertedJobRow[]);
+  }
+
+  console.error("[agent/job-discovery] job batch insert failed:", error);
+
+  const savedJobs: SavedJobWithPosting[] = [];
+  const failedJobs: NormalizedJobPosting[] = [];
+
+  for (const scoredJob of scoredJobs) {
+    const { data: rowData, error: rowError } = await insforge.database
+      .from("jobs")
+      .insert([buildJobInsertRow(userId, runId, scoredJob)])
+      .select(selectColumns);
+
+    if (rowError) {
+      console.error("[agent/job-discovery] job insert failed:", rowError);
+      failedJobs.push(scoredJob.job);
+      continue;
+    }
+
+    const mapped = mapInsertedJobRows(
+      [scoredJob],
+      (rowData ?? []) as InsertedJobRow[],
+    );
+    savedJobs.push(...mapped.savedJobs);
+    failedJobs.push(...mapped.failedJobs);
+  }
+
+  return { savedJobs, failedJobs };
+}
+
 export async function discoverJobs(
   args: DiscoverJobsArgs,
 ): Promise<
@@ -315,9 +357,12 @@ export async function discoverJobs(
   const queueLog = (entry: AgentLogEntry): void => {
     pendingLogs.push(entry);
   };
+  const takePendingLogs = (): AgentLogEntry[] => pendingLogs.splice(0);
   const flushLogs = (): void => {
-    const entries = pendingLogs.splice(0);
-    queueAgentLogRows(insforge, entries);
+    queueAgentLogRows(insforge, takePendingLogs());
+  };
+  const flushLogsNow = async (): Promise<void> => {
+    await insertAgentLogRows(insforge, takePendingLogs());
   };
 
   try {
@@ -330,7 +375,7 @@ export async function discoverJobs(
         level: "error",
         message: "No job sources are enabled.",
       });
-      flushLogs();
+      await flushLogsNow();
       return { success: false, error: "No job sources are enabled." };
     }
 
@@ -386,7 +431,7 @@ export async function discoverJobs(
         level: "error",
         message: "Run failed - all enabled job sources failed.",
       });
-      flushLogs();
+      await flushLogsNow();
       return {
         success: false,
         error: "All enabled job sources failed.",
@@ -582,7 +627,7 @@ export async function discoverJobs(
           level: "warning",
           message: "Skipped remaining job scoring because your scoring quota was reached.",
         });
-        flushLogs();
+        await flushLogsNow();
         break;
       }
 
@@ -590,7 +635,7 @@ export async function discoverJobs(
     }
 
     if (reservationErrors > 0 && savedJobs.length === 0) {
-      flushLogs();
+      await flushLogsNow();
       return {
         success: false,
         error: "Could not reserve job scoring quota.",
@@ -626,7 +671,7 @@ export async function discoverJobs(
       level: "success",
       message: `Run complete - found ${found}, saved ${savedJobs.length} new job(s), ${strongMatches} strong match(es).`,
     });
-    flushLogs();
+    await flushLogsNow();
 
     return {
       success: true,
@@ -648,7 +693,7 @@ export async function discoverJobs(
       level: "error",
       message: "Job discovery run failed unexpectedly.",
     });
-    flushLogs();
+    await flushLogsNow();
     return { success: false, error: String(error) };
   }
 }
