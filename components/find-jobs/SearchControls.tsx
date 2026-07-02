@@ -237,11 +237,17 @@ export function SearchControls({ userId }: Props): ReactElement {
       ) : null}
 
       {errorMessage ? (
-        <p className="mt-4 text-xs font-medium text-error">{errorMessage}</p>
+        <p role="alert" className="mt-4 text-xs font-medium text-error">
+          {errorMessage}
+        </p>
       ) : null}
 
       {outcome && !errorMessage ? (
-        <div className="mt-4 flex items-start gap-2.5 rounded-md bg-success-lightest px-4 py-3 text-sm font-medium text-success-foreground">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-4 flex items-start gap-2.5 rounded-md bg-success-lightest px-4 py-3 text-sm font-medium text-success-foreground"
+        >
           <svg
             width="16"
             height="16"

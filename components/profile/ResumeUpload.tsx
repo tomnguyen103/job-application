@@ -195,10 +195,18 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
               label="Replace"
             />
             {isPending && (
-              <p className="text-xs font-medium text-text-muted">Uploading...</p>
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-xs font-medium text-text-muted"
+              >
+                Uploading...
+              </p>
             )}
             {errorMessage && (
-              <p className="text-xs font-medium text-error">{errorMessage}</p>
+              <p role="alert" className="text-xs font-medium text-error">
+                {errorMessage}
+              </p>
             )}
             <div className="flex flex-col gap-1.5 pt-1">
               <button
@@ -246,10 +254,16 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
                 )}
               </button>
               {extractError && (
-                <p className="text-xs font-medium text-error">{extractError}</p>
+                <p role="alert" className="text-xs font-medium text-error">
+                  {extractError}
+                </p>
               )}
               {extractSuccess && !extractError && (
-                <p className="text-xs font-medium text-success">
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="text-xs font-medium text-success"
+                >
                   Resume data applied to the form below. Review it, then Save
                   Profile.
                 </p>
@@ -282,7 +296,11 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
               <line x1="12" y1="12" x2="12" y2="21" />
             </svg>
             <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium leading-5 text-text-primary">
+              <p
+                role={isPending ? "status" : undefined}
+                aria-live={isPending ? "polite" : undefined}
+                className="text-sm font-medium leading-5 text-text-primary"
+              >
                 {isPending ? "Uploading..." : "Click to upload or drag and drop"}
               </p>
               <p className="text-xs font-normal leading-4 text-text-muted">
@@ -299,7 +317,9 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
               </button>
             )}
             {errorMessage && (
-              <p className="text-xs font-medium text-error">{errorMessage}</p>
+              <p role="alert" className="text-xs font-medium text-error">
+                {errorMessage}
+              </p>
             )}
           </div>
         )}
@@ -340,10 +360,16 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
           </button>
         </div>
         {generateError && (
-          <p className="text-xs font-medium text-error">{generateError}</p>
+          <p role="alert" className="text-xs font-medium text-error">
+            {generateError}
+          </p>
         )}
         {generateSuccess && !generateError && (
-          <p className="text-xs font-medium text-success">
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-xs font-medium text-success"
+          >
             Resume generated. Click the file above to view it.
           </p>
         )}

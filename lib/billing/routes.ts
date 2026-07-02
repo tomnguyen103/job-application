@@ -210,7 +210,7 @@ export async function handleCheckout({
       return {
         success: false,
         fallback: true,
-        error: error.message || "Payments are not configured on this backend.",
+        error: "Payments are not configured on this backend.",
       };
     }
 
@@ -232,7 +232,7 @@ export async function handleCheckout({
     return {
       success: false,
       fallback: true,
-      error: (err as Error).message || String(err),
+      error: "Could not start checkout. Please try again.",
     };
   }
 }
@@ -292,7 +292,7 @@ export async function handlePortal({
       return {
         success: false,
         fallback: true,
-        error: error.message || "Customer portal is not available on this environment.",
+        error: "Customer portal is not available on this environment.",
       };
     }
 
@@ -314,7 +314,7 @@ export async function handlePortal({
     return {
       success: false,
       fallback: true,
-      error: (err as Error).message || String(err),
+      error: "Could not open the billing portal. Please try again.",
     };
   }
 }
@@ -498,11 +498,14 @@ export async function handleWebhook({
           safeSubscriptionId ? `stripe_subscription_id.eq.${safeSubscriptionId}` : null,
         ].filter((clause): clause is string => Boolean(clause));
 
-        const { data } = await insforgeAdmin.database
+        const { data, error: lookupError } = await insforgeAdmin.database
           .from("user_entitlements")
           .select("user_id")
           .or(filterClauses.join(","))
           .maybeSingle();
+        if (lookupError) {
+          throw new Error(`Failed to find subscription entitlement: ${lookupError.message}`);
+        }
         entitlementRow = data;
       }
 
@@ -543,11 +546,14 @@ export async function handleWebhook({
       subscriptionId = dataObject.id ?? null;
 
       // Find user
-      const { data: entitlementRow } = await insforgeAdmin.database
+      const { data: entitlementRow, error: entitlementLookupError } = await insforgeAdmin.database
         .from("user_entitlements")
         .select("user_id")
         .eq("stripe_subscription_id", subscriptionId)
         .maybeSingle();
+      if (entitlementLookupError) {
+        throw new Error(`Failed to find deleted subscription entitlement: ${entitlementLookupError.message}`);
+      }
 
       userId = stringField(entitlementRow, "user_id");
 
@@ -577,11 +583,14 @@ export async function handleWebhook({
       subscriptionId = dataObject.subscription ?? null;
 
       // Find user
-      const { data: entitlementRow } = await insforgeAdmin.database
+      const { data: entitlementRow, error: entitlementLookupError } = await insforgeAdmin.database
         .from("user_entitlements")
         .select("user_id")
         .eq("stripe_subscription_id", subscriptionId)
         .maybeSingle();
+      if (entitlementLookupError) {
+        throw new Error(`Failed to find paid invoice entitlement: ${entitlementLookupError.message}`);
+      }
 
       userId = stringField(entitlementRow, "user_id");
 
@@ -607,11 +616,14 @@ export async function handleWebhook({
       subscriptionId = dataObject.subscription ?? null;
 
       // Find user
-      const { data: entitlementRow } = await insforgeAdmin.database
+      const { data: entitlementRow, error: entitlementLookupError } = await insforgeAdmin.database
         .from("user_entitlements")
         .select("user_id")
         .eq("stripe_subscription_id", subscriptionId)
         .maybeSingle();
+      if (entitlementLookupError) {
+        throw new Error(`Failed to find failed-payment entitlement: ${entitlementLookupError.message}`);
+      }
 
       userId = stringField(entitlementRow, "user_id");
 

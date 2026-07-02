@@ -733,12 +733,18 @@ export function ProfileForm({ profile }: Props): ReactElement {
         </div>
 
         {state.success && (
-          <p className="mt-4 text-sm font-medium text-accent">
+          <p
+            role="status"
+            aria-live="polite"
+            className="mt-4 text-sm font-medium text-accent"
+          >
             Profile saved successfully.
           </p>
         )}
         {!state.success && state.error && (
-          <p className="mt-4 text-sm font-medium text-error">{state.error}</p>
+          <p role="alert" className="mt-4 text-sm font-medium text-error">
+            {state.error}
+          </p>
         )}
 
         <div className="sticky bottom-0 -mx-6 mt-8 border-t border-border bg-surface-elevated px-6 py-4">

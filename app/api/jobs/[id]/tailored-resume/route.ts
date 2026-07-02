@@ -8,8 +8,16 @@ import {
   generateTailoredResumeContent,
   type TailoredResumeJob,
 } from "@/agent/tailored-resume";
-import { recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
+import {
+  recordUsage,
+  releaseTailoredResumeGenerationReservation,
+  usageFailureToHttpResult,
+} from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
+import {
+  usageReservationReleaseToken,
+  usageReservationReleaseTokenHash,
+} from "@/lib/resume-generation-quota";
 import {
   buildTailoredResumeStorageKey,
   getTailoredResumeExpiresAt,
@@ -97,7 +105,34 @@ async function cleanupGeneratedTailoredResumeFile(
   }
 }
 
+async function releaseTailorReservationWithLog(
+  userId: string,
+  idempotencyKey: string,
+  sourceRoute: string,
+  referenceId: string,
+  releaseToken: string,
+  context: string,
+): Promise<void> {
+  const release = await releaseTailoredResumeGenerationReservation(
+    userId,
+    idempotencyKey,
+    sourceRoute,
+    referenceId,
+    releaseToken,
+  );
+  if (!release.success) {
+    console.error(context, release.error);
+  }
+}
+
 export async function POST(_request: Request, { params }: RouteContext) {
+  let tailorUsageKey: string | null = null;
+  let tailorSourceRoute: string | null = null;
+  let tailorReleaseToken: string | null = null;
+  let tailorReferenceId: string | null = null;
+  let reservedUserId: string | null = null;
+  let shouldReleaseTailorReservation = false;
+
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -196,14 +231,24 @@ export async function POST(_request: Request, { params }: RouteContext) {
     const resumeId = randomUUID();
     const storageKey = buildTailoredResumeStorageKey(user.id, job.id, resumeId);
     const bucket = insforge.storage.from(TAILORED_RESUME_BUCKET);
+    tailorUsageKey = `tailor:${resumeId}`;
+    tailorSourceRoute = `/api/jobs/${job.id}/tailored-resume`;
+    tailorReferenceId = resumeId;
+    tailorReleaseToken = usageReservationReleaseToken();
+    reservedUserId = user.id;
 
     const tailorReservation = await recordUsage(
       user.id,
       "tailored_resume_generate",
       1,
-      `tailor:${resumeId}`,
-      { jobId: job.id, company: job.company },
-      `/api/jobs/${job.id}/tailored-resume`,
+      tailorUsageKey,
+      {
+        jobId: job.id,
+        company: job.company,
+        reservationKind: "tailored_resume_generate",
+        releaseTokenHash: usageReservationReleaseTokenHash(tailorReleaseToken),
+      },
+      tailorSourceRoute,
       resumeId,
     );
 
@@ -215,12 +260,33 @@ export async function POST(_request: Request, { params }: RouteContext) {
       );
       return NextResponse.json(failure.body, { status: failure.status });
     }
+    if (tailorReservation.idempotent) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "This tailored resume request has already been received. Please refresh or start a new request.",
+        },
+        { status: 409 },
+      );
+    }
+    shouldReleaseTailorReservation = true;
 
     let content;
     try {
       content = await generateTailoredResumeContent({ profile, job });
     } catch (error) {
       console.error("[tailored-resume] content generation failed:", error);
+      if (shouldReleaseTailorReservation) {
+        await releaseTailorReservationWithLog(
+          user.id,
+          tailorUsageKey,
+          tailorSourceRoute,
+          resumeId,
+          tailorReleaseToken,
+          "[tailored-resume] reservation release failed after content generation error:",
+        );
+      }
       return NextResponse.json(
         {
           success: false,
@@ -248,6 +314,16 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
       if (uploadError || !uploadData) {
         console.error("[tailored-resume] upload error:", uploadError);
+        if (shouldReleaseTailorReservation) {
+          await releaseTailorReservationWithLog(
+            user.id,
+            tailorUsageKey,
+            tailorSourceRoute,
+            resumeId,
+            tailorReleaseToken,
+            "[tailored-resume] reservation release failed after upload error:",
+          );
+        }
         return NextResponse.json(
           {
             success: false,
@@ -284,6 +360,16 @@ export async function POST(_request: Request, { params }: RouteContext) {
           uploadedKey,
           "[tailored-resume] generated file cleanup failed after metadata insert error:",
         );
+        if (shouldReleaseTailorReservation) {
+          await releaseTailorReservationWithLog(
+            user.id,
+            tailorUsageKey,
+            tailorSourceRoute,
+            resumeId,
+            tailorReleaseToken,
+            "[tailored-resume] reservation release failed after metadata insert error:",
+          );
+        }
         return NextResponse.json(
           {
             success: false,
@@ -294,6 +380,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
         );
       }
       metadataPersisted = true;
+      shouldReleaseTailorReservation = false;
 
       const previous = (previousRows ?? []) as PreviousTailoredResumeRow[];
       const removedStorageKeys = new Set<string>();
@@ -355,6 +442,16 @@ export async function POST(_request: Request, { params }: RouteContext) {
           "[tailored-resume] generated file cleanup failed after unexpected error:",
         );
       }
+      if (shouldReleaseTailorReservation) {
+        await releaseTailorReservationWithLog(
+          user.id,
+          tailorUsageKey,
+          tailorSourceRoute,
+          resumeId,
+          tailorReleaseToken,
+          "[tailored-resume] reservation release failed after unexpected error:",
+        );
+      }
       return NextResponse.json(
         {
           success: false,
@@ -365,6 +462,23 @@ export async function POST(_request: Request, { params }: RouteContext) {
     }
   } catch (error) {
     console.error("[tailored-resume]", error);
+    if (
+      shouldReleaseTailorReservation &&
+      reservedUserId &&
+      tailorUsageKey &&
+      tailorSourceRoute &&
+      tailorReferenceId &&
+      tailorReleaseToken
+    ) {
+      await releaseTailorReservationWithLog(
+        reservedUserId,
+        tailorUsageKey,
+        tailorSourceRoute,
+        tailorReferenceId,
+        tailorReleaseToken,
+        "[tailored-resume] reservation release failed after outer error:",
+      );
+    }
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },

@@ -12,8 +12,11 @@ import {
 import {
   checkQuotaAvailable,
   getCurrentPeriodUsage,
+  recordUsage,
   releaseBaseResumeGenerationReservation,
+  releaseCompanyResearchReservation,
   releaseResumeExtractReservation,
+  releaseTailoredResumeGenerationReservation,
   type BillingUsageRpcClient,
   type BillingUsageClient,
 } from "../lib/billing/usage";
@@ -287,6 +290,30 @@ test("idempotency check parses unique constraint violations as success", () => {
   assert.strictEqual(isUniqueConstraintViolation({ code: "other" }), false);
 });
 
+test("recordUsage preserves idempotent status returned by the canonical RPC", async () => {
+  const insforge: BillingUsageRpcClient = {
+    database: {
+      rpc: async () => ({
+        data: { success: true, status: "idempotent" },
+        error: null,
+      }),
+    },
+  };
+
+  const result = await recordUsage(
+    "user-123",
+    "base_resume_generate",
+    1,
+    "generate:abc",
+    {},
+    "/api/resume/generate",
+    undefined,
+    { insforge },
+  );
+
+  assert.deepStrictEqual(result, { success: true, idempotent: true });
+});
+
 test("releaseResumeExtractReservation calls the narrow resume extraction release RPC", async () => {
   const calls: Array<{ functionName: string; args: Record<string, unknown> }> = [];
   const insforge: BillingUsageRpcClient = {
@@ -298,7 +325,7 @@ test("releaseResumeExtractReservation calls the narrow resume extraction release
     },
   };
 
-  const result = await releaseResumeExtractReservation("user-123", "extract:abc", { insforge });
+  const result = await releaseResumeExtractReservation("user-123", "extract:abc", "release-token", { insforge });
 
   assert.strictEqual(result.success, true);
   assert.deepStrictEqual(calls, [
@@ -307,6 +334,75 @@ test("releaseResumeExtractReservation calls the narrow resume extraction release
       args: {
         p_user_id: "user-123",
         p_idempotency_key: "extract:abc",
+        p_release_token: "release-token",
+      },
+    },
+  ]);
+});
+
+test("releaseTailoredResumeGenerationReservation calls the narrow tailored resume release RPC", async () => {
+  const calls: Array<{ functionName: string; args: Record<string, unknown> }> = [];
+  const insforge: BillingUsageRpcClient = {
+    database: {
+      rpc: async (functionName, args) => {
+        calls.push({ functionName, args });
+        return { data: { success: true, status: "released" }, error: null };
+      },
+    },
+  };
+
+  const result = await releaseTailoredResumeGenerationReservation(
+    "user-123",
+    "tailor:abc",
+    "/api/jobs/job-1/tailored-resume",
+    "resume-123",
+    "release-token",
+    { insforge },
+  );
+
+  assert.strictEqual(result.success, true);
+  assert.deepStrictEqual(calls, [
+    {
+      functionName: "release_tailored_resume_generation_reservation",
+      args: {
+        p_user_id: "user-123",
+        p_idempotency_key: "tailor:abc",
+        p_source_route: "/api/jobs/job-1/tailored-resume",
+        p_reference_id: "resume-123",
+        p_release_token: "release-token",
+      },
+    },
+  ]);
+});
+
+test("releaseCompanyResearchReservation calls the narrow company research release RPC", async () => {
+  const calls: Array<{ functionName: string; args: Record<string, unknown> }> = [];
+  const insforge: BillingUsageRpcClient = {
+    database: {
+      rpc: async (functionName, args) => {
+        calls.push({ functionName, args });
+        return { data: { success: true, status: "released" }, error: null };
+      },
+    },
+  };
+
+  const result = await releaseCompanyResearchReservation(
+    "user-123",
+    "research:abc",
+    "job-123",
+    "release-token",
+    { insforge },
+  );
+
+  assert.strictEqual(result.success, true);
+  assert.deepStrictEqual(calls, [
+    {
+      functionName: "release_company_research_reservation",
+      args: {
+        p_user_id: "user-123",
+        p_idempotency_key: "research:abc",
+        p_reference_id: "job-123",
+        p_release_token: "release-token",
       },
     },
   ]);

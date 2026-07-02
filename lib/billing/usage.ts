@@ -259,13 +259,17 @@ export async function recordUsage(
   idempotencyKey: string,
   metadata: Record<string, unknown> = {},
   sourceRoute?: string,
-  referenceId?: string
+  referenceId?: string,
+  options: { insforge?: BillingUsageRpcClient } = {},
 ): Promise<RecordUsageResult> {
   try {
     // Usage writes go through SECURITY DEFINER RPCs that validate auth.uid()
     // against p_user_id and derive quota bounds inside the database.
-    const { createInsforgeServer } = await import("@/lib/insforge-server");
-    const insforge = await createInsforgeServer();
+    let insforge = options.insforge;
+    if (!insforge) {
+      const { createInsforgeServer } = await import("@/lib/insforge-server");
+      insforge = await createInsforgeServer() as unknown as BillingUsageRpcClient;
+    }
 
     const { data, error } = await insforge.database.rpc("record_usage_with_quota_check", {
       p_user_id: userId,
@@ -315,7 +319,7 @@ export async function recordUsage(
       return { success: false, error: `Failed to record usage: ${result.status}` };
     }
 
-    return { success: true };
+    return { success: true, idempotent: result.status === "idempotent" };
   } catch (error) {
     const err = error as Error;
     console.error("[billing/usage] Error in recordUsage:", err);
@@ -326,6 +330,7 @@ export async function recordUsage(
 export async function releaseResumeExtractReservation(
   userId: string,
   idempotencyKey: string,
+  releaseToken: string,
   options: { insforge?: BillingUsageRpcClient } = {},
 ): Promise<RecordUsageResult> {
   try {
@@ -338,6 +343,7 @@ export async function releaseResumeExtractReservation(
     const { data, error } = await insforge.database.rpc("release_resume_extract_reservation", {
       p_user_id: userId,
       p_idempotency_key: idempotencyKey,
+      p_release_token: releaseToken,
     });
 
     if (error) {
@@ -350,10 +356,90 @@ export async function releaseResumeExtractReservation(
       return { success: false, error: `Failed to release resume extract reservation: ${result?.status ?? "unknown"}` };
     }
 
-    return { success: true };
+    return { success: true, idempotent: result.status === "idempotent" };
   } catch (error) {
     const err = error as Error;
     console.error("[billing/usage] Error in releaseResumeExtractReservation:", err);
+    return { success: false, error: err.message || String(error) };
+  }
+}
+
+export async function releaseTailoredResumeGenerationReservation(
+  userId: string,
+  idempotencyKey: string,
+  sourceRoute: string,
+  referenceId: string,
+  releaseToken: string,
+  options: { insforge?: BillingUsageRpcClient } = {},
+): Promise<RecordUsageResult> {
+  try {
+    let insforge = options.insforge;
+    if (!insforge) {
+      const { createInsforgeServer } = await import("@/lib/insforge-server");
+      insforge = await createInsforgeServer() as unknown as BillingUsageRpcClient;
+    }
+
+    const { data, error } = await insforge.database.rpc("release_tailored_resume_generation_reservation", {
+      p_user_id: userId,
+      p_idempotency_key: idempotencyKey,
+      p_source_route: sourceRoute,
+      p_reference_id: referenceId,
+      p_release_token: releaseToken,
+    });
+
+    if (error) {
+      console.error("[billing/usage] RPC Error in releaseTailoredResumeGenerationReservation:", error);
+      return { success: false, error: error.message };
+    }
+
+    const result = data as { success?: boolean; status?: string } | null;
+    if (!result?.success) {
+      return { success: false, error: `Failed to release tailored resume generation reservation: ${result?.status ?? "unknown"}` };
+    }
+
+    return { success: true, idempotent: result.status === "idempotent" };
+  } catch (error) {
+    const err = error as Error;
+    console.error("[billing/usage] Error in releaseTailoredResumeGenerationReservation:", err);
+    return { success: false, error: err.message || String(error) };
+  }
+}
+
+export async function releaseCompanyResearchReservation(
+  userId: string,
+  idempotencyKey: string,
+  referenceId: string,
+  releaseToken: string,
+  options: { insforge?: BillingUsageRpcClient } = {},
+): Promise<RecordUsageResult> {
+  try {
+    let insforge = options.insforge;
+    if (!insforge) {
+      const { createInsforgeServer } = await import("@/lib/insforge-server");
+      insforge = await createInsforgeServer() as unknown as BillingUsageRpcClient;
+    }
+
+    const { data, error } = await insforge.database.rpc("release_company_research_reservation", {
+      p_user_id: userId,
+      p_idempotency_key: idempotencyKey,
+      p_reference_id: referenceId,
+      p_release_token: releaseToken,
+    });
+
+    if (error) {
+      console.error("[billing/usage] RPC Error in releaseCompanyResearchReservation:", error);
+      return { success: false, error: error.message };
+    }
+
+    const result = data as { success?: boolean; status?: string } | null;
+    if (!result?.success) {
+      return { success: false, error: `Failed to release company research reservation: ${result?.status ?? "unknown"}` };
+    }
+
+    return { success: true, idempotent: result.status === "idempotent" };
+  } catch (error) {
+    const err = error as Error;
+    console.error("[billing/usage] Error in releaseCompanyResearchReservation:", err);
     return { success: false, error: err.message || String(error) };
   }
 }

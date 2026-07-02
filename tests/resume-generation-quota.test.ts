@@ -5,6 +5,8 @@ import {
   baseResumeGenerationReleaseToken,
   baseResumeGenerationReleaseTokenHash,
   baseResumeGenerationUsageKey,
+  usageReservationReleaseToken,
+  usageReservationReleaseTokenHash,
 } from "@/lib/resume-generation-quota";
 
 test("base resume generation usage keys are unique per request", () => {
@@ -14,6 +16,16 @@ test("base resume generation usage keys are unique per request", () => {
   assert.match(firstKey, /^generate:[0-9a-f-]{36}$/);
   assert.match(secondKey, /^generate:[0-9a-f-]{36}$/);
   assert.notEqual(firstKey, secondKey);
+});
+
+test("usage reservation release tokens are reusable across release helpers", () => {
+  const token = usageReservationReleaseToken();
+  const hash = usageReservationReleaseTokenHash(token);
+
+  assert.match(token, /^[0-9a-f-]{36}$/);
+  assert.match(hash, /^[0-9a-f]{64}$/);
+  assert.equal(hash, usageReservationReleaseTokenHash(token));
+  assert.notEqual(hash, token);
 });
 
 test("base resume generation usage keys are stable for a provided idempotency key", () => {

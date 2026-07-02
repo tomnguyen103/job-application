@@ -80,7 +80,11 @@ export function BillingActions({ isPro }: Props): ReactElement {
       </div>
 
       {fallbackMode && (
-        <div className="rounded-md border border-border bg-surface-secondary p-3">
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-md border border-border bg-surface-secondary p-3"
+        >
           <p className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
             <span className="inline-block h-2 w-2 rounded-full bg-accent animate-pulse" />
             Payments coming soon
@@ -93,7 +97,10 @@ export function BillingActions({ isPro }: Props): ReactElement {
       )}
 
       {error && (
-        <div className="rounded-md border border-border bg-surface-secondary p-3 text-xs text-error font-medium">
+        <div
+          role="alert"
+          className="rounded-md border border-border bg-surface-secondary p-3 text-xs text-error font-medium"
+        >
           {error}
         </div>
       )}

@@ -4,9 +4,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { researchCompany } from "@/agent/research";
 import type { CompanyResearchJob } from "@/agent/research";
-import { recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
+import {
+  recordUsage,
+  releaseCompanyResearchReservation,
+  usageFailureToHttpResult,
+} from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 import { capturePostHogServerEvent } from "@/lib/posthog-server";
+import {
+  usageReservationReleaseToken,
+  usageReservationReleaseTokenHash,
+} from "@/lib/resume-generation-quota";
 import { mapProfileRowToProfile } from "@/lib/utils";
 import type { ProfileRow } from "@/types";
 
@@ -67,7 +75,31 @@ function mapJobRowToResearchJob(row: JobResearchRow): CompanyResearchJob {
   };
 }
 
+async function releaseResearchReservationWithLog(
+  userId: string,
+  idempotencyKey: string,
+  referenceId: string,
+  releaseToken: string,
+  context: string,
+): Promise<void> {
+  const release = await releaseCompanyResearchReservation(
+    userId,
+    idempotencyKey,
+    referenceId,
+    releaseToken,
+  );
+  if (!release.success) {
+    console.error(context, release.error);
+  }
+}
+
 export async function POST(req: NextRequest) {
+  let researchUsageKey: string | null = null;
+  let researchReleaseToken: string | null = null;
+  let researchReferenceId: string | null = null;
+  let reservedUserId: string | null = null;
+  let shouldReleaseResearchReservation = false;
+
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -156,13 +188,22 @@ export async function POST(req: NextRequest) {
     // Boundary assertions on InsForge row shapes: selected columns define this route.
     const profile = mapProfileRowToProfile(profileRow as ProfileRow, user.email ?? "");
     const job = mapJobRowToResearchJob(jobData as JobResearchRow);
+    researchUsageKey = `research:${job.id}:${randomUUID()}`;
+    researchReleaseToken = usageReservationReleaseToken();
+    researchReferenceId = job.id;
+    reservedUserId = user.id;
 
     const researchReservation = await recordUsage(
       user.id,
       "company_research_run",
       1,
-      `research:${job.id}:${randomUUID()}`,
-      { company: job.company, title: job.title },
+      researchUsageKey,
+      {
+        company: job.company,
+        title: job.title,
+        reservationKind: "company_research_run",
+        releaseTokenHash: usageReservationReleaseTokenHash(researchReleaseToken),
+      },
       "/api/agent/research",
       job.id,
     );
@@ -175,6 +216,17 @@ export async function POST(req: NextRequest) {
       );
       return NextResponse.json(failure.body, { status: failure.status });
     }
+    if (researchReservation.idempotent) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "This company research request has already been received. Please refresh or start a new request.",
+        },
+        { status: 409 },
+      );
+    }
+    shouldReleaseResearchReservation = true;
 
     const research = await researchCompany({
       insforge,
@@ -194,6 +246,15 @@ export async function POST(req: NextRequest) {
 
     if (updateError) {
       console.error("[agent/research] research save error:", updateError);
+      if (shouldReleaseResearchReservation) {
+        await releaseResearchReservationWithLog(
+          user.id,
+          researchUsageKey,
+          job.id,
+          researchReleaseToken,
+          "[agent/research] reservation release failed after research save error:",
+        );
+      }
       return NextResponse.json(
         {
           success: false,
@@ -202,6 +263,7 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
+    shouldReleaseResearchReservation = false;
 
     await capturePostHogServerEvent("company_researched", {
       userId: user.id,
@@ -219,6 +281,21 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("[agent/research]", error);
+    if (
+      shouldReleaseResearchReservation &&
+      reservedUserId &&
+      researchUsageKey &&
+      researchReferenceId &&
+      researchReleaseToken
+    ) {
+      await releaseResearchReservationWithLog(
+        reservedUserId,
+        researchUsageKey,
+        researchReferenceId,
+        researchReleaseToken,
+        "[agent/research] reservation release failed after unexpected error:",
+      );
+    }
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },

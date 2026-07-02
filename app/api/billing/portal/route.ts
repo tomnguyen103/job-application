@@ -33,10 +33,13 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (err) {
     console.error("[billing/portal]", err);
-    return NextResponse.json({
-      success: false,
-      fallback: true,
-      error: (err as Error).message || String(err),
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        fallback: true,
+        error: "Could not open the billing portal. Please try again.",
+      },
+      { status: 500 },
+    );
   }
 }

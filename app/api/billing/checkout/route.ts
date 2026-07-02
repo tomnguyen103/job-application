@@ -30,10 +30,13 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (err) {
     console.error("[billing/checkout]", err);
-    return NextResponse.json({
-      success: false,
-      fallback: true,
-      error: (err as Error).message || String(err),
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        fallback: true,
+        error: "Could not start checkout. Please try again.",
+      },
+      { status: 500 },
+    );
   }
 }

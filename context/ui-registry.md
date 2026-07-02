@@ -18,6 +18,13 @@ After building any component - update this file with the component name, file pa
 
 ## Components
 
+## Grade-A Audit Follow-up PR9 (2026-07-02)
+
+- No new visual classes, app tokens, layouts, or interaction visuals were added.
+- `components/find-jobs/SearchControls.tsx`, `components/profile/ProfileForm.tsx`, `components/profile/ResumeUpload.tsx`, and `components/billing/BillingActions.tsx` now announce client-side async outcomes through existing message elements: success/progress copy uses `role="status"` with polite live regions, while error copy uses `role="alert"`.
+- Keep this pattern for future inline async results where focus remains on the triggering control: add semantics to the existing tokenized message block instead of introducing a new toast or visual component.
+- For new inline async result regions, prefer keeping a persistent empty live-region element in the DOM and changing its text content, instead of mounting and unmounting the whole message block on state changes.
+
 ## Grade-A Audit Follow-up PR8 (2026-07-02)
 
 - Dashboard charts now render through client loader wrappers in `components/dashboard/*ChartLoader.tsx`.
