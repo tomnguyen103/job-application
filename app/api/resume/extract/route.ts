@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 
 import { extractProfileFromPdf } from "@/agent/extractor";
-import { recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
+import { checkQuotaAvailable, recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
 
 export async function POST() {
@@ -43,6 +43,35 @@ export async function POST() {
 
     const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
     const hash = crypto.createHash("sha256").update(base64).digest("hex");
+    const extractQuota = await checkQuotaAvailable(user.id, "resume_extract", 1);
+
+    if (!extractQuota.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Quota exceeded for resume_extract. Current usage: ${extractQuota.current}, Limit: ${extractQuota.limit} on plan ${extractQuota.planKey}.`,
+          code: "QUOTA_EXCEEDED",
+          eventType: "resume_extract",
+          current: extractQuota.current,
+          limit: extractQuota.limit,
+          planKey: extractQuota.planKey,
+        },
+        { status: 402 },
+      );
+    }
+
+    const extracted = await extractProfileFromPdf(base64);
+
+    if (Object.keys(extracted).length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No profile data could be read from this resume PDF.",
+        },
+        { status: 422 },
+      );
+    }
+
     const extractReservation = await recordUsage(
       user.id,
       "resume_extract",
@@ -56,21 +85,9 @@ export async function POST() {
       const failure = usageFailureToHttpResult(
         "resume_extract",
         extractReservation,
-        "Could not start resume extraction. Please try again.",
+        "Could not finish resume extraction. Please try again.",
       );
       return NextResponse.json(failure.body, { status: failure.status });
-    }
-
-    const extracted = await extractProfileFromPdf(base64);
-
-    if (Object.keys(extracted).length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "No profile data could be read from this resume PDF.",
-        },
-        { status: 422 },
-      );
     }
 
     return NextResponse.json({ success: true, data: extracted });
