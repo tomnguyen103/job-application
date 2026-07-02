@@ -1,7 +1,11 @@
 import type { Stagehand } from "@browserbasehq/stagehand";
 import { z } from "zod";
 
-import { createGeminiClient, parseGeminiJsonResponse } from "@/agent/gemini";
+import {
+  createGeminiClient,
+  parseGeminiJsonResponse,
+  withGeminiTimeout,
+} from "@/agent/gemini";
 import {
   createCompanyResearchSession,
   releaseBrowserbaseSession,
@@ -120,6 +124,8 @@ const LINK_PRIORITY: Record<PageLinkKind, number> = {
   careers: 5,
   other: 6,
 };
+const RESEARCH_PAGE_TIMEOUT_MS = 30_000;
+const MAX_RESEARCH_SUB_PAGES = 2;
 
 async function logResearchEvent(
   insforge: InsforgeServer,
@@ -237,7 +243,7 @@ function normalizePageLinks(
 
   return normalized
     .sort((left, right) => LINK_PRIORITY[left.kind] - LINK_PRIORITY[right.kind])
-    .slice(0, 3);
+    .slice(0, MAX_RESEARCH_SUB_PAGES);
 }
 
 function cleanHomepageExtraction(
@@ -289,7 +295,7 @@ async function extractHomepage(
     const extraction = await stagehand.extract(
       "This is a company's homepage. Capture what the company actually does, who it is for, any technologies or tools explicitly mentioned on the page, and concrete signals such as funding, customers, scale, mission, or recent launches. Then find the internal links most worth visiting to research them as an employer.",
       homepageExtractionSchema,
-      { timeout: 30_000, serverCache: false },
+      { timeout: RESEARCH_PAGE_TIMEOUT_MS, serverCache: false },
     );
 
     return cleanHomepageExtraction(extraction, homepageUrl);
@@ -314,7 +320,7 @@ async function extractSubPage(
     const extraction = await stagehand.extract(
       "Extract substance that helps a candidate understand this company before applying: what they do, their values and how they work, the specific technologies and tools they use, notable projects or customers, and how the team operates. Ignore navigation, footers, cookie banners, and generic marketing copy.",
       subPageExtractionSchema,
-      { timeout: 30_000, serverCache: false },
+      { timeout: RESEARCH_PAGE_TIMEOUT_MS, serverCache: false },
     );
     const clean = cleanSubPageExtraction(extraction, pageLink);
 
@@ -367,7 +373,7 @@ async function collectBrowserResearch(
     try {
       await page.goto(homepageUrl, {
         waitUntil: "networkidle",
-        timeoutMs: 30_000,
+        timeoutMs: RESEARCH_PAGE_TIMEOUT_MS,
       });
     } catch (error) {
       console.error("[agent/research] homepage navigation failed:", error);
@@ -399,7 +405,7 @@ async function collectBrowserResearch(
       try {
         await page.goto(pageLink.url, {
           waitUntil: "networkidle",
-          timeoutMs: 30_000,
+          timeoutMs: RESEARCH_PAGE_TIMEOUT_MS,
         });
       } catch (error) {
         console.error("[agent/research] sub-page navigation failed:", error);
@@ -624,11 +630,11 @@ async function synthesizeDossier(
           ],
         },
       ],
-      config: {
+      config: withGeminiTimeout({
         temperature: 0.4,
         responseMimeType: "application/json",
         thinkingConfig: { thinkingBudget: 0 },
-      },
+      }),
     });
 
     const raw: unknown = parseGeminiJsonResponse<unknown>(result.text ?? "");

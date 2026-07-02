@@ -1,4 +1,8 @@
-import { createGeminiClient, parseGeminiJsonResponse } from "@/agent/gemini";
+import {
+  createGeminiClient,
+  parseGeminiJsonResponse,
+  withGeminiTimeout,
+} from "@/agent/gemini";
 import type { JobMatchContent, NormalizedJobPosting } from "@/agent/types";
 import type { Profile } from "@/types";
 
@@ -99,7 +103,10 @@ export async function scoreJobMatch(
     contents: [{ role: "user", parts: [{ text: buildPrompt(profile, job) }] }],
     // Thinking disabled — scoring is structured extraction, and the default
     // thinking budget dominates per-call latency on flash (~15s vs ~3s).
-    config: { temperature: 0.3, thinkingConfig: { thinkingBudget: 0 } },
+    config: withGeminiTimeout({
+      temperature: 0.3,
+      thinkingConfig: { thinkingBudget: 0 },
+    }),
   });
 
   const raw = parseGeminiJsonResponse<unknown>(result.text ?? "");

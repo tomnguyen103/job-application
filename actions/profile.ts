@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { capturePostHogServerEvent } from "@/lib/posthog-server";
 import { createInsforgeServer, requireCurrentUser } from "@/lib/insforge-server";
+import { isStorageNotFoundError } from "@/lib/storage-errors";
 import { computeProfileCompletion } from "@/lib/utils";
 import type { WorkExperience, Education } from "@/types";
 
@@ -263,7 +264,12 @@ export async function saveResume(
     const path = `${user.id}/resume.pdf`;
 
     // Remove existing file first; ignore not-found errors
-    await insforge.storage.from("resumes").remove(path);
+    const { error: removeError } = await insforge.storage
+      .from("resumes")
+      .remove(path);
+    if (removeError && !isStorageNotFoundError(removeError)) {
+      console.error("[actions/profile] saveResume remove error:", removeError);
+    }
 
     const { data: uploadData, error: uploadError } = await insforge.storage
       .from("resumes")

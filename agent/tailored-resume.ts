@@ -1,6 +1,11 @@
 import { Type, type Schema } from "@google/genai";
 
-import { createGeminiClient, parseGeminiJsonResponse, extractFirstJsonObject } from "@/agent/gemini";
+import {
+  createGeminiClient,
+  extractFirstJsonObject,
+  parseGeminiJsonResponse,
+  withGeminiTimeout,
+} from "@/agent/gemini";
 import type { Profile } from "@/types";
 
 export type TailoredResumeJob = {
@@ -326,12 +331,12 @@ export async function generateTailoredResumeContent({
     contents: [
       { role: "user", parts: [{ text: buildTailoredResumePrompt(profile, job) }] },
     ],
-    config: {
+    config: withGeminiTimeout({
       temperature: 0.2,
       responseMimeType: "application/json",
       responseSchema: TAILORED_RESUME_RESPONSE_SCHEMA,
       thinkingConfig: { thinkingBudget: 0 },
-    },
+    }),
   });
 
   const raw = parseGeminiJsonResponse<unknown>(result.text ?? "");
