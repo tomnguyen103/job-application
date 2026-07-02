@@ -1,7 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
-import { BILLING_PLANS, getPeriodBoundaries, UserEntitlement } from "../lib/billing/plans";
+import {
+  BILLING_PLANS,
+  getPeriodBoundaries,
+  PLAN_QUOTA_ROWS,
+  UserEntitlement,
+} from "../lib/billing/plans";
 import {
   checkQuotaAvailable,
   getCurrentPeriodUsage,
@@ -31,6 +38,75 @@ function usageClient(rows: UsageRow[], error: { message?: string } | null = null
   };
 }
 
+function quotaRowsSnapshot(
+  rows: Array<{
+    planKey: string;
+    eventType: string;
+    limit: number;
+    displayName: string;
+  }>,
+): Array<{
+  planKey: string;
+  eventType: string;
+  limit: number;
+  displayName: string;
+}> {
+  return rows
+    .map((row) => ({
+      planKey: row.planKey,
+      eventType: row.eventType,
+      limit: row.limit,
+      displayName: row.displayName,
+    }))
+    .sort((left, right) =>
+      `${left.planKey}:${left.eventType}`.localeCompare(
+        `${right.planKey}:${right.eventType}`,
+      ),
+    );
+}
+
+function seededPlanQuotaRows(): Array<{
+  planKey: string;
+  eventType: string;
+  limit: number;
+  displayName: string;
+}> {
+  const migration = readFileSync(
+    path.join(
+      process.cwd(),
+      "migrations",
+      "20260702043000_consolidate_plan_quotas_usage_rpc.sql",
+    ),
+    "utf8",
+  );
+  const valuesBlock = migration.match(
+    /INSERT INTO public\.plan_quotas[\s\S]*?\) VALUES\s*([\s\S]*?)\s*ON CONFLICT/,
+  )?.[1];
+
+  assert.ok(valuesBlock, "plan_quotas seed values are missing");
+
+  const rows: Array<{
+    planKey: string;
+    eventType: string;
+    limit: number;
+    displayName: string;
+  }> = [];
+  const rowPattern =
+    /\('([^']+)', '([^']+)', (\d+), '([^']+)'\)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = rowPattern.exec(valuesBlock)) !== null) {
+    rows.push({
+      planKey: match[1],
+      eventType: match[2],
+      limit: Number(match[3]),
+      displayName: match[4],
+    });
+  }
+
+  return quotaRowsSnapshot(rows);
+}
+
 test("BILLING_PLANS contains free and pro definitions", () => {
   assert.ok(BILLING_PLANS.free);
   assert.ok(BILLING_PLANS.pro);
@@ -58,6 +134,13 @@ test("BILLING_PLANS defines correct quotas", () => {
   
   assert.strictEqual(freeQuotas.tailored_resume_generate.limit, 2);
   assert.strictEqual(proQuotas.tailored_resume_generate.limit, 30);
+});
+
+test("TypeScript plan quotas match seeded SQL plan_quotas rows", () => {
+  assert.deepStrictEqual(
+    quotaRowsSnapshot([...PLAN_QUOTA_ROWS]),
+    seededPlanQuotaRows(),
+  );
 });
 
 test("getPeriodBoundaries resolves pro period correctly", () => {

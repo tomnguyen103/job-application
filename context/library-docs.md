@@ -296,7 +296,7 @@ unless a compliant partner/API path is explicitly configured.
 ### Job Search
 
 ```typescript
-// lib/adzuna.ts
+// agent/job-sources/adzuna.ts
 export async function searchJobs(
   jobTitle: string,
   location: string,
@@ -391,7 +391,7 @@ const jobRecord = {
 - `source` remains `'search'` for Adzuna jobs; provider identity goes in `source_provider = 'adzuna'`
 - `salary_is_predicted: "1"` means Adzuna estimated the salary — this is normal
 - Adzuna description is a 500-char snippet — Gemini 2.5-flash (`agent/matcher.ts`) scores from it, not a full description
-- Country comes from `detectCountry(location)` (`lib/adzuna.ts`) — keyword sniff for `gb`/`au`/`ca`, default `'us'`
+- Country comes from `detectCountry(location)` (`agent/job-sources/adzuna.ts`) — keyword sniff for `gb`/`au`/`ca`, default `'us'`
 - Real results can omit any field (`contract_type` is often missing) — narrow to `UsableAdzunaJob` before scoring and default `job_type` to `"fulltime"`
 - `redirect_url` carries a per-request `?se=` tracking token (live-verified: the same ad returns a different URL on every call) — NEVER dedupe or compare on the raw URL. Store `canonicalSourceUrl(redirect_url)` (origin + path, which embeds the stable ad id) in `source_url`; only `external_apply_url` keeps the full tracking URL
 
@@ -450,7 +450,7 @@ Browserbase sessions run on Browserbase's cloud infrastructure, not inside your 
 - Always end sessions cleanly — call stagehand.close() when done
 - Project ID always from `process.env.BROWSERBASE_PROJECT_ID` — never hardcode
 - Browserbase client lives in `lib/browserbase.ts` — always import from there
-- Server-side redirect following for company research must go through `trustedResearchRedirectUrl()` in `lib/company-research-url.ts`; only HTTPS URLs on trusted Adzuna redirect hosts are allowed. Any other saved job URL falls back to `fallbackCompanyHomepage(company)`.
+- Server-side redirect following for company research must go through `trustedResearchRedirectUrl()` in `lib/company-research-url.ts`; only HTTPS URLs on trusted Adzuna redirect hosts are allowed. Redirect hops are followed manually in `agent/research-browser-collection.ts` and every resolved hop must pass `isPublicResearchUrl()` so loopback, private, link-local, and local hostnames are rejected before another fetch. Any other saved job URL falls back to `fallbackCompanyHomepage(company)`.
 - `jobs.company_research.sources` should contain only pages actually opened and meaningfully extracted; never show guessed homepages or saved job URLs as research sources.
 
 ---
@@ -986,15 +986,16 @@ Only use these — others are silently ignored:
 
 ---
 
-## pdf-parse
+## Resume PDF Extraction
 
-**Check first:** Check AGENTS.md for an installed pdf-parse skill.
+The project does not use `pdf-parse`. Resume extraction sends the uploaded PDF
+directly to Gemini 2.5 Flash as multimodal `inlineData` from
+`agent/extractor.ts`, then sanitizes the structured profile payload before the
+client applies it to the form.
 
-### Extract Text from Uploaded Resume
+### Extract Structured Profile Data
 
 ```typescript
-import pdf from "pdf-parse";
-
 // In API route handling resume upload
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -1002,16 +1003,13 @@ export async function POST(req: NextRequest) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  const pdfData = await pdf(buffer);
-  const extractedText = pdfData.text; // raw text content
-
-  // Send to Gemini for structured extraction
+  return extractProfileFromResumePdf(buffer);
 }
 ```
 
 **Rules:**
 
-- Server-side only — never import in client components
-- `pdfData.text` is raw unformatted text — Gemini handles the structure extraction
-- Always handle parse errors — some PDFs are image-based and return empty text
-- If `pdfData.text` is empty or very short — return error to user: "Could not extract text from this PDF. Please try a different file."
+- Do not add `pdf-parse` back unless the extraction architecture is explicitly changed.
+- Server routes download the PDF bytes from InsForge Storage and pass the buffer to the extractor; never parse PDFs in client components.
+- Gemini extraction uses JSON response mode, low temperature, and thinking disabled through the project Gemini helper patterns.
+- Empty extraction results return a user-facing 422 instead of silently doing nothing.

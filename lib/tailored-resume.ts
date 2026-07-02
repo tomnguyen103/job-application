@@ -33,34 +33,6 @@ export function getTailoredResumeExpiresAt(
   return new Date(generatedAt.getTime() + ttlDays * 24 * 60 * 60 * 1000);
 }
 
-export function isUnexpiredTailoredResume(
-  record: Pick<TailoredResumeRecord, "expires_at">,
-  now: Date,
-): boolean {
-  const expiresAt = Date.parse(record.expires_at);
-
-  return Number.isFinite(expiresAt) && expiresAt > now.getTime();
-}
-
-export function latestUnexpiredTailoredResume<T extends TailoredResumeRecord>(
-  records: T[],
-  now: Date,
-): T | null {
-  return records
-    .filter((record) => isUnexpiredTailoredResume(record, now))
-    .sort(
-      (a, b) =>
-        Date.parse(b.generated_at) - Date.parse(a.generated_at),
-    )[0] ?? null;
-}
-
-export function expiredTailoredResumeRecords<T extends TailoredResumeRecord>(
-  records: T[],
-  now: Date,
-): T[] {
-  return records.filter((record) => !isUnexpiredTailoredResume(record, now));
-}
-
 export function safeTailoredResumeFileName(
   fileName: string | null | undefined,
 ): string {

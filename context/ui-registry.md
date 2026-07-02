@@ -18,6 +18,12 @@ After building any component - update this file with the component name, file pa
 
 ## Components
 
+## Grade-A Maintainability PR7 (2026-07-02)
+
+- No new app UI components, visual classes, or tokens were added.
+- Shared PDF rendering moved to `lib/resume-pdf-document.tsx`; this is a React PDF print renderer, not an app UI component, and it centralizes the existing neutral PDF palette.
+- JobsTable registry correction: desktop table currently has seven columns (`Company`, `Role`, `Match`, `Location`, `Source`, `Salary Est.`, `Date Found`). Mobile cards show Location, Salary, Source, and Found metadata below the primary job content.
+
 ## Grade-A UX/A11y PR6 (2026-07-02)
 
 - Shared tabs path: `components/layout/Tabs.tsx`
@@ -397,6 +403,7 @@ Same stacked-card-on-page-background layout family as the profile page, but full
 
 - Path: `components/find-jobs/JobsTable.tsx` (exports the `JobListItem` type)
 - Card classes: `overflow-hidden rounded-md border border-border bg-surface-elevated shadow-card` with an `overflow-x-auto` wrapper and `w-full min-w-[1040px] border-collapse` table
+- Desktop columns: `Company`, `Role`, `Match`, `Location`, `Source`, `Salary Est.`, `Date Found`
 - Header row: `bg-surface-secondary`; `th`: `px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-text-secondary`
 - Body rows: `border-t border-border transition-colors hover:bg-surface-secondary`; cells `px-6 py-3.5`
 - Company cell: chip `flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-tertiary text-text-secondary` (building SVG) + name `text-sm font-semibold text-text-primary`
