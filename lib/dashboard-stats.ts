@@ -1,6 +1,7 @@
-export type DashboardJobStatRow = {
-  match_score: number | null;
-  found_at: string | null;
+export type DashboardJobStatsAggregateRow = {
+  total_jobs_found: number | string | null;
+  avg_match_rate: number | string | null;
+  companies_researched: number | string | null;
 };
 
 export type DashboardStatValues = {
@@ -10,38 +11,35 @@ export type DashboardStatValues = {
   jobsThisWeek: number;
 };
 
-const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
+function toFiniteNumber(value: number | string | null | undefined): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function toCount(value: number | string | null | undefined): number {
+  const parsed = toFiniteNumber(value);
+  return parsed === null ? 0 : Math.max(0, Math.trunc(parsed));
+}
 
 export function computeDashboardStatValues(args: {
-  rows: DashboardJobStatRow[];
-  totalCount: number;
-  unresearchedCount: number;
-  now: Date;
+  aggregate: DashboardJobStatsAggregateRow | null;
+  jobsThisWeekCount: number | null;
 }): DashboardStatValues {
-  const { rows, totalCount, unresearchedCount, now } = args;
-
-  const scores = rows
-    .map((row) => row.match_score)
-    .filter((score): score is number => typeof score === "number");
-
-  const avgMatchRate =
-    scores.length === 0
-      ? null
-      : Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
-
-  const weekCutoff = now.getTime() - WEEK_IN_MS;
-  const jobsThisWeek = rows.filter((row) => {
-    if (!row.found_at) {
-      return false;
-    }
-    const foundAt = new Date(row.found_at).getTime();
-    return Number.isFinite(foundAt) && foundAt >= weekCutoff;
-  }).length;
+  const { aggregate, jobsThisWeekCount } = args;
+  const avgMatchRate = toFiniteNumber(aggregate?.avg_match_rate);
 
   return {
-    totalJobsFound: totalCount,
-    avgMatchRate,
-    companiesResearched: Math.max(0, totalCount - unresearchedCount),
-    jobsThisWeek,
+    totalJobsFound: toCount(aggregate?.total_jobs_found),
+    avgMatchRate: avgMatchRate === null ? null : Math.round(avgMatchRate),
+    companiesResearched: toCount(aggregate?.companies_researched),
+    jobsThisWeek: toCount(jobsThisWeekCount),
   };
 }

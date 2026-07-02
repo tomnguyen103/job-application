@@ -9,12 +9,10 @@ import { TrustSection } from "@/components/homepage/TrustSection";
 import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
 
-export const dynamic = "force-dynamic";
-
 export default function Home(): ReactElement {
   return (
     <main className="min-h-screen overflow-hidden bg-background text-text-primary">
-      <Navbar />
+      <Navbar authMode="static" />
       <Hero />
       <OutcomeStrip />
       <JobSearchEase />

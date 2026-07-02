@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import type { ReactElement } from "react";
 
 import { Logo } from "@/components/layout/Logo";
@@ -7,8 +8,28 @@ import { SignOutButton } from "@/components/layout/SignOutButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { getCurrentUser } from "@/lib/insforge-server";
 
-export async function Navbar(): Promise<ReactElement> {
+type NavbarProps = {
+  authMode?: "dynamic" | "static";
+};
+
+function StartForFreeLink(): ReactElement {
+  return (
+    <Link
+      href="/login"
+      className="inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark"
+    >
+      Start for free
+    </Link>
+  );
+}
+
+async function NavbarAuthActions(): Promise<ReactElement> {
   const user = await getCurrentUser();
+
+  return user ? <SignOutButton /> : <StartForFreeLink />;
+}
+
+export function Navbar({ authMode = "dynamic" }: NavbarProps = {}): ReactElement {
 
   return (
     <header className="border-b border-border bg-surface">
@@ -21,15 +42,12 @@ export async function Navbar(): Promise<ReactElement> {
 
         <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle />
-          {user ? (
-            <SignOutButton />
+          {authMode === "static" ? (
+            <StartForFreeLink />
           ) : (
-            <Link
-              href="/login"
-              className="inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark"
-            >
-              Start for free
-            </Link>
+            <Suspense fallback={<StartForFreeLink />}>
+              <NavbarAuthActions />
+            </Suspense>
           )}
         </div>
       </div>

@@ -127,6 +127,7 @@ These entries supersede the previous homepage modernization classes for the publ
 - Nav links: rendered by `NavLinks` (see below) — do not put plain `<Link>`s back in the Navbar
 - Public primary button classes: `inline-flex min-h-10 items-center justify-center rounded-md bg-accent px-5 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark`
 - Authenticated Sign out action classes: `inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary`
+- Auth action modes: default `authMode="dynamic"` wraps `NavbarAuthActions` in `Suspense` and resolves `getCurrentUser()` server-side; `authMode="static"` renders the public primary CTA only and is used by the static homepage so `/` can prerender without request-time cookie access.
 
 ### Logo
 
