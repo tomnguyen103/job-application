@@ -79,7 +79,7 @@ function seededPlanQuotaRows(): Array<{
     path.join(
       process.cwd(),
       "migrations",
-      "20260702043000_consolidate_plan_quotas_usage_rpc.sql",
+      "20260702043000_consolidate-plan-quotas-usage-rpc.sql",
     ),
     "utf8",
   );
