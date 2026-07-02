@@ -66,12 +66,25 @@ export async function POST() {
     try {
       extracted = await extractProfileFromPdf(base64);
     } catch (error) {
-      await releaseResumeExtractReservation(user.id, extractIdempotencyKey);
+      const release = await releaseResumeExtractReservation(user.id, extractIdempotencyKey);
+      if (!release.success) {
+        console.error("[resume/extract] reservation release failed after extractor error:", release.error);
+      }
       throw error;
     }
 
     if (Object.keys(extracted).length === 0) {
-      await releaseResumeExtractReservation(user.id, extractIdempotencyKey);
+      const release = await releaseResumeExtractReservation(user.id, extractIdempotencyKey);
+      if (!release.success) {
+        console.error("[resume/extract] reservation release failed after empty extraction:", release.error);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Could not finish resume extraction. Please try again.",
+          },
+          { status: 500 },
+        );
+      }
       return NextResponse.json(
         {
           success: false,
