@@ -6,13 +6,15 @@ export type BillingEventType =
   | "base_resume_generate"
   | "resume_extract";
 
+export type BillingPlanKey = "free" | "pro";
+
 export interface PlanQuota {
   limit: number;
   displayName: string;
 }
 
 export interface BillingPlan {
-  planKey: "free" | "pro";
+  planKey: BillingPlanKey;
   displayName: string;
   priceId: string | null;
   priceAmount: number;
@@ -20,7 +22,7 @@ export interface BillingPlan {
 }
 
 export interface UserEntitlement {
-  planKey: "free" | "pro";
+  planKey: BillingPlanKey;
   status: string;
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
@@ -29,34 +31,133 @@ export interface UserEntitlement {
   stripeSubscriptionId: string | null;
 }
 
-export const BILLING_PLANS: Record<"free" | "pro", BillingPlan> = {
+export type PlanQuotaRow = {
+  planKey: BillingPlanKey;
+  eventType: BillingEventType;
+  limit: number;
+  displayName: string;
+};
+
+export const PLAN_QUOTA_ROWS: readonly PlanQuotaRow[] = [
+  {
+    planKey: "free",
+    eventType: "job_search_run",
+    limit: 3,
+    displayName: "Job searches",
+  },
+  {
+    planKey: "free",
+    eventType: "job_match_score",
+    limit: 30,
+    displayName: "AI-scored job matches",
+  },
+  {
+    planKey: "free",
+    eventType: "company_research_run",
+    limit: 2,
+    displayName: "Company research runs",
+  },
+  {
+    planKey: "free",
+    eventType: "tailored_resume_generate",
+    limit: 2,
+    displayName: "Job-tailored resumes",
+  },
+  {
+    planKey: "free",
+    eventType: "base_resume_generate",
+    limit: 2,
+    displayName: "Base resume generations",
+  },
+  {
+    planKey: "free",
+    eventType: "resume_extract",
+    limit: 2,
+    displayName: "Resume extractions",
+  },
+  {
+    planKey: "pro",
+    eventType: "job_search_run",
+    limit: 50,
+    displayName: "Job searches",
+  },
+  {
+    planKey: "pro",
+    eventType: "job_match_score",
+    limit: 500,
+    displayName: "AI-scored job matches",
+  },
+  {
+    planKey: "pro",
+    eventType: "company_research_run",
+    limit: 25,
+    displayName: "Company research runs",
+  },
+  {
+    planKey: "pro",
+    eventType: "tailored_resume_generate",
+    limit: 30,
+    displayName: "Job-tailored resumes",
+  },
+  {
+    planKey: "pro",
+    eventType: "base_resume_generate",
+    limit: 10,
+    displayName: "Base resume generations",
+  },
+  {
+    planKey: "pro",
+    eventType: "resume_extract",
+    limit: 10,
+    displayName: "Resume extractions",
+  },
+];
+
+const BILLING_EVENT_TYPES: readonly BillingEventType[] = [
+  "job_search_run",
+  "job_match_score",
+  "company_research_run",
+  "tailored_resume_generate",
+  "base_resume_generate",
+  "resume_extract",
+];
+
+function quotasFor(planKey: BillingPlanKey): Record<BillingEventType, PlanQuota> {
+  const entries = Object.fromEntries(
+    PLAN_QUOTA_ROWS
+      .filter((row) => row.planKey === planKey)
+      .map((row) => [
+        row.eventType,
+        {
+          limit: row.limit,
+          displayName: row.displayName,
+        },
+      ]),
+  ) as Partial<Record<BillingEventType, PlanQuota>>;
+
+  for (const eventType of BILLING_EVENT_TYPES) {
+    if (!entries[eventType]) {
+      throw new Error(`Missing plan quota row for ${planKey}/${eventType}`);
+    }
+  }
+
+  return entries as Record<BillingEventType, PlanQuota>;
+}
+
+export const BILLING_PLANS: Record<BillingPlanKey, BillingPlan> = {
   free: {
     planKey: "free",
     displayName: "Free",
     priceId: null,
     priceAmount: 0,
-    quotas: {
-      job_search_run: { limit: 3, displayName: "Job searches" },
-      job_match_score: { limit: 30, displayName: "AI-scored job matches" },
-      company_research_run: { limit: 2, displayName: "Company research runs" },
-      tailored_resume_generate: { limit: 2, displayName: "Job-tailored resumes" },
-      base_resume_generate: { limit: 2, displayName: "Base resume generations" },
-      resume_extract: { limit: 2, displayName: "Resume extractions" },
-    },
+    quotas: quotasFor("free"),
   },
   pro: {
     planKey: "pro",
     displayName: "Pro",
     priceId: process.env.STRIPE_PRO_PRICE_ID || "price_pro_test",
     priceAmount: 9,
-    quotas: {
-      job_search_run: { limit: 50, displayName: "Job searches" },
-      job_match_score: { limit: 500, displayName: "AI-scored job matches" },
-      company_research_run: { limit: 25, displayName: "Company research runs" },
-      tailored_resume_generate: { limit: 30, displayName: "Job-tailored resumes" },
-      base_resume_generate: { limit: 10, displayName: "Base resume generations" },
-      resume_extract: { limit: 10, displayName: "Resume extractions" },
-    },
+    quotas: quotasFor("pro"),
   },
 };
 

@@ -44,6 +44,7 @@ next-env.d.ts
 
 # local tooling artifacts (not part of the app's InsForge backend)
 *.db
+memory.md
 
 # codegraph index & runtime files
 .codegraph/

@@ -66,6 +66,92 @@ export function homepageFromResolvedUrl(resolvedUrl: string): string | null {
   }
 }
 
+function normalizedHostname(hostname: string): string {
+  return hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+}
+
+function isPrivateIpv4(hostname: string): boolean {
+  const octets = hostname.split(".");
+
+  if (octets.length !== 4) {
+    return false;
+  }
+
+  const values = octets.map((octet) => Number(octet));
+  if (
+    values.some(
+      (value, index) =>
+        !Number.isInteger(value) ||
+        value < 0 ||
+        value > 255 ||
+        String(value) !== octets[index],
+    )
+  ) {
+    return false;
+  }
+
+  const [first, second] = values;
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 100 && second >= 64 && second <= 127) ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168)
+  );
+}
+
+function isPrivateIpv6(hostname: string): boolean {
+  if (!hostname.includes(":")) {
+    return false;
+  }
+
+  if (hostname === "::" || hostname === "::1") {
+    return true;
+  }
+
+  if (hostname.startsWith("::ffff:")) {
+    return isPrivateIpv4(hostname.slice("::ffff:".length));
+  }
+
+  const firstHextet = Number.parseInt(hostname.split(":")[0], 16);
+  if (!Number.isFinite(firstHextet)) {
+    return false;
+  }
+
+  return (
+    (firstHextet & 0xfe00) === 0xfc00 ||
+    (firstHextet & 0xffc0) === 0xfe80
+  );
+}
+
+export function isPublicResearchUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return false;
+    }
+
+    return !isPrivateResearchHost(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function isPrivateResearchHost(hostname: string): boolean {
+  const normalized = normalizedHostname(hostname);
+
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized.endsWith(".local") ||
+    isPrivateIpv4(normalized) ||
+    isPrivateIpv6(normalized)
+  );
+}
+
 export function fallbackCompanyHomepage(company: string): string | null {
   const withoutSuffix = company
     .replace(/\s*\([^)]*\)\s*$/g, "")

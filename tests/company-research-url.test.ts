@@ -5,6 +5,7 @@ import {
   fallbackCompanyHomepage,
   getRootDomain,
   homepageFromResolvedUrl,
+  isPublicResearchUrl,
   trustedResearchRedirectUrl,
   verifiedCompanyResearchSources,
 } from "../lib/company-research-url";
@@ -42,6 +43,22 @@ test("homepageFromResolvedUrl strips subdomains and ignores Adzuna or ATS hosts"
   assert.equal(homepageFromResolvedUrl("https://www.adzuna.com/details/123"), null);
   assert.equal(homepageFromResolvedUrl("https://boards.greenhouse.io/acme"), null);
   assert.equal(homepageFromResolvedUrl("https://jobs.lever.co/acme/123"), null);
+});
+
+test("isPublicResearchUrl rejects loopback, private, and metadata hosts", () => {
+  assert.equal(isPublicResearchUrl("https://example.com/careers"), true);
+  assert.equal(isPublicResearchUrl("http://localhost:3000/admin"), false);
+  assert.equal(isPublicResearchUrl("https://127.0.0.1/admin"), false);
+  assert.equal(isPublicResearchUrl("https://10.0.0.10/admin"), false);
+  assert.equal(isPublicResearchUrl("https://100.64.0.1/admin"), false);
+  assert.equal(isPublicResearchUrl("https://172.16.0.10/admin"), false);
+  assert.equal(isPublicResearchUrl("https://192.168.1.1/admin"), false);
+  assert.equal(isPublicResearchUrl("https://169.254.169.254/latest"), false);
+  assert.equal(isPublicResearchUrl("http://2130706433/admin"), false);
+  assert.equal(isPublicResearchUrl("http://0x7f000001/admin"), false);
+  assert.equal(isPublicResearchUrl("http://[::1]/admin"), false);
+  assert.equal(isPublicResearchUrl("https://[fd00::1]/admin"), false);
+  assert.equal(isPublicResearchUrl("file:///C:/Windows/win.ini"), false);
 });
 
 test("fallbackCompanyHomepage builds a conservative company-name homepage", () => {

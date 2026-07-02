@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { normalizeAdzunaJob } from "../agent/job-sources/adzuna";
+import {
+  createAdzunaProvider,
+  normalizeAdzunaJob,
+} from "../agent/job-sources/adzuna";
 import { parseAtsBoards, parseEnabledSourceKeys } from "../agent/job-sources";
 import {
   buildRemotiveSearchParams,
@@ -61,6 +64,62 @@ test("Adzuna normalization preserves canonical URL and attribution", () => {
   assert.strictEqual(normalized.sourceDisplayName, "Adzuna");
   assert.strictEqual(normalized.salary, "$120k - $150k");
   assert.strictEqual(normalized.jobType, "full_time");
+});
+
+test("Adzuna country detection requires explicit country markers", () => {
+  const londonOntario: UsableAdzunaJob = {
+    title: "Frontend Engineer",
+    description: "Build product UI",
+    redirect_url: "https://www.adzuna.com/details/789",
+    company: { display_name: "Acme" },
+    location: { display_name: "London, Ontario" },
+  };
+  const londonUnitedKingdom: UsableAdzunaJob = {
+    ...londonOntario,
+    location: { display_name: "London, United Kingdom" },
+  };
+  const torontoCanada: UsableAdzunaJob = {
+    ...londonOntario,
+    location: { display_name: "Toronto, Canada" },
+  };
+
+  assert.strictEqual(normalizeAdzunaJob(londonOntario).metadata.country, "us");
+  assert.strictEqual(
+    normalizeAdzunaJob(londonUnitedKingdom).metadata.country,
+    "gb",
+  );
+  assert.strictEqual(normalizeAdzunaJob(torontoCanada).metadata.country, "ca");
+});
+
+test("Adzuna search strips remote dash separators from where", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalAppId = process.env.ADZUNA_APP_ID;
+  const originalAppKey = process.env.ADZUNA_APP_KEY;
+  let requestedUrl = "";
+
+  process.env.ADZUNA_APP_ID = "app-id";
+  process.env.ADZUNA_APP_KEY = "app-key";
+  globalThis.fetch = (async (input) => {
+    requestedUrl = String(input);
+    return new Response(JSON.stringify({ results: [] }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    process.env.ADZUNA_APP_ID = originalAppId;
+    process.env.ADZUNA_APP_KEY = originalAppKey;
+  });
+
+  await createAdzunaProvider().search({
+    jobTitle: "Frontend Engineer",
+    location: "Remote - US",
+    limit: 10,
+  });
+
+  const url = new URL(requestedUrl);
+  assert.strictEqual(url.searchParams.get("where"), "US");
 });
 
 test("Adzuna normalization does not invent a job type when Adzuna omits contract_type", () => {

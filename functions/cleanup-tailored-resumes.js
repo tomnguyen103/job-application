@@ -27,11 +27,7 @@ function json(payload, status = 200) {
 }
 
 function cleanupRequestToken() {
-  return (
-    env("TAILORED_RESUME_CLEANUP_API_KEY") ||
-    env("INSFORGE_API_KEY") ||
-    env("API_KEY")
-  );
+  return env("TAILORED_RESUME_CLEANUP_API_KEY");
 }
 
 function cleanupAdminApiKey() {

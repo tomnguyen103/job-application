@@ -57,9 +57,9 @@ The AI agent on this project operates as a senior engineer. This means:
 - Utility files: camelCase — `browserbase.ts`, `posthog-client.ts`
 - Type files: camelCase — `index.ts`
 - API route files: always `route.ts`
-- Server Action files: camelCase — `profile.ts`, `jobs.ts`
+- Server Action files: camelCase — `profile.ts`, `auth.ts`
 - One component per file — never export multiple components from one file
-- Index files only in `components/ui/` — never barrel export from other folders
+- Avoid barrel exports; import concrete files directly
 
 ---
 
@@ -72,7 +72,6 @@ Every component follows this exact order:
 
 // 1. External imports
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 
 // 2. Internal imports
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -164,20 +163,16 @@ export async function saveProfile(formData: ProfileFormData) {
 ## Agent Code
 
 ```typescript
-// agent/adzuna.ts
+// agent/job-discovery.ts
 
-export async function discoverJobs(
-  jobTitle: string,
-  location: string,
-  profile: Profile,
-  runId: string,
-): Promise<{ success: boolean; jobs?: Job[]; error?: string }> {
+export async function discoverJobs(input: DiscoveryInput): Promise<DiscoveryResult> {
   try {
-    // implementation
-    return { success: true, jobs };
+    const providers = resolveEnabledProviders();
+    const sourceResults = await searchProviders(providers, input);
+    return await scoreAndSaveJobs(sourceResults, input);
   } catch (error) {
-    await logAgentError(runId, null, error);
-    return { success: false, error: String(error) };
+    await logAgentError(input.runId, null, error);
+    return { success: false, error: "Job discovery failed." };
   }
 }
 ```
@@ -248,8 +243,8 @@ All environment variables defined in `.env.local` for development. Never hardcod
 | `BROWSERBASE_API_KEY`           | lib/browserbase.ts     |
 | `BROWSERBASE_PROJECT_ID`        | lib/browserbase.ts     |
 | `GEMINI_API_KEY`                | agent/ functions       |
-| `ADZUNA_APP_ID`                 | lib/adzuna.ts          |
-| `ADZUNA_APP_KEY`                | lib/adzuna.ts          |
+| `ADZUNA_APP_ID`                 | agent/job-sources/adzuna.ts |
+| `ADZUNA_APP_KEY`                | agent/job-sources/adzuna.ts |
 | `NEXT_PUBLIC_POSTHOG_KEY`       | lib/posthog-client.ts  |
 | `NEXT_PUBLIC_POSTHOG_HOST`      | lib/posthog-client.ts  |
 | `POSTHOG_PERSONAL_API_KEY`      | lib/posthog-query.ts   |
@@ -285,12 +280,12 @@ Always use the `@/` alias — never use relative imports that go up more than on
 
 ```typescript
 // Correct
-import { Button } from "@/components/ui/button";
+import { Navbar } from "@/components/layout/Navbar";
 import { insforge } from "@/lib/insforge-client";
 import { MATCH_THRESHOLD } from "@/lib/utils";
 
 // Never
-import { Button } from "../../../components/ui/button";
+import { Navbar } from "../../../components/layout/Navbar";
 ```
 
 ---
@@ -319,7 +314,7 @@ import { Button } from "../../../components/ui/button";
 
 Never install a new package without a clear reason. Before installing anything check:
 
-1. Does shadcn/ui already have this component?
+1. Does an existing project component already cover this?
 2. Does Next.js already provide this functionality?
 3. Is there a simpler native solution?
 
@@ -332,11 +327,8 @@ Approved dependencies for this project:
 - `posthog-js` — PostHog browser client
 - `posthog-node` — PostHog server client
 - `@react-pdf/renderer` — Resume PDF generation
-- `pdf-parse` — Extract text from uploaded PDF
 - `recharts` — Dashboard analytics charts
 - `zod` — Schema validation
-- `lucide-react` — Icons
 - `tailwindcss` — Styling
-- `shadcn/ui` components — UI primitives
 
 Do not install any other packages without updating this list first.
