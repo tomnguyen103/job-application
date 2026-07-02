@@ -23,3 +23,24 @@ export function isStorageNotFoundError(error: unknown): boolean {
     message.toLowerCase().includes("not found")
   );
 }
+
+type ResumeStorageClient = {
+  storage: {
+    from(bucket: "resumes"): {
+      remove(path: string): Promise<{ error: unknown | null }>;
+    };
+  };
+};
+
+export async function removeExistingResumeFile(
+  insforge: ResumeStorageClient,
+  path: string,
+  logPrefix: string,
+): Promise<void> {
+  const { error: removeError } = await insforge.storage
+    .from("resumes")
+    .remove(path);
+  if (removeError && !isStorageNotFoundError(removeError)) {
+    console.error(`${logPrefix} remove error:`, removeError);
+  }
+}

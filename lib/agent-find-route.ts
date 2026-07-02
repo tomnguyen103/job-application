@@ -84,16 +84,20 @@ async function finalizeRun(
   runId: string,
   args: { status: "completed" | "failed"; jobsFound: number },
 ): Promise<void> {
-  const { error } = await insforge.database
-    .from("agent_runs")
-    .update({
-      status: args.status,
-      jobs_found: args.jobsFound,
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", runId);
+  try {
+    const { error } = await insforge.database
+      .from("agent_runs")
+      .update({
+        status: args.status,
+        jobs_found: args.jobsFound,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", runId);
 
-  if (error) {
+    if (error) {
+      console.error("[agent/find] run update failed:", error);
+    }
+  } catch (error) {
     console.error("[agent/find] run update failed:", error);
   }
 }

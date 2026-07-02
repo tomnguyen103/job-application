@@ -24,6 +24,7 @@ type Scenario = {
   runData: { id?: string } | null;
   runError?: unknown;
   updateError?: unknown;
+  updateReject?: unknown;
 };
 
 function completeProfile(): ProfileRow {
@@ -47,6 +48,7 @@ function defaultScenario(): Scenario {
 
 class FakeQuery {
   readonly error: unknown | null;
+  private isUpdate = false;
 
   constructor(
     private readonly table: TableName,
@@ -62,6 +64,9 @@ class FakeQuery {
   }
 
   eq(column: string, value: string): FakeQuery {
+    if (this.isUpdate && this.scenario.updateReject) {
+      throw this.scenario.updateReject;
+    }
     this.calls.push({ table: this.table, method: "eq", column, value });
     return this;
   }
@@ -72,6 +77,7 @@ class FakeQuery {
   }
 
   update(values: Record<string, unknown>): FakeQuery {
+    this.isUpdate = true;
     this.calls.push({ table: this.table, method: "update", values });
     return this;
   }
@@ -205,6 +211,26 @@ test("resolveAgentFindRoute returns 402 and finalizes the run when score quota i
   );
 });
 
+test("resolveAgentFindRoute does not let failed run finalization mask a quota response", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const { client } = fakeClient({ updateReject: new Error("database outage") });
+
+  const result = await resolveAgentFindRoute({
+    user: { id: "user-1", email: "candidate@example.com" },
+    insforge: client,
+    body: { jobTitle: "Frontend Engineer" },
+    checkQuotaAvailable: async () => ({
+      allowed: false,
+      current: 10,
+      limit: 10,
+      planKey: "free",
+    }),
+  });
+
+  assert.strictEqual(result.status, 402);
+  assert.strictEqual(result.body.code, "QUOTA_EXCEEDED");
+});
+
 test("resolveAgentFindRoute finalizes the run when discovery throws", async (t) => {
   t.mock.method(console, "error", () => {});
   const { client, calls } = fakeClient();
@@ -239,7 +265,7 @@ test("resolveAgentFindRoute finalizes the run when discovery throws", async (t) 
 
 test("resolveAgentFindRoute does not fail a successful run when analytics rejects", async (t) => {
   t.mock.method(console, "error", () => {});
-  const { client } = fakeClient();
+  const { client, calls } = fakeClient();
 
   const result = await resolveAgentFindRoute({
     user: { id: "user-1", email: "candidate@example.com" },
@@ -260,4 +286,13 @@ test("resolveAgentFindRoute does not fail a successful run when analytics reject
 
   assert.strictEqual(result.status, 200);
   assert.deepStrictEqual(result.revalidatePaths, ["/find-jobs"]);
+  assert.equal(
+    calls.some(
+      (call) =>
+        call.method === "update" &&
+        call.values.status === "completed" &&
+        call.values.jobs_found === 1,
+    ),
+    true,
+  );
 });
