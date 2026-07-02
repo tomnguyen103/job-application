@@ -26,6 +26,32 @@ type InsforgeServer = Awaited<ReturnType<typeof createInsforgeServer>>;
 
 type LogLevel = "info" | "success" | "warning" | "error";
 
+type AgentLogEntry = {
+  runId: string;
+  userId: string;
+  message: string;
+  level: LogLevel;
+  jobId?: string;
+};
+
+type ScoredJob = {
+  job: NormalizedJobPosting;
+  match: JobMatchContent;
+};
+
+type SavedJobWithPosting = SavedJob & {
+  job: NormalizedJobPosting;
+};
+
+type InsertedJobRow = {
+  id?: string;
+  match_score?: number | null;
+  source_provider?: JobSourceKey | null;
+  source_display_name?: string | null;
+  source_provider_job_id?: string | null;
+  source_url?: string | null;
+};
+
 type DiscoverJobsArgs = {
   insforge: InsforgeServer;
   userId: string;
@@ -36,29 +62,36 @@ type DiscoverJobsArgs = {
   scoreLimit: number;
 };
 
-async function logAgentEvent(
+async function insertAgentLogRows(
   insforge: InsforgeServer,
-  entry: {
-    runId: string;
-    userId: string;
-    message: string;
-    level: LogLevel;
-    jobId?: string;
-  },
+  entries: AgentLogEntry[],
 ): Promise<void> {
-  const { error } = await insforge.database.from("agent_logs").insert([
-    {
+  if (entries.length === 0) {
+    return;
+  }
+
+  const { error } = await insforge.database.from("agent_logs").insert(
+    entries.map((entry) => ({
       run_id: entry.runId,
       user_id: entry.userId,
       message: entry.message,
       level: entry.level,
       job_id: entry.jobId ?? null,
-    },
-  ]);
+    })),
+  );
 
   if (error) {
     console.error("[agent/job-discovery] failed to write agent log:", error);
   }
+}
+
+function queueAgentLogRows(
+  insforge: InsforgeServer,
+  entries: AgentLogEntry[],
+): void {
+  void insertAgentLogRows(insforge, entries).catch((error) => {
+    console.error("[agent/job-discovery] failed to write agent log:", error);
+  });
 }
 
 function newSourceSummary(
@@ -163,65 +196,146 @@ async function loadExistingRows(
   return [byUrl, ...byProviderJobId].flat();
 }
 
-async function saveJob(
+function jobDedupeKey(job: Pick<NormalizedJobPosting, "provider" | "providerJobId" | "sourceUrl">): string {
+  return JSON.stringify([job.provider, job.providerJobId, job.sourceUrl]);
+}
+
+function buildJobInsertRow(
+  userId: string,
+  runId: string,
+  scoredJob: ScoredJob,
+): Record<string, unknown> {
+  const { job, match } = scoredJob;
+
+  return {
+    user_id: userId,
+    run_id: runId,
+    source: "search",
+    source_url: job.sourceUrl,
+    external_apply_url: job.applyUrl,
+    source_provider: job.provider,
+    source_display_name: job.sourceDisplayName,
+    source_provider_job_id: job.providerJobId,
+    posted_at: job.postedAt,
+    source_metadata: job.metadata,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    salary: job.salary,
+    job_type: job.jobType || null,
+    about_role: job.description,
+    match_score: match.matchScore,
+    match_reason: match.matchReason,
+    matched_skills: match.matchedSkills,
+    missing_skills: match.missingSkills,
+    found_at: new Date().toISOString(),
+  };
+}
+
+function mapInsertedJobRows(
+  scoredJobs: ScoredJob[],
+  rows: InsertedJobRow[],
+): {
+  savedJobs: SavedJobWithPosting[];
+  failedJobs: NormalizedJobPosting[];
+} {
+  const scoredByKey = new Map(
+    scoredJobs.map((scored) => [jobDedupeKey(scored.job), scored]),
+  );
+  const savedJobs: SavedJobWithPosting[] = [];
+  const savedKeys = new Set<string>();
+
+  for (const row of rows) {
+    const scored =
+      row.source_provider && row.source_url
+        ? scoredByKey.get(
+            jobDedupeKey({
+              provider: row.source_provider,
+              providerJobId: row.source_provider_job_id ?? null,
+              sourceUrl: row.source_url,
+            }),
+          )
+        : null;
+
+    if (!row.id || !scored) {
+      console.error("[agent/job-discovery] job insert returned an unmapped row");
+      continue;
+    }
+
+    savedKeys.add(jobDedupeKey(scored.job));
+    savedJobs.push({
+      id: row.id,
+      matchScore: scored.match.matchScore,
+      sourceProvider: scored.job.provider,
+      sourceDisplayName: scored.job.sourceDisplayName,
+      job: scored.job,
+    });
+  }
+
+  return {
+    savedJobs,
+    failedJobs: scoredJobs
+      .filter((scored) => !savedKeys.has(jobDedupeKey(scored.job)))
+      .map(({ job }) => job),
+  };
+}
+
+async function saveJobBatch(
   insforge: InsforgeServer,
   args: {
     userId: string;
     runId: string;
-    job: NormalizedJobPosting;
-    match: JobMatchContent;
+    scoredJobs: ScoredJob[];
   },
-): Promise<SavedJob | null> {
-  const { userId, runId, job, match } = args;
+): Promise<{
+  savedJobs: SavedJobWithPosting[];
+  failedJobs: NormalizedJobPosting[];
+}> {
+  const { userId, runId, scoredJobs } = args;
 
+  if (scoredJobs.length === 0) {
+    return { savedJobs: [], failedJobs: [] };
+  }
+
+  const selectColumns =
+    "id, match_score, source_provider, source_display_name, source_provider_job_id, source_url";
   const { data, error } = await insforge.database
     .from("jobs")
-    .insert([
-      {
-        user_id: userId,
-        run_id: runId,
-        source: "search",
-        source_url: job.sourceUrl,
-        external_apply_url: job.applyUrl,
-        source_provider: job.provider,
-        source_display_name: job.sourceDisplayName,
-        source_provider_job_id: job.providerJobId,
-        posted_at: job.postedAt,
-        source_metadata: job.metadata,
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        salary: job.salary,
-        job_type: job.jobType || null,
-        about_role: job.description,
-        match_score: match.matchScore,
-        match_reason: match.matchReason,
-        matched_skills: match.matchedSkills,
-        missing_skills: match.missingSkills,
-        found_at: new Date().toISOString(),
-      },
-    ])
-    .select("id")
-    .single();
+    .insert(
+      scoredJobs.map((scoredJob) => buildJobInsertRow(userId, runId, scoredJob)),
+    )
+    .select(selectColumns);
 
-  if (error) {
-    console.error("[agent/job-discovery] job insert failed:", error);
-    return null;
+  if (!error) {
+    return mapInsertedJobRows(scoredJobs, (data ?? []) as InsertedJobRow[]);
   }
 
-  const row = data as { id?: string } | null;
+  console.error("[agent/job-discovery] job batch insert failed:", error);
 
-  if (!row?.id) {
-    console.error("[agent/job-discovery] job insert returned no id");
-    return null;
+  const savedJobs: SavedJobWithPosting[] = [];
+  const failedJobs: NormalizedJobPosting[] = [];
+
+  for (const scoredJob of scoredJobs) {
+    const { data: rowData, error: rowError } = await insforge.database
+      .from("jobs")
+      .insert([buildJobInsertRow(userId, runId, scoredJob)])
+      .select(selectColumns);
+
+    if (rowError) {
+      console.error("[agent/job-discovery] job insert failed:", rowError);
+      failedJobs.push(scoredJob.job);
+      continue;
+    }
+
+    const mapped = mapInsertedJobRows(
+      [scoredJob],
+      (rowData ?? []) as InsertedJobRow[],
+    );
+    savedJobs.push(...mapped.savedJobs);
+    failedJobs.push(...mapped.failedJobs);
   }
 
-  return {
-    id: row.id,
-    matchScore: match.matchScore,
-    sourceProvider: job.provider,
-    sourceDisplayName: job.sourceDisplayName,
-  };
+  return { savedJobs, failedJobs };
 }
 
 export async function discoverJobs(
@@ -239,16 +353,29 @@ export async function discoverJobs(
     scoreLimit,
   } = args;
 
+  const pendingLogs: AgentLogEntry[] = [];
+  const queueLog = (entry: AgentLogEntry): void => {
+    pendingLogs.push(entry);
+  };
+  const takePendingLogs = (): AgentLogEntry[] => pendingLogs.splice(0);
+  const flushLogs = (): void => {
+    queueAgentLogRows(insforge, takePendingLogs());
+  };
+  const flushLogsNow = async (): Promise<void> => {
+    await insertAgentLogRows(insforge, takePendingLogs());
+  };
+
   try {
     const providers = getEnabledJobSourceProviders();
 
     if (providers.length === 0) {
-      await logAgentEvent(insforge, {
+      queueLog({
         runId,
         userId,
         level: "error",
         message: "No job sources are enabled.",
       });
+      await flushLogsNow();
       return { success: false, error: "No job sources are enabled." };
     }
 
@@ -256,7 +383,7 @@ export async function discoverJobs(
       providers.map((provider) => [provider.key, newSourceSummary(provider)]),
     );
 
-    await logAgentEvent(insforge, {
+    queueLog({
       runId,
       userId,
       level: "info",
@@ -276,14 +403,14 @@ export async function discoverJobs(
       summary.found = outcome.postings.length;
       if (outcome.error) {
         summary.error = outcome.error;
-        await logAgentEvent(insforge, {
+        queueLog({
           runId,
           userId,
           level: "warning",
           message: `${outcome.displayName} search failed: ${outcome.error}`,
         });
       } else {
-        await logAgentEvent(insforge, {
+        queueLog({
           runId,
           userId,
           level: "info",
@@ -291,18 +418,20 @@ export async function discoverJobs(
         });
       }
     }
+    flushLogs();
 
     const successfulOutcomes = searchOutcomes.filter(
       (outcome) => !outcome.error,
     );
 
     if (successfulOutcomes.length === 0) {
-      await logAgentEvent(insforge, {
+      queueLog({
         runId,
         userId,
         level: "error",
         message: "Run failed - all enabled job sources failed.",
       });
+      await flushLogsNow();
       return {
         success: false,
         error: "All enabled job sources failed.",
@@ -316,7 +445,7 @@ export async function discoverJobs(
       existingRows = await loadExistingRows(insforge, userId, allPostings);
     } catch (error) {
       console.error("[agent/job-discovery] duplicate check failed:", error);
-      await logAgentEvent(insforge, {
+      queueLog({
         runId,
         userId,
         level: "warning",
@@ -330,7 +459,7 @@ export async function discoverJobs(
     );
 
     if (skippedDuplicates > 0) {
-      await logAgentEvent(insforge, {
+      queueLog({
         runId,
         userId,
         level: "info",
@@ -348,44 +477,73 @@ export async function discoverJobs(
     const savedJobs: SavedJob[] = [];
     let reservationErrors = 0;
 
-    for (let i = 0; i < selectedForScoring.jobsToScore.length; i += SCORING_BATCH_SIZE) {
+    for (
+      let i = 0;
+      i < selectedForScoring.jobsToScore.length;
+      i += SCORING_BATCH_SIZE
+    ) {
       const batch = selectedForScoring.jobsToScore.slice(i, i + SCORING_BATCH_SIZE);
       const reservedBatch: NormalizedJobPosting[] = [];
       let quotaBlocked = false;
+      let quotaSkippedInBatch = 0;
+
+      const reservationOutcomes = await Promise.allSettled(
+        batch.map((job) => {
+          const jobUsageIdentity = job.providerJobId ?? job.sourceUrl;
+
+          return recordUsage(
+            userId,
+            "job_match_score",
+            1,
+            `run:${runId}:score:${job.provider}:${jobUsageIdentity}`,
+            {
+              jobTitle,
+              location,
+              provider: job.provider,
+              providerJobId: job.providerJobId,
+              title: job.title,
+              company: job.company,
+            },
+            "/api/agent/find",
+            runId,
+          );
+        }),
+      );
 
       for (let batchOffset = 0; batchOffset < batch.length; batchOffset += 1) {
         const job = batch[batchOffset];
-        const jobIndex = i + batchOffset;
-        const jobUsageIdentity = job.providerJobId ?? job.sourceUrl;
-        const reservation = await recordUsage(
-          userId,
-          "job_match_score",
-          1,
-          `run:${runId}:score:${job.provider}:${jobUsageIdentity}`,
-          {
-            jobTitle,
-            location,
-            provider: job.provider,
-            providerJobId: job.providerJobId,
-            title: job.title,
-            company: job.company,
-          },
-          "/api/agent/find",
-          runId,
-        );
+        const reservationOutcome = reservationOutcomes[batchOffset];
+
+        if (reservationOutcome.status === "rejected") {
+          reservationErrors += 1;
+          console.error(
+            "[agent/job-discovery] score quota reservation failed:",
+            reservationOutcome.reason,
+          );
+          queueLog({
+            runId,
+            userId,
+            level: "warning",
+            message: `Could not reserve scoring quota for "${job.title}" at ${job.company} - skipped.`,
+          });
+          continue;
+        }
+
+        const reservation = reservationOutcome.value;
 
         if (!reservation.success) {
           if (reservation.code === "QUOTA_EXCEEDED") {
-            const remainingJobs = selectedForScoring.jobsToScore.length - jobIndex;
-            skippedForQuota += remainingJobs;
-            skippedForUserQuota += remainingJobs;
             quotaBlocked = true;
-            break;
+            quotaSkippedInBatch += 1;
+            continue;
           }
 
           reservationErrors += 1;
-          console.error("[agent/job-discovery] score quota reservation failed:", reservation.error);
-          await logAgentEvent(insforge, {
+          console.error(
+            "[agent/job-discovery] score quota reservation failed:",
+            reservation.error,
+          );
+          queueLog({
             runId,
             userId,
             level: "warning",
@@ -397,9 +555,20 @@ export async function discoverJobs(
         reservedBatch.push(job);
       }
 
+      if (quotaBlocked) {
+        const futureJobs = Math.max(
+          0,
+          selectedForScoring.jobsToScore.length - (i + batch.length),
+        );
+        const skippedByQuota = quotaSkippedInBatch + futureJobs;
+        skippedForQuota += skippedByQuota;
+        skippedForUserQuota += skippedByQuota;
+      }
+
       const outcomes = await Promise.allSettled(
         reservedBatch.map((job) => scoreJobMatch(profile, job)),
       );
+      const scoredJobs: ScoredJob[] = [];
 
       for (let index = 0; index < reservedBatch.length; index += 1) {
         const job = reservedBatch[index];
@@ -407,7 +576,7 @@ export async function discoverJobs(
 
         if (outcome.status === "rejected") {
           console.error("[agent/job-discovery] scoring failed:", outcome.reason);
-          await logAgentEvent(insforge, {
+          queueLog({
             runId,
             userId,
             level: "warning",
@@ -416,50 +585,57 @@ export async function discoverJobs(
           continue;
         }
 
-        const saved = await saveJob(insforge, {
-          userId,
-          runId,
-          job,
-          match: outcome.value,
-        });
+        scoredJobs.push({ job, match: outcome.value });
+      }
 
-        if (saved) {
-          savedJobs.push(saved);
-          const summary = getSummary(summaries, job.provider);
-          summary.saved += 1;
-          if (saved.matchScore >= MATCH_THRESHOLD) {
-            summary.strongMatches += 1;
-          }
+      const saveResult = await saveJobBatch(insforge, {
+        userId,
+        runId,
+        scoredJobs,
+      });
 
-          await logAgentEvent(insforge, {
-            runId,
-            userId,
-            level: "success",
-            message: `Saved "${job.title}" at ${job.company} from ${job.sourceDisplayName} - ${saved.matchScore}% match.`,
-            jobId: saved.id,
-          });
-        } else {
-          await logAgentEvent(insforge, {
-            runId,
-            userId,
-            level: "error",
-            message: `Failed to save "${job.title}" at ${job.company}.`,
-          });
+      for (const saved of saveResult.savedJobs) {
+        savedJobs.push(saved);
+        const summary = getSummary(summaries, saved.job.provider);
+        summary.saved += 1;
+        if (saved.matchScore >= MATCH_THRESHOLD) {
+          summary.strongMatches += 1;
         }
+
+        queueLog({
+          runId,
+          userId,
+          level: "success",
+          message: `Saved "${saved.job.title}" at ${saved.job.company} from ${saved.job.sourceDisplayName} - ${saved.matchScore}% match.`,
+          jobId: saved.id,
+        });
+      }
+
+      for (const failedJob of saveResult.failedJobs) {
+        queueLog({
+          runId,
+          userId,
+          level: "error",
+          message: `Failed to save "${failedJob.title}" at ${failedJob.company}.`,
+        });
       }
 
       if (quotaBlocked) {
-        await logAgentEvent(insforge, {
+        queueLog({
           runId,
           userId,
           level: "warning",
           message: "Skipped remaining job scoring because your scoring quota was reached.",
         });
+        await flushLogsNow();
         break;
       }
+
+      flushLogs();
     }
 
     if (reservationErrors > 0 && savedJobs.length === 0) {
+      await flushLogsNow();
       return {
         success: false,
         error: "Could not reserve job scoring quota.",
@@ -467,7 +643,7 @@ export async function discoverJobs(
     }
 
     if (skippedForRunLimit > 0) {
-      await logAgentEvent(insforge, {
+      queueLog({
         runId,
         userId,
         level: "warning",
@@ -476,7 +652,7 @@ export async function discoverJobs(
     }
 
     if (skippedForUserQuota > 0) {
-      await logAgentEvent(insforge, {
+      queueLog({
         runId,
         userId,
         level: "warning",
@@ -489,12 +665,13 @@ export async function discoverJobs(
     ).length;
     const found = allPostings.length;
 
-    await logAgentEvent(insforge, {
+    queueLog({
       runId,
       userId,
       level: "success",
       message: `Run complete - found ${found}, saved ${savedJobs.length} new job(s), ${strongMatches} strong match(es).`,
     });
+    await flushLogsNow();
 
     return {
       success: true,
@@ -510,12 +687,13 @@ export async function discoverJobs(
     };
   } catch (error) {
     console.error("[agent/job-discovery]", error);
-    await logAgentEvent(insforge, {
+    queueLog({
       runId,
       userId,
       level: "error",
       message: "Job discovery run failed unexpectedly.",
     });
+    await flushLogsNow();
     return { success: false, error: String(error) };
   }
 }

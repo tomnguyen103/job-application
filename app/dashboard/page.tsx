@@ -31,7 +31,7 @@ import {
 } from "@/lib/dashboard-charts";
 import {
   computeDashboardStatValues,
-  type DashboardJobStatRow,
+  type DashboardJobStatsAggregateRow,
 } from "@/lib/dashboard-stats";
 import {
   buildSkillGapInsights,
@@ -100,6 +100,7 @@ function buildStats(values: {
 
 const CHART_LOAD_ERROR_MESSAGE =
   "Could not load chart data. Refresh the page to try again.";
+const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
 
 function chartYAxis(points: { count: number }[]): YAxisConfig {
   return computeYAxis(
@@ -145,6 +146,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
   const user = await requireCurrentUser();
   const insforge = await createInsforgeServer();
   const now = new Date();
+  const weekCutoff = new Date(now.getTime() - WEEK_IN_MS).toISOString();
 
   const entitlementPromise = getUserEntitlement(user.id).catch((err) => {
     console.error("[dashboard] Error loading entitlement:", err);
@@ -161,8 +163,8 @@ export default async function DashboardPage(): Promise<ReactElement> {
 
   const [
     profileResult,
-    jobsResult,
-    unresearchedResult,
+    statsAggregateResult,
+    jobsThisWeekResult,
     runsResult,
     researchedResult,
     engagementJobsResult,
@@ -178,17 +180,13 @@ export default async function DashboardPage(): Promise<ReactElement> {
       .eq("id", user.id)
       .maybeSingle(),
     insforge.database
-      .from("jobs")
-      .select("match_score, found_at", { count: "exact" })
-      .eq("user_id", user.id),
-    // Researched count = total minus IS NULL count; the SDK has no documented
-    // IS NOT NULL filter and this avoids fetching company_research jsonb.
+      .rpc("get_dashboard_job_stats", { p_user_id: user.id })
+      .maybeSingle(),
     insforge.database
       .from("jobs")
-      .select("id", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
-      .is("company_research", null)
-      .limit(1),
+      .gte("found_at", weekCutoff),
     insforge.database
       .from("agent_runs")
       .select("id, job_title_searched, jobs_found, completed_at, started_at")
@@ -251,14 +249,14 @@ export default async function DashboardPage(): Promise<ReactElement> {
   const hasResume = !profileLoadFailed && Boolean(profileRow?.resume_pdf_url);
 
   const statsLoadFailed =
-    Boolean(jobsResult.error) || Boolean(unresearchedResult.error);
+    Boolean(statsAggregateResult.error) || Boolean(jobsThisWeekResult.error);
 
   let stats: DashboardStat[];
 
   if (statsLoadFailed) {
     console.error(
       "[dashboard] stats read error:",
-      jobsResult.error ?? unresearchedResult.error,
+      statsAggregateResult.error ?? jobsThisWeekResult.error,
     );
     stats = buildStats({
       totalJobsFound: "-",
@@ -267,13 +265,12 @@ export default async function DashboardPage(): Promise<ReactElement> {
       jobsThisWeek: "-",
     });
   } else {
-    // Boundary assertion on the SDK row shape, columns selected above.
-    const rows = (jobsResult.data ?? []) as DashboardJobStatRow[];
+    // Boundary assertion on the aggregate RPC row shape.
+    const aggregate = (statsAggregateResult.data ??
+      null) as DashboardJobStatsAggregateRow | null;
     const values = computeDashboardStatValues({
-      rows,
-      totalCount: jobsResult.count ?? rows.length,
-      unresearchedCount: unresearchedResult.count ?? 0,
-      now,
+      aggregate,
+      jobsThisWeekCount: jobsThisWeekResult.count ?? 0,
     });
     stats = buildStats({
       totalJobsFound: String(values.totalJobsFound),

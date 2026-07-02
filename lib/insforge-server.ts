@@ -2,6 +2,7 @@ import type { UserSchema } from "@insforge/sdk";
 import { createServerClient } from "@insforge/sdk/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { orderedSupportedProviders } from "@/lib/auth";
 import type { SupportedOAuthProvider } from "@/lib/auth";
@@ -32,7 +33,7 @@ export function createInsforgeAdmin() {
   });
 }
 
-export async function getCurrentUser(): Promise<UserSchema | null> {
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<UserSchema | null> {
   try {
     const insforge = await createInsforgeServer();
     const { data, error } = await insforge.auth.getCurrentUser();
@@ -47,7 +48,7 @@ export async function getCurrentUser(): Promise<UserSchema | null> {
     console.error("[auth/get-current-user]", error);
     return null;
   }
-}
+});
 
 export async function requireCurrentUser(): Promise<UserSchema> {
   const user = await getCurrentUser();

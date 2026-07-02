@@ -3,21 +3,17 @@ import { test } from "node:test";
 
 import {
   computeDashboardStatValues,
-  type DashboardJobStatRow,
+  type DashboardJobStatsAggregateRow,
 } from "../lib/dashboard-stats";
-
-const NOW = new Date("2026-06-10T12:00:00.000Z");
-
-function daysAgo(days: number): string {
-  return new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
-}
 
 test("computeDashboardStatValues handles an empty account", () => {
   const result = computeDashboardStatValues({
-    rows: [],
-    totalCount: 0,
-    unresearchedCount: 0,
-    now: NOW,
+    aggregate: {
+      total_jobs_found: 0,
+      avg_match_rate: null,
+      companies_researched: 0,
+    },
+    jobsThisWeekCount: 0,
   });
 
   assert.deepEqual(result, {
@@ -28,69 +24,73 @@ test("computeDashboardStatValues handles an empty account", () => {
   });
 });
 
-test("computeDashboardStatValues averages and rounds match scores", () => {
-  const rows: DashboardJobStatRow[] = [
-    { match_score: 88, found_at: daysAgo(1) },
-    { match_score: 75, found_at: daysAgo(2) },
-    { match_score: 80, found_at: daysAgo(3) },
-  ];
+test("computeDashboardStatValues rounds aggregate match score", () => {
+  const aggregate: DashboardJobStatsAggregateRow = {
+    total_jobs_found: 3,
+    avg_match_rate: 81.4,
+    companies_researched: 1,
+  };
 
   const result = computeDashboardStatValues({
-    rows,
-    totalCount: 3,
-    unresearchedCount: 2,
-    now: NOW,
+    aggregate,
+    jobsThisWeekCount: 2,
   });
 
   assert.equal(result.avgMatchRate, 81);
   assert.equal(result.totalJobsFound, 3);
   assert.equal(result.companiesResearched, 1);
-});
-
-test("computeDashboardStatValues ignores null scores and dates", () => {
-  const rows: DashboardJobStatRow[] = [
-    { match_score: null, found_at: null },
-    { match_score: 90, found_at: daysAgo(1) },
-    { match_score: null, found_at: "not-a-date" },
-  ];
-
-  const result = computeDashboardStatValues({
-    rows,
-    totalCount: 3,
-    unresearchedCount: 3,
-    now: NOW,
-  });
-
-  assert.equal(result.avgMatchRate, 90);
-  assert.equal(result.jobsThisWeek, 1);
-  assert.equal(result.companiesResearched, 0);
-});
-
-test("computeDashboardStatValues counts only jobs found in the last 7 days", () => {
-  const rows: DashboardJobStatRow[] = [
-    { match_score: 70, found_at: daysAgo(0) },
-    { match_score: 70, found_at: daysAgo(6) },
-    { match_score: 70, found_at: daysAgo(8) },
-    { match_score: 70, found_at: daysAgo(30) },
-  ];
-
-  const result = computeDashboardStatValues({
-    rows,
-    totalCount: 4,
-    unresearchedCount: 4,
-    now: NOW,
-  });
-
   assert.equal(result.jobsThisWeek, 2);
 });
 
-test("computeDashboardStatValues clamps researched count at zero", () => {
+test("computeDashboardStatValues accepts numeric strings from RPC results", () => {
+  const aggregate: DashboardJobStatsAggregateRow = {
+    total_jobs_found: "41",
+    avg_match_rate: "90.5",
+    companies_researched: "3",
+  };
+
   const result = computeDashboardStatValues({
-    rows: [],
-    totalCount: 2,
-    unresearchedCount: 5,
-    now: NOW,
+    aggregate,
+    jobsThisWeekCount: 7,
   });
 
+  assert.deepEqual(result, {
+    totalJobsFound: 41,
+    avgMatchRate: 91,
+    companiesResearched: 3,
+    jobsThisWeek: 7,
+  });
+});
+
+test("computeDashboardStatValues treats invalid aggregate numbers as zero or empty", () => {
+  const result = computeDashboardStatValues({
+    aggregate: {
+      total_jobs_found: "not-a-number",
+      avg_match_rate: Number.NaN,
+      companies_researched: null,
+    },
+    jobsThisWeekCount: null,
+  });
+
+  assert.deepEqual(result, {
+    totalJobsFound: 0,
+    avgMatchRate: null,
+    companiesResearched: 0,
+    jobsThisWeek: 0,
+  });
+});
+
+test("computeDashboardStatValues clamps negative counts at zero", () => {
+  const result = computeDashboardStatValues({
+    aggregate: {
+      total_jobs_found: -2,
+      avg_match_rate: null,
+      companies_researched: -5,
+    },
+    jobsThisWeekCount: -1,
+  });
+
+  assert.equal(result.totalJobsFound, 0);
   assert.equal(result.companiesResearched, 0);
+  assert.equal(result.jobsThisWeek, 0);
 });
