@@ -4,7 +4,6 @@ import { JobFilters } from "@/components/find-jobs/JobFilters";
 import { JobsTable } from "@/components/find-jobs/JobsTable";
 import type { JobListItem } from "@/components/find-jobs/JobsTable";
 import { SearchControls } from "@/components/find-jobs/SearchControls";
-import { Navbar } from "@/components/layout/Navbar";
 import {
   createInsforgeServer,
   requireCurrentUser,
@@ -184,40 +183,35 @@ export default async function FindJobsPage({
       : "No jobs yet. Search above to find your first matches.";
 
   return (
-    <main className="min-h-screen bg-background">
-      <Navbar />
-      <section className="mx-auto w-full max-w-[1280px] px-6 py-8 lg:px-0">
-        <div className="flex flex-col gap-6">
-          <div className="rounded-md border border-border bg-surface-elevated p-6 shadow-card">
-            <p className="text-xs font-bold uppercase leading-4 tracking-[0.2em] text-accent">
-              Find Jobs
-            </p>
-            <h1 className="mt-3 text-[30px] font-bold leading-9 text-text-black">
-              Search, score, and shortlist roles
-            </h1>
-            <p className="mt-3 max-w-[720px] text-sm font-medium leading-6 text-text-secondary">
-              Start a multi-source discovery run, then filter saved roles by
-              company, title, match score, and recency.
-            </p>
-          </div>
-          <SearchControls userId={user.id} />
-          <JobFilters />
-          <JobsTable
-            jobs={jobs}
-            showingFrom={jobs.length === 0 ? 0 : from + 1}
-            showingTo={from + jobs.length}
-            totalResults={totalResults}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            emptyMessage={emptyMessage}
-            hrefForPage={buildHrefForPage({
-              q: rawQuery,
-              match: matchFilter,
-              sort: sortOption,
-            })}
-          />
-        </div>
-      </section>
-    </main>
+    <div className="flex flex-col gap-6">
+      <div className="rounded-md border border-border bg-surface-elevated p-6 shadow-card">
+        <p className="text-xs font-bold uppercase leading-4 tracking-[0.2em] text-accent">
+          Find Jobs
+        </p>
+        <h1 className="mt-3 text-[30px] font-bold leading-9 text-text-black">
+          Search, score, and shortlist roles
+        </h1>
+        <p className="mt-3 max-w-[720px] text-sm font-medium leading-6 text-text-secondary">
+          Start a multi-source discovery run, then filter saved roles by
+          company, title, match score, and recency.
+        </p>
+      </div>
+      <SearchControls userId={user.id} />
+      <JobFilters />
+      <JobsTable
+        jobs={jobs}
+        showingFrom={jobs.length === 0 ? 0 : from + 1}
+        showingTo={from + jobs.length}
+        totalResults={totalResults}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        emptyMessage={emptyMessage}
+        hrefForPage={buildHrefForPage({
+          q: rawQuery,
+          match: matchFilter,
+          sort: sortOption,
+        })}
+      />
+    </div>
   );
 }

@@ -66,17 +66,26 @@ const MAX_ROLES = 3;
 function Field({
   label,
   children,
+  htmlFor,
   className = "",
 }: {
   label: string;
   children: ReactNode;
+  htmlFor?: string;
   className?: string;
 }): ReactElement {
+  const labelClass =
+    "text-[11px] font-medium uppercase tracking-wide text-text-secondary";
+
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="text-[11px] font-medium uppercase tracking-wide text-text-secondary">
-        {label}
-      </span>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className={labelClass}>
+          {label}
+        </label>
+      ) : (
+        <span className={labelClass}>{label}</span>
+      )}
       {children}
     </div>
   );
@@ -85,20 +94,23 @@ function Field({
 function SelectField({
   label,
   name,
+  id = name,
   defaultValue,
   options,
   className = "",
 }: {
   label: string;
   name: string;
+  id?: string;
   defaultValue: string;
   options: Option[];
   className?: string;
 }): ReactElement {
   return (
-    <Field label={label} className={className}>
+    <Field label={label} htmlFor={id} className={className}>
       <div className="relative">
         <select
+          id={id}
           name={name}
           defaultValue={defaultValue}
           className={`${INPUT_CLASS} appearance-none pr-9`}
@@ -163,6 +175,7 @@ function RemoveIcon(): ReactElement {
 
 function TagInput({
   label,
+  id,
   placeholder,
   tags,
   value,
@@ -171,6 +184,7 @@ function TagInput({
   onRemove,
 }: {
   label: string;
+  id: string;
   placeholder: string;
   tags: string[];
   value: string;
@@ -186,9 +200,10 @@ function TagInput({
   };
 
   return (
-    <Field label={label} className="sm:col-span-2">
+    <Field label={label} htmlFor={id} className="sm:col-span-2">
       <div className="flex gap-2">
         <input
+          id={id}
           type="text"
           value={value}
           placeholder={placeholder}
@@ -199,6 +214,7 @@ function TagInput({
         <button
           type="button"
           onClick={onAdd}
+          aria-label={`Add ${label}`}
           className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent-dark"
         >
           Add
@@ -340,8 +356,9 @@ export function ProfileForm({ profile }: Props): ReactElement {
           <div className="flex flex-col gap-4">
             <SectionHeading>Personal Info</SectionHeading>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Full Name">
+              <Field label="Full Name" htmlFor="full-name">
                 <input
+                  id="full-name"
                   type="text"
                   name="full_name"
                   defaultValue={profile.fullName}
@@ -349,16 +366,18 @@ export function ProfileForm({ profile }: Props): ReactElement {
                   className={INPUT_CLASS}
                 />
               </Field>
-              <Field label="Email">
+              <Field label="Email" htmlFor="profile-email">
                 <input
+                  id="profile-email"
                   type="email"
                   defaultValue={profile.email}
                   disabled
                   className={`${INPUT_CLASS} disabled:bg-surface-secondary cursor-not-allowed text-text-secondary`}
                 />
               </Field>
-              <Field label="Phone Number">
+              <Field label="Phone Number" htmlFor="phone-number">
                 <input
+                  id="phone-number"
                   type="tel"
                   name="phone"
                   defaultValue={profile.phone}
@@ -366,8 +385,9 @@ export function ProfileForm({ profile }: Props): ReactElement {
                   className={INPUT_CLASS}
                 />
               </Field>
-              <Field label="Location">
+              <Field label="Location" htmlFor="profile-location">
                 <input
+                  id="profile-location"
                   type="text"
                   name="location"
                   defaultValue={profile.location}
@@ -375,8 +395,9 @@ export function ProfileForm({ profile }: Props): ReactElement {
                   className={INPUT_CLASS}
                 />
               </Field>
-              <Field label="LinkedIn URL">
+              <Field label="LinkedIn URL" htmlFor="linkedin-url">
                 <input
+                  id="linkedin-url"
                   type="url"
                   name="linkedin_url"
                   defaultValue={profile.linkedinUrl}
@@ -384,8 +405,9 @@ export function ProfileForm({ profile }: Props): ReactElement {
                   className={INPUT_CLASS}
                 />
               </Field>
-              <Field label="Portfolio / GitHub">
+              <Field label="Portfolio / GitHub" htmlFor="portfolio-url">
                 <input
+                  id="portfolio-url"
                   type="url"
                   name="portfolio_url"
                   defaultValue={profile.portfolioUrl}
@@ -405,8 +427,13 @@ export function ProfileForm({ profile }: Props): ReactElement {
           <div className="flex flex-col gap-4 border-t border-border pt-8">
             <SectionHeading>Professional Info</SectionHeading>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Current / Recent Job Title" className="sm:col-span-2">
+              <Field
+                label="Current / Recent Job Title"
+                htmlFor="current-title"
+                className="sm:col-span-2"
+              >
                 <input
+                  id="current-title"
                   type="text"
                   name="current_title"
                   defaultValue={profile.currentTitle}
@@ -420,8 +447,9 @@ export function ProfileForm({ profile }: Props): ReactElement {
                 defaultValue={profile.experienceLevel}
                 options={EXPERIENCE_LEVEL_OPTIONS}
               />
-              <Field label="Years of Experience">
+              <Field label="Years of Experience" htmlFor="years-experience">
                 <input
+                  id="years-experience"
                   type="number"
                   name="years_experience"
                   min="0"
@@ -432,6 +460,7 @@ export function ProfileForm({ profile }: Props): ReactElement {
               </Field>
               <TagInput
                 label="Skills"
+                id="skills-input"
                 placeholder="Add a skill"
                 tags={skills}
                 value={skillInput}
@@ -445,6 +474,7 @@ export function ProfileForm({ profile }: Props): ReactElement {
               />
               <TagInput
                 label="Industries Worked In (Optional)"
+                id="industries-input"
                 placeholder="E.g. FinTech, Healthcare"
                 tags={industries}
                 value={industryInput}
@@ -490,91 +520,114 @@ export function ProfileForm({ profile }: Props): ReactElement {
             </div>
 
             <div className="flex flex-col gap-4">
-              {roles.map((role) => (
-                <div
-                  key={role.id}
-                  className="flex flex-col gap-4 rounded-md border border-border bg-surface p-4"
-                >
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label="Company Name">
-                      <input
-                        type="text"
-                        value={role.company}
-                        onChange={(e) =>
-                          updateRole(role.id, { company: e.target.value })
-                        }
-                        placeholder="Company"
-                        className={INPUT_CLASS}
-                      />
-                    </Field>
-                    <Field label="Job Title">
-                      <input
-                        type="text"
-                        value={role.title}
-                        onChange={(e) =>
-                          updateRole(role.id, { title: e.target.value })
-                        }
-                        placeholder="Job Title"
-                        className={INPUT_CLASS}
-                      />
-                    </Field>
-                    <Field label="Start Date">
-                      <input
-                        type="text"
-                        value={role.startDate}
-                        onChange={(e) =>
-                          updateRole(role.id, { startDate: e.target.value })
-                        }
-                        placeholder="MMMM YYYY"
-                        className={INPUT_CLASS}
-                      />
-                    </Field>
-                    <Field label="End Date">
-                      <input
-                        type="text"
-                        value={role.currentlyWorking ? "" : role.endDate}
-                        onChange={(e) =>
-                          updateRole(role.id, { endDate: e.target.value })
-                        }
-                        placeholder="MMMM YYYY"
-                        disabled={role.currentlyWorking}
-                        className={`${INPUT_CLASS} disabled:bg-surface-secondary`}
-                      />
-                      <label className="mt-1 flex items-center gap-2 text-xs font-medium text-text-secondary">
+              {roles.map((role) => {
+                const companyId = `company-${role.id}`;
+                const titleId = `title-${role.id}`;
+                const startDateId = `start-date-${role.id}`;
+                const endDateId = `end-date-${role.id}`;
+                const currentId = `currently-working-${role.id}`;
+                const responsibilitiesId = `responsibilities-${role.id}`;
+
+                return (
+                  <div
+                    key={role.id}
+                    className="flex flex-col gap-4 rounded-md border border-border bg-surface p-4"
+                  >
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Field label="Company Name" htmlFor={companyId}>
                         <input
-                          type="checkbox"
-                          checked={role.currentlyWorking}
-                          onChange={() => toggleCurrentlyWorking(role.id)}
-                          className="checkbox-accent h-4 w-4"
+                          id={companyId}
+                          type="text"
+                          value={role.company}
+                          onChange={(e) =>
+                            updateRole(role.id, { company: e.target.value })
+                          }
+                          placeholder="Company"
+                          className={INPUT_CLASS}
                         />
-                        Currently working here
-                      </label>
-                    </Field>
-                  </div>
-                  <Field label="Key Responsibilities">
-                    <textarea
-                      value={role.responsibilities}
-                      onChange={(e) =>
-                        updateRole(role.id, {
-                          responsibilities: e.target.value,
-                        })
-                      }
-                      placeholder="What did you work on and achieve in this role?"
-                      rows={3}
-                      className={`${INPUT_CLASS} resize-none`}
-                    />
-                  </Field>
-                  {roles.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeRole(role.id)}
-                      className="self-end text-xs font-medium text-text-secondary transition-colors hover:text-accent"
+                      </Field>
+                      <Field label="Job Title" htmlFor={titleId}>
+                        <input
+                          id={titleId}
+                          type="text"
+                          value={role.title}
+                          onChange={(e) =>
+                            updateRole(role.id, { title: e.target.value })
+                          }
+                          placeholder="Job Title"
+                          className={INPUT_CLASS}
+                        />
+                      </Field>
+                      <Field label="Start Date" htmlFor={startDateId}>
+                        <input
+                          id={startDateId}
+                          type="text"
+                          value={role.startDate}
+                          onChange={(e) =>
+                            updateRole(role.id, { startDate: e.target.value })
+                          }
+                          placeholder="MMMM YYYY"
+                          className={INPUT_CLASS}
+                        />
+                      </Field>
+                      <Field label="End Date" htmlFor={endDateId}>
+                        <input
+                          id={endDateId}
+                          type="text"
+                          value={role.currentlyWorking ? "" : role.endDate}
+                          onChange={(e) =>
+                            updateRole(role.id, { endDate: e.target.value })
+                          }
+                          placeholder="MMMM YYYY"
+                          disabled={role.currentlyWorking}
+                          className={`${INPUT_CLASS} disabled:bg-surface-secondary`}
+                        />
+                        <div className="mt-1 flex items-center gap-2">
+                          <input
+                            id={currentId}
+                            type="checkbox"
+                            checked={role.currentlyWorking}
+                            onChange={() => toggleCurrentlyWorking(role.id)}
+                            className="checkbox-accent h-4 w-4"
+                          />
+                          <label
+                            htmlFor={currentId}
+                            className="text-xs font-medium text-text-secondary"
+                          >
+                            Currently working here
+                          </label>
+                        </div>
+                      </Field>
+                    </div>
+                    <Field
+                      label="Key Responsibilities"
+                      htmlFor={responsibilitiesId}
                     >
-                      Remove role
-                    </button>
-                  )}
-                </div>
-              ))}
+                      <textarea
+                        id={responsibilitiesId}
+                        value={role.responsibilities}
+                        onChange={(e) =>
+                          updateRole(role.id, {
+                            responsibilities: e.target.value,
+                          })
+                        }
+                        placeholder="What did you work on and achieve in this role?"
+                        rows={3}
+                        className={`${INPUT_CLASS} resize-none`}
+                      />
+                    </Field>
+                    {roles.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeRole(role.id)}
+                        className="self-end text-xs font-medium text-text-secondary transition-colors hover:text-accent"
+                      >
+                        Remove role
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -587,8 +640,9 @@ export function ProfileForm({ profile }: Props): ReactElement {
                 defaultValue={profile.education.degree}
                 options={DEGREE_OPTIONS}
               />
-              <Field label="Field of Study">
+              <Field label="Field of Study" htmlFor="education-field">
                 <input
+                  id="education-field"
                   type="text"
                   name="education_field"
                   defaultValue={profile.education.fieldOfStudy}
@@ -596,8 +650,9 @@ export function ProfileForm({ profile }: Props): ReactElement {
                   className={INPUT_CLASS}
                 />
               </Field>
-              <Field label="Institution Name">
+              <Field label="Institution Name" htmlFor="education-institution">
                 <input
+                  id="education-institution"
                   type="text"
                   name="education_institution"
                   defaultValue={profile.education.institution}
@@ -605,8 +660,9 @@ export function ProfileForm({ profile }: Props): ReactElement {
                   className={INPUT_CLASS}
                 />
               </Field>
-              <Field label="Graduation Year">
+              <Field label="Graduation Year" htmlFor="education-graduation-year">
                 <input
+                  id="education-graduation-year"
                   type="text"
                   name="education_graduation_year"
                   defaultValue={profile.education.graduationYear}
@@ -620,8 +676,13 @@ export function ProfileForm({ profile }: Props): ReactElement {
           <div className="flex flex-col gap-4 border-t border-border pt-8">
             <SectionHeading>Job Preferences</SectionHeading>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Job Titles Seeking" className="sm:col-span-2">
+              <Field
+                label="Job Titles Seeking"
+                htmlFor="job-titles-seeking"
+                className="sm:col-span-2"
+              >
                 <input
+                  id="job-titles-seeking"
                   type="text"
                   name="job_titles_seeking"
                   defaultValue={profile.jobTitlesSeeking}
@@ -635,8 +696,12 @@ export function ProfileForm({ profile }: Props): ReactElement {
                 defaultValue={profile.remotePreference}
                 options={REMOTE_PREFERENCE_OPTIONS}
               />
-              <Field label="Salary Expectation (Optional)">
+              <Field
+                label="Salary Expectation (Optional)"
+                htmlFor="salary-expectation"
+              >
                 <input
+                  id="salary-expectation"
                   type="text"
                   name="salary_expectation"
                   defaultValue={profile.salaryExpectation}
@@ -652,8 +717,10 @@ export function ProfileForm({ profile }: Props): ReactElement {
               />
               <Field
                 label="Preferred Locations (Optional)"
+                htmlFor="preferred-locations"
               >
                 <input
+                  id="preferred-locations"
                   type="text"
                   name="preferred_locations"
                   defaultValue={profile.preferredLocations}

@@ -1,4 +1,6 @@
 import type { ReactElement } from "react";
+import Link from "next/link";
+
 import { BILLING_PLANS, type BillingEventType } from "@/lib/billing/plans";
 
 type Props = {
@@ -8,8 +10,12 @@ type Props = {
 
 export function UsageMeter({ usage, planKey }: Props): ReactElement {
   const plan = BILLING_PLANS[planKey];
-  
   const eventTypes = Object.keys(plan.quotas) as BillingEventType[];
+  const hasNearLimitUsage = eventTypes.some((type) => {
+    const current = usage[type] || 0;
+    const limit = plan.quotas[type].limit;
+    return Math.round((current / limit) * 100) >= 90;
+  });
 
   return (
     <div className="rounded-md border border-border bg-surface p-4 shadow-card">
@@ -51,6 +57,14 @@ export function UsageMeter({ usage, planKey }: Props): ReactElement {
           );
         })}
       </div>
+      {hasNearLimitUsage ? (
+        <Link
+          href="/pricing"
+          className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary"
+        >
+          View plans
+        </Link>
+      ) : null}
     </div>
   );
 }

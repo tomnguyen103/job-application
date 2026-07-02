@@ -1,29 +1,14 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
 
-import { PlanSummary } from "@/components/billing/PlanSummary";
-import { UsageMeter } from "@/components/billing/UsageMeter";
-import type { UserEntitlement, BillingEventType } from "@/lib/billing/plans";
-import {
-  DASHBOARD_STAT_LABELS,
-  type DashboardStat,
-  type DashboardStatLabel,
-} from "@/components/dashboard/StatsBar";
 import type { TodayAction, TodayActionTone } from "@/lib/engagement-insights";
 
 type Props = {
   profileComplete: boolean;
   profileLoadFailed?: boolean;
-  stats: DashboardStat[];
   actions: TodayAction[];
   actionsLoadFailed?: boolean;
-  entitlement: UserEntitlement;
-  usage: Record<BillingEventType, number>;
 };
-
-function getStatValue(stats: DashboardStat[], label: DashboardStatLabel): string {
-  return stats.find((stat) => stat.label === label)?.value ?? "-";
-}
 
 function actionToneClass(tone: TodayActionTone): string {
   if (tone === "info") {
@@ -40,15 +25,9 @@ function actionToneClass(tone: TodayActionTone): string {
 export function TodayWorkspace({
   profileComplete,
   profileLoadFailed = false,
-  stats,
   actions,
   actionsLoadFailed = false,
-  entitlement,
-  usage,
 }: Props): ReactElement {
-  const totalJobs = getStatValue(stats, DASHBOARD_STAT_LABELS.TOTAL_JOBS);
-  const averageMatch = getStatValue(stats, DASHBOARD_STAT_LABELS.AVG_MATCH);
-  const jobsThisWeek = getStatValue(stats, DASHBOARD_STAT_LABELS.JOBS_WEEK);
   const primaryActionHref =
     profileComplete || profileLoadFailed ? "/find-jobs" : "/profile";
   const primaryActionLabel = profileComplete
@@ -85,18 +64,6 @@ export function TodayWorkspace({
               Review saved jobs
             </Link>
           </div>
-
-          {entitlement && usage && (
-            <div className="mt-8 border-t border-border/60 pt-6">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
-                Billing & Quotas
-              </h2>
-              <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                <PlanSummary entitlement={entitlement} />
-                <UsageMeter usage={usage} planKey={entitlement.planKey} />
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="rounded-md border border-border bg-surface-glass p-4">
@@ -110,7 +77,7 @@ export function TodayWorkspace({
               </p>
             </div>
             <span className="rounded-full bg-accent-muted px-3 py-1 text-xs font-semibold leading-4 text-accent">
-              {jobsThisWeek} this week
+              Suggested
             </span>
           </div>
 
@@ -143,21 +110,6 @@ export function TodayWorkspace({
               ))}
             </ul>
           )}
-
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm font-medium leading-5 text-text-secondary">
-            <div className="rounded-md bg-surface px-3 py-3">
-              <span className="block text-lg font-semibold leading-6 text-text-primary">
-                {totalJobs}
-              </span>
-              jobs saved
-            </div>
-            <div className="rounded-md bg-surface px-3 py-3">
-              <span className="block text-lg font-semibold leading-6 text-text-primary">
-                {averageMatch}
-              </span>
-              avg match
-            </div>
-          </div>
         </div>
       </div>
     </section>

@@ -18,6 +18,24 @@ After building any component - update this file with the component name, file pa
 
 ## Components
 
+## Grade-A UX/A11y PR5 (2026-07-02)
+
+- Shared authenticated shell path: `app/(app)/layout.tsx`
+- Shell classes: `min-h-screen bg-background`, `mx-auto w-full max-w-[1280px] px-6 py-8 lg:px-0`
+- Behavior: `/dashboard`, `/find-jobs`, `/find-jobs/[id]`, and `/profile` now share one Navbar mount and one 1280px content rail through the route group. Individual pages keep their inner stacked card layouts and no longer mount their own Navbar or page-width section.
+- Loading routes: `app/(app)/dashboard/loading.tsx`, `app/(app)/find-jobs/loading.tsx`, `app/(app)/find-jobs/[id]/loading.tsx`, `app/(app)/profile/loading.tsx`
+- Loading component paths: `components/layout/DashboardLoadingState.tsx`, `components/layout/FindJobsLoadingState.tsx`, `components/layout/JobDetailsLoadingState.tsx`, `components/layout/ProfileLoadingState.tsx`, with shared `components/layout/SkeletonBlock.tsx` and `components/layout/DashboardChartLoading.tsx`
+- Loading skeleton classes: card shells reuse `rounded-md border border-border bg-surface-elevated shadow-card`; skeleton blocks use `animate-pulse rounded-md bg-surface-secondary`; dashboard and job-detail hero fallbacks preserve `landing-hero-gradient`.
+- Dashboard chart streaming: `app/(app)/dashboard/page.tsx` wraps each chart card in its own `<Suspense>` with a matching `ChartCardSkeleton`. Chart PostHog fetches moved into async chart-card server components so stats, Today actions, and activity can render without waiting for chart data.
+- TodayWorkspace: `components/dashboard/TodayWorkspace.tsx` no longer renders the billing/quota block or hero mini-stat tiles. Stats remain owned by `StatsBar`; billing remains on Profile.
+- Profile billing card: `app/(app)/profile/page.tsx` adds a `View plans` secondary link using `inline-flex min-h-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface px-5 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary`.
+- UsageMeter near-limit CTA: `components/billing/UsageMeter.tsx` renders the same secondary `View plans` link when any quota is at or above 90%.
+- ProfileForm accessibility: `components/profile/ProfileForm.tsx` keeps existing field classes but `Field` now renders `<label htmlFor>` when an input id is provided. All visible inputs, selects, work-experience controls, and TagInput text inputs now have associated labels.
+- SearchControls busy state: `components/find-jobs/SearchControls.tsx` adds expectation-setting copy, `aria-busy` on the form and submit button, and a polite status message while a search runs.
+- JobInfo match badge: `components/job-details/JobInfo.tsx` now mirrors JobsTable thresholds: 90+ uses `bg-success-lightest text-success-foreground`, 80-89 uses `bg-info-lightest text-info-foreground`, and below 80 uses `bg-warning text-warning-foreground`.
+- Root fallback pages: `app/error.tsx` and `app/not-found.tsx` use tokenized card shells and primary/secondary button primitives.
+- Legal pages: `app/privacy/page.tsx` and `app/terms/page.tsx` resolve footer links with minimal tokenized public pages using static Navbar and Footer.
+
 ## Backend-Only Updates
 
 ### Grade-A Reliability PR3 (2026-07-02)

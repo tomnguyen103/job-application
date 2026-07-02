@@ -142,11 +142,13 @@ export function SearchControls({ userId }: Props): ReactElement {
           Run a job search
         </h2>
         <p className="mt-1 text-xs font-medium leading-4 text-text-secondary">
-          The agent saves strong matches to this workspace.
+          The agent saves strong matches to this workspace. Searches can take a
+          few minutes while sources respond and matches are scored.
         </p>
       </div>
       <form
         onSubmit={handleSubmit}
+        aria-busy={isSearching}
         className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end"
       >
         <div className="flex flex-col gap-2">
@@ -193,6 +195,7 @@ export function SearchControls({ userId }: Props): ReactElement {
         <button
           type="submit"
           disabled={isSearching}
+          aria-busy={isSearching}
           className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-card transition-colors hover:bg-accent-dark disabled:opacity-50"
         >
           {isSearching ? (
@@ -221,6 +224,17 @@ export function SearchControls({ userId }: Props): ReactElement {
           )}
         </button>
       </form>
+
+      {isSearching ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="mt-4 text-xs font-medium leading-4 text-text-secondary"
+        >
+          Searching multiple sources and scoring matches. Keep this page open
+          while saved jobs refresh.
+        </p>
+      ) : null}
 
       {errorMessage ? (
         <p className="mt-4 text-xs font-medium text-error">{errorMessage}</p>
