@@ -191,23 +191,18 @@ const { data, error } = await insforge.storage
 
 ---
 
-### Payments - Phase 6 Readiness Only
+### Payments - Stripe SaaS Integration
 
-As of 2026-06-14, payments are not enabled for the linked JobApplication
-backend. `npx @insforge/cli payments stripe status --json` returns:
+The app implements a single-user Free/Pro billing layer through InsForge
+payments. Billing state is app-owned: `user_entitlements`, `usage_ledger`,
+`billing_webhook_events`, and `plan_quotas` drive entitlement and quota
+decisions, while Stripe checkout and customer portal sessions are hosted
+payment surfaces.
 
-```json
-{
-  "error": "Payments are not available on this backend.\nSelf-hosted: upgrade your InsForge instance. Cloud/private preview: contact your InsForge admin to enable payments."
-}
-```
-
-Do not add checkout, billing, subscription, pricing, admin, team, plan limit, or
-customer portal app code while this remains true.
-
-The detailed Stripe SaaS review draft lives in
-`context/stripe-saas-integration-plan.md`. Treat it as a planning artifact until
-the review checklist is approved and backend payments are enabled.
+The detailed Stripe SaaS design plan lives in
+`context/stripe-saas-integration-plan.md`. Treat team billing, admin billing
+views, direct Stripe secret-key integration, trials, coupons, invoices, custom
+pricing, and usage overages as future scope requiring a separate plan.
 
 **CLI reality check:**
 
@@ -229,14 +224,14 @@ insforge.payments.createCustomerPortalSession("test", request);
 Do not copy examples that pass `environment` inside a single object unless the
 installed SDK types change.
 
-**Rules before any payment UI:**
+**Rules for payment UI:**
 
-- Add RLS on `payments.checkout_sessions` and
-  `payments.customer_portal_sessions` for the approved billing subject.
 - Do not allow arbitrary `subject.type` or `subject.id` from users.
 - Use app-owned tables for user-facing payment or entitlement state.
 - Fulfill from webhook-backed payment projections, not success URLs.
 - Keep Stripe secret keys out of frontend code and public env vars.
+- When InsForge payments are unavailable, show the existing graceful fallback
+  rather than adding direct Stripe secret handling.
 
 ---
 

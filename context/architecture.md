@@ -130,6 +130,11 @@ features move files, add tables, or change ownership boundaries.
 
 ## Core Flows
 
+`components/PostHogProvider.tsx` is the only documented component-layer
+exception to the InsForge boundary. It may call the browser InsForge auth client
+from `useEffect` to identify or reset PostHog users, but it must not read or
+write database, storage, billing, or agent data.
+
 ### Authenticated Shell
 
 ```text

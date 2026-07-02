@@ -190,6 +190,7 @@ Full width layout on all pages. No sidebar.
 - PostHog analytics charts on dashboard
 - Incomplete profile banner on dashboard
 - "Jobs by Adzuna" credit on all job listings
+- Individual SaaS billing with Free/Pro plans, pricing, quota tracking, Stripe checkout/customer portal through InsForge payments, and webhook-backed entitlements
 
 ---
 
@@ -208,10 +209,9 @@ Full width layout on all pages. No sidebar.
 - Dismiss job feature
 - Email or push notifications
 - Mobile app
-- Team or multi-user accounts
+- Team or multi-user accounts, multi-seat billing, admin billing controls, trials, coupons, invoices, and usage overages
 - Scheduled agent runs — manually triggered only
 - Persistent multiple base resume versions — one active profile resume per user at a time
-- Payment or subscription system
 - Browser extension
 
 ---

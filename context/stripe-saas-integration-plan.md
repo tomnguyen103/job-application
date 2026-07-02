@@ -2,21 +2,19 @@
 
 ## Status
 
-Review draft created 2026-06-14.
+Review draft created 2026-06-14. Implemented for the single-user Free/Pro
+scope on 2026-06-26 and reconciled with the Grade-A audit on 2026-07-02.
 
-This is a separate SaaS plan that extends the future Website Modernization
-Phase 6 work. It is not implementation approval. Do not add checkout,
-subscriptions, billing portals, pricing UI, admin controls, team billing, or
-plan-management code until this plan is reviewed and the implementation gates
-below are satisfied.
+This file is now the historical design plan plus future-scope boundary. The
+current app includes pricing UI, checkout and customer-portal routes, app-owned
+entitlements, usage ledger quota enforcement, webhook idempotency, and graceful
+fallback when InsForge payments are unavailable. Stage exit criteria below are
+historical checkpoints from the implementation plan, not current-state
+assertions.
 
-The current linked InsForge backend still reports:
-
-```json
-{
-  "error": "Payments are not available on this backend.\nSelf-hosted: upgrade your InsForge instance. Cloud/private preview: contact your InsForge admin to enable payments."
-}
-```
+Do not add admin controls, team billing, multi-seat billing, direct Stripe
+secret-key integration, trials, coupons, invoices, or usage overages unless
+separately approved.
 
 ## What We Are Building
 
@@ -282,7 +280,7 @@ Tasks:
 Exit criteria:
 
 - Free plan entitlement resolves for every authenticated user.
-- No checkout or billing portal route exists yet.
+- At this stage checkpoint, checkout and billing portal routes had not been added yet.
 - Tests, lint, build, and `git diff --check` pass.
 
 ### Phase 6S.2 - Quota Enforcement

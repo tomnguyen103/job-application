@@ -40,6 +40,7 @@ export type RecordUsageResult = {
   success: boolean;
   error?: string;
   code?: string;
+  idempotent?: boolean;
   current?: number;
   limit?: number;
   planKey?: "free" | "pro";
@@ -283,7 +284,7 @@ export async function recordUsage(
 
     if (error) {
       if (isUniqueConstraintViolation(error)) {
-        return { success: true }; // Idempotent success
+        return { success: true, idempotent: true };
       }
       console.error("[billing/usage] RPC Error in recordUsage:", error);
       return { success: false, error: error.message };
@@ -353,6 +354,43 @@ export async function releaseResumeExtractReservation(
   } catch (error) {
     const err = error as Error;
     console.error("[billing/usage] Error in releaseResumeExtractReservation:", err);
+    return { success: false, error: err.message || String(error) };
+  }
+}
+
+export async function releaseBaseResumeGenerationReservation(
+  userId: string,
+  idempotencyKey: string,
+  releaseToken: string,
+  options: { insforge?: BillingUsageRpcClient } = {},
+): Promise<RecordUsageResult> {
+  try {
+    let insforge = options.insforge;
+    if (!insforge) {
+      const { createInsforgeServer } = await import("@/lib/insforge-server");
+      insforge = await createInsforgeServer() as unknown as BillingUsageRpcClient;
+    }
+
+    const { data, error } = await insforge.database.rpc("release_base_resume_generation_reservation", {
+      p_user_id: userId,
+      p_idempotency_key: idempotencyKey,
+      p_release_token: releaseToken,
+    });
+
+    if (error) {
+      console.error("[billing/usage] RPC Error in releaseBaseResumeGenerationReservation:", error);
+      return { success: false, error: error.message };
+    }
+
+    const result = data as { success?: boolean; status?: string } | null;
+    if (!result?.success) {
+      return { success: false, error: `Failed to release base resume generation reservation: ${result?.status ?? "unknown"}` };
+    }
+
+    return { success: true, idempotent: result.status === "idempotent" };
+  } catch (error) {
+    const err = error as Error;
+    console.error("[billing/usage] Error in releaseBaseResumeGenerationReservation:", err);
     return { success: false, error: err.message || String(error) };
   }
 }

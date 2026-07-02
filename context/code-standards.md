@@ -43,6 +43,7 @@ The AI agent on this project operates as a senior engineer. This means:
   - Third party client-only libraries (PostHog browser side)
 - Never add `"use client"` to layout files unless absolutely required
 - Data fetching happens in Server Components — never fetch in Client Components directly
+- Exception: `components/PostHogProvider.tsx` may call the browser InsForge auth client from `useEffect` solely to sync PostHog identity. It must not query database, storage, billing, or agent data.
 - Route handlers live in `app/api/` — never put business logic directly in route handlers
 - Server Actions live in `actions/` — never define Server Actions inline in components
 - Caching is uncached by default — all dynamic code runs at request time

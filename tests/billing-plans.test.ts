@@ -12,6 +12,7 @@ import {
 import {
   checkQuotaAvailable,
   getCurrentPeriodUsage,
+  releaseBaseResumeGenerationReservation,
   releaseResumeExtractReservation,
   type BillingUsageRpcClient,
   type BillingUsageClient,
@@ -306,6 +307,32 @@ test("releaseResumeExtractReservation calls the narrow resume extraction release
       args: {
         p_user_id: "user-123",
         p_idempotency_key: "extract:abc",
+      },
+    },
+  ]);
+});
+
+test("releaseBaseResumeGenerationReservation calls the narrow base generation release RPC", async () => {
+  const calls: Array<{ functionName: string; args: Record<string, unknown> }> = [];
+  const insforge: BillingUsageRpcClient = {
+    database: {
+      rpc: async (functionName, args) => {
+        calls.push({ functionName, args });
+        return { data: { success: true, status: "released" }, error: null };
+      },
+    },
+  };
+
+  const result = await releaseBaseResumeGenerationReservation("user-123", "generate:abc", "release-token", { insforge });
+
+  assert.strictEqual(result.success, true);
+  assert.deepStrictEqual(calls, [
+    {
+      functionName: "release_base_resume_generation_reservation",
+      args: {
+        p_user_id: "user-123",
+        p_idempotency_key: "generate:abc",
+        p_release_token: "release-token",
       },
     },
   ]);

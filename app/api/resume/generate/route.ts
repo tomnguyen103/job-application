@@ -3,14 +3,46 @@ import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 
 import { generateResumeContent } from "@/agent/generator";
-import { recordUsage, usageFailureToHttpResult } from "@/lib/billing/usage";
+import {
+  recordUsage,
+  releaseBaseResumeGenerationReservation,
+  usageFailureToHttpResult,
+} from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
+import {
+  baseResumeGenerationReleaseToken,
+  baseResumeGenerationReleaseTokenHash,
+  baseResumeGenerationUsageKey,
+} from "@/lib/resume-generation-quota";
 import { removeExistingResumeFile } from "@/lib/storage-errors";
 import { mapProfileRowToProfile } from "@/lib/utils";
 
 import { buildResumeDocument } from "./ResumeDocument";
 
-export async function POST() {
+export const maxDuration = 60;
+
+async function releaseBaseGenerationReservationWithLog(
+  userId: string,
+  idempotencyKey: string,
+  releaseToken: string,
+  context: string,
+): Promise<void> {
+  const release = await releaseBaseResumeGenerationReservation(
+    userId,
+    idempotencyKey,
+    releaseToken,
+  );
+  if (!release.success) {
+    console.error(context, release.error);
+  }
+}
+
+export async function POST(request: Request) {
+  let generationUsageKey: string | null = null;
+  let generationReleaseToken: string | null = null;
+  let reservedUserId: string | null = null;
+  let shouldReleaseGenerationReservation = false;
+
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -44,15 +76,22 @@ export async function POST() {
     }
 
     const profile = mapProfileRowToProfile(row, user.email ?? "");
+    generationUsageKey = baseResumeGenerationUsageKey(
+      request.headers.get("Idempotency-Key"),
+    );
+    generationReleaseToken = baseResumeGenerationReleaseToken();
+    reservedUserId = user.id;
 
-    const profileUpdatedAt =
-      typeof row.updated_at === "string" ? row.updated_at : user.id;
     const generationReservation = await recordUsage(
       user.id,
       "base_resume_generate",
       1,
-      `generate:${profileUpdatedAt}`,
-      {},
+      generationUsageKey,
+      {
+        reservationKind: "base_resume_generate",
+        releaseTokenHash:
+          baseResumeGenerationReleaseTokenHash(generationReleaseToken),
+      },
       "/api/resume/generate",
     );
 
@@ -64,12 +103,31 @@ export async function POST() {
       );
       return NextResponse.json(failure.body, { status: failure.status });
     }
+    if (generationReservation.idempotent) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "This generation request has already been received. Please refresh or start a new request.",
+        },
+        { status: 409 },
+      );
+    }
+    shouldReleaseGenerationReservation = true;
 
     let content;
     try {
       content = await generateResumeContent(profile);
     } catch (error) {
       console.error("[resume/generate] content generation failed:", error);
+      if (shouldReleaseGenerationReservation) {
+        await releaseBaseGenerationReservationWithLog(
+          user.id,
+          generationUsageKey,
+          generationReleaseToken,
+          "[resume/generate] reservation release failed after content generation error:",
+        );
+      }
       return NextResponse.json(
         { success: false, error: "Could not generate resume content. Please try again." },
         { status: 422 },
@@ -94,6 +152,14 @@ export async function POST() {
 
     if (uploadError) {
       console.error("[resume/generate] upload error:", uploadError);
+      if (shouldReleaseGenerationReservation) {
+        await releaseBaseGenerationReservationWithLog(
+          user.id,
+          generationUsageKey,
+          generationReleaseToken,
+          "[resume/generate] reservation release failed after upload error:",
+        );
+      }
       return NextResponse.json(
         { success: false, error: "Failed to save the generated resume. Please try again." },
         { status: 500 },
@@ -118,6 +184,14 @@ export async function POST() {
 
     if (dbError) {
       console.error("[resume/generate] DB error:", dbError);
+      if (shouldReleaseGenerationReservation) {
+        await releaseBaseGenerationReservationWithLog(
+          user.id,
+          generationUsageKey,
+          generationReleaseToken,
+          "[resume/generate] reservation release failed after profile save error:",
+        );
+      }
       return NextResponse.json(
         {
           success: false,
@@ -128,10 +202,24 @@ export async function POST() {
       );
     }
 
+    shouldReleaseGenerationReservation = false;
     revalidatePath("/profile");
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[resume/generate]", error);
+    if (
+      shouldReleaseGenerationReservation &&
+      reservedUserId &&
+      generationUsageKey &&
+      generationReleaseToken
+    ) {
+      await releaseBaseGenerationReservationWithLog(
+        reservedUserId,
+        generationUsageKey,
+        generationReleaseToken,
+        "[resume/generate] reservation release failed after unexpected error:",
+      );
+    }
     return NextResponse.json(
       { success: false, error: "An unexpected error occurred. Please try again." },
       { status: 500 },

@@ -208,7 +208,7 @@ export default async function JobDetailsPage({
   const { id } = await params;
   const insforge = await createInsforgeServer();
 
-  const { data, error } = await insforge.database
+  const jobQuery = insforge.database
     .from("jobs")
     .select(
       "id, title, company, location, salary, job_type, source_url, external_apply_url, source_provider, source_display_name, about_role, responsibilities, requirements, nice_to_have, benefits, about_company, match_score, match_reason, matched_skills, missing_skills, company_research, found_at",
@@ -216,6 +216,20 @@ export default async function JobDetailsPage({
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
+
+  const tailoredResumeQuery = insforge.database
+    .from("tailored_resumes")
+    .select("id, generated_at, expires_at")
+    .eq("user_id", user.id)
+    .eq("job_id", id)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const [
+    { data, error },
+    { data: tailoredResumeData, error: tailoredResumeError },
+  ] = await Promise.all([jobQuery, tailoredResumeQuery]);
 
   if (error) {
     console.error("[job-details] job read error:", error);
@@ -228,16 +242,6 @@ export default async function JobDetailsPage({
 
   // Boundary assertion on the SDK row shape: the selected columns above define this detail view.
   const job = mapJobRowToDetails(data as JobDetailsRow);
-
-  const { data: tailoredResumeData, error: tailoredResumeError } =
-    await insforge.database
-      .from("tailored_resumes")
-      .select("id, generated_at, expires_at")
-      .eq("user_id", user.id)
-      .eq("job_id", data.id)
-      .order("generated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
 
   if (tailoredResumeError) {
     console.error(

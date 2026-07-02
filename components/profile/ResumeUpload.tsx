@@ -31,6 +31,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const generateRequestKeyRef = useRef<string | null>(null);
   const [state, formAction, isPending] = useActionState(
     saveResume,
     initialState,
@@ -133,11 +134,18 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
   };
 
   const handleGenerate = async (): Promise<void> => {
+    if (generateRequestKeyRef.current) return;
+
+    const requestKey = crypto.randomUUID();
+    generateRequestKeyRef.current = requestKey;
     setGenerateError(null);
     setGenerateSuccess(false);
     setIsGenerating(true);
     try {
-      const res = await fetch("/api/resume/generate", { method: "POST" });
+      const res = await fetch("/api/resume/generate", {
+        method: "POST",
+        headers: { "Idempotency-Key": requestKey },
+      });
       const json = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok) {
         setGenerateError(json.error ?? "Generation failed. Please try again.");
@@ -148,6 +156,7 @@ export function ResumeUpload({ resumeUrl, onExtract }: Props): ReactElement {
     } catch {
       setGenerateError("Generation failed. Please try again.");
     } finally {
+      generateRequestKeyRef.current = null;
       setIsGenerating(false);
     }
   };
