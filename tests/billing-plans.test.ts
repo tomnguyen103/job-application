@@ -323,7 +323,7 @@ test("releaseBaseResumeGenerationReservation calls the narrow base generation re
     },
   };
 
-  const result = await releaseBaseResumeGenerationReservation("user-123", "generate:abc", { insforge });
+  const result = await releaseBaseResumeGenerationReservation("user-123", "generate:abc", "release-token", { insforge });
 
   assert.strictEqual(result.success, true);
   assert.deepStrictEqual(calls, [
@@ -332,6 +332,7 @@ test("releaseBaseResumeGenerationReservation calls the narrow base generation re
       args: {
         p_user_id: "user-123",
         p_idempotency_key: "generate:abc",
+        p_release_token: "release-token",
       },
     },
   ]);

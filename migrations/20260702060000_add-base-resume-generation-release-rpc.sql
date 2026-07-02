@@ -2,9 +2,12 @@
 -- reservation when generation, rendering, upload, or profile persistence fails.
 -- This is intentionally not a generic usage-reduction primitive.
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE OR REPLACE FUNCTION release_base_resume_generation_reservation(
   p_user_id uuid,
-  p_idempotency_key text
+  p_idempotency_key text,
+  p_release_token text
 ) RETURNS jsonb AS $$
 DECLARE
   v_deleted integer := 0;
@@ -17,6 +20,10 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'status', 'invalid_idempotency_key');
   END IF;
 
+  IF p_release_token IS NULL OR btrim(p_release_token) = '' THEN
+    RETURN jsonb_build_object('success', false, 'status', 'invalid_release_token');
+  END IF;
+
   PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text));
 
   DELETE FROM public.usage_ledger ul
@@ -25,7 +32,8 @@ BEGIN
     AND ul.idempotency_key = p_idempotency_key
     AND ul.source_route = '/api/resume/generate'
     AND ul.created_at >= now() - interval '10 minutes'
-    AND ul.metadata->>'reservationKind' = 'base_resume_generate';
+    AND ul.metadata->>'reservationKind' = 'base_resume_generate'
+    AND ul.metadata->>'releaseTokenHash' = encode(digest(p_release_token, 'sha256'), 'hex');
 
   GET DIAGNOSTICS v_deleted = ROW_COUNT;
 
@@ -37,5 +45,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
-REVOKE ALL ON FUNCTION release_base_resume_generation_reservation(uuid, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION release_base_resume_generation_reservation(uuid, text) TO authenticated;
+REVOKE ALL ON FUNCTION release_base_resume_generation_reservation(uuid, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION release_base_resume_generation_reservation(uuid, text, text) TO authenticated;

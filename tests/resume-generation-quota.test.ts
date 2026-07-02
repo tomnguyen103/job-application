@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { baseResumeGenerationUsageKey } from "@/lib/resume-generation-quota";
+import {
+  baseResumeGenerationReleaseToken,
+  baseResumeGenerationReleaseTokenHash,
+  baseResumeGenerationUsageKey,
+} from "@/lib/resume-generation-quota";
 
 test("base resume generation usage keys are unique per request", () => {
   const firstKey = baseResumeGenerationUsageKey();
@@ -20,4 +24,14 @@ test("base resume generation usage keys are stable for a provided idempotency ke
   assert.match(firstKey, /^generate:[0-9a-f]{64}$/);
   assert.equal(firstKey, secondKey);
   assert.notEqual(firstKey, differentKey);
+});
+
+test("base resume generation release tokens are unguessable and stored as hashes", () => {
+  const token = baseResumeGenerationReleaseToken();
+  const hash = baseResumeGenerationReleaseTokenHash(token);
+
+  assert.match(token, /^[0-9a-f-]{36}$/);
+  assert.match(hash, /^[0-9a-f]{64}$/);
+  assert.equal(hash, baseResumeGenerationReleaseTokenHash(token));
+  assert.notEqual(hash, token);
 });

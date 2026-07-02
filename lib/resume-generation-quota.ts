@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
+const RELEASE_TOKEN_HASH_ALGORITHM = "sha256";
+
 export function baseResumeGenerationUsageKey(
   idempotencyKey?: string | null,
 ): string {
@@ -9,4 +11,12 @@ export function baseResumeGenerationUsageKey(
   }
 
   return `generate:${randomUUID()}`;
+}
+
+export function baseResumeGenerationReleaseToken(): string {
+  return randomUUID();
+}
+
+export function baseResumeGenerationReleaseTokenHash(token: string): string {
+  return createHash(RELEASE_TOKEN_HASH_ALGORITHM).update(token).digest("hex");
 }

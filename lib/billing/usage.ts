@@ -361,6 +361,7 @@ export async function releaseResumeExtractReservation(
 export async function releaseBaseResumeGenerationReservation(
   userId: string,
   idempotencyKey: string,
+  releaseToken: string,
   options: { insforge?: BillingUsageRpcClient } = {},
 ): Promise<RecordUsageResult> {
   try {
@@ -373,6 +374,7 @@ export async function releaseBaseResumeGenerationReservation(
     const { data, error } = await insforge.database.rpc("release_base_resume_generation_reservation", {
       p_user_id: userId,
       p_idempotency_key: idempotencyKey,
+      p_release_token: releaseToken,
     });
 
     if (error) {

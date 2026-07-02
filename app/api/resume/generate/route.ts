@@ -9,7 +9,11 @@ import {
   usageFailureToHttpResult,
 } from "@/lib/billing/usage";
 import { createInsforgeServer, getCurrentUser } from "@/lib/insforge-server";
-import { baseResumeGenerationUsageKey } from "@/lib/resume-generation-quota";
+import {
+  baseResumeGenerationReleaseToken,
+  baseResumeGenerationReleaseTokenHash,
+  baseResumeGenerationUsageKey,
+} from "@/lib/resume-generation-quota";
 import { removeExistingResumeFile } from "@/lib/storage-errors";
 import { mapProfileRowToProfile } from "@/lib/utils";
 
@@ -20,11 +24,13 @@ export const maxDuration = 60;
 async function releaseBaseGenerationReservationWithLog(
   userId: string,
   idempotencyKey: string,
+  releaseToken: string,
   context: string,
 ): Promise<void> {
   const release = await releaseBaseResumeGenerationReservation(
     userId,
     idempotencyKey,
+    releaseToken,
   );
   if (!release.success) {
     console.error(context, release.error);
@@ -33,6 +39,7 @@ async function releaseBaseGenerationReservationWithLog(
 
 export async function POST(request: Request) {
   let generationUsageKey: string | null = null;
+  let generationReleaseToken: string | null = null;
   let reservedUserId: string | null = null;
   let shouldReleaseGenerationReservation = false;
 
@@ -72,6 +79,7 @@ export async function POST(request: Request) {
     generationUsageKey = baseResumeGenerationUsageKey(
       request.headers.get("Idempotency-Key"),
     );
+    generationReleaseToken = baseResumeGenerationReleaseToken();
     reservedUserId = user.id;
 
     const generationReservation = await recordUsage(
@@ -79,7 +87,11 @@ export async function POST(request: Request) {
       "base_resume_generate",
       1,
       generationUsageKey,
-      { reservationKind: "base_resume_generate" },
+      {
+        reservationKind: "base_resume_generate",
+        releaseTokenHash:
+          baseResumeGenerationReleaseTokenHash(generationReleaseToken),
+      },
       "/api/resume/generate",
     );
 
@@ -102,6 +114,7 @@ export async function POST(request: Request) {
         await releaseBaseGenerationReservationWithLog(
           user.id,
           generationUsageKey,
+          generationReleaseToken,
           "[resume/generate] reservation release failed after content generation error:",
         );
       }
@@ -133,6 +146,7 @@ export async function POST(request: Request) {
         await releaseBaseGenerationReservationWithLog(
           user.id,
           generationUsageKey,
+          generationReleaseToken,
           "[resume/generate] reservation release failed after upload error:",
         );
       }
@@ -164,6 +178,7 @@ export async function POST(request: Request) {
         await releaseBaseGenerationReservationWithLog(
           user.id,
           generationUsageKey,
+          generationReleaseToken,
           "[resume/generate] reservation release failed after profile save error:",
         );
       }
@@ -185,11 +200,13 @@ export async function POST(request: Request) {
     if (
       shouldReleaseGenerationReservation &&
       reservedUserId &&
-      generationUsageKey
+      generationUsageKey &&
+      generationReleaseToken
     ) {
       await releaseBaseGenerationReservationWithLog(
         reservedUserId,
         generationUsageKey,
+        generationReleaseToken,
         "[resume/generate] reservation release failed after unexpected error:",
       );
     }
