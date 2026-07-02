@@ -12,7 +12,6 @@ import {
   TailoredResumeAction,
   type TailoredResumeInitialState,
 } from "@/components/job-details/TailoredResumeAction";
-import { Navbar } from "@/components/layout/Navbar";
 import { parseCompanyResearchDossier } from "@/lib/company-research";
 import { buildInterviewPrepHighlights } from "@/lib/engagement-insights";
 import {
@@ -259,58 +258,55 @@ export default async function JobDetailsPage({
   });
 
   return (
-    <main className="min-h-screen bg-background">
-      <Navbar />
-      <section className="mx-auto w-full max-w-[1080px] px-6 py-10">
-        <Link
-          href="/find-jobs"
-          className="inline-flex items-center gap-2 text-base font-semibold leading-6 text-text-secondary transition-colors hover:text-accent"
-        >
-          <BackIcon />
-          Back to Jobs
-        </Link>
+    <div>
+      <Link
+        href="/find-jobs"
+        className="inline-flex items-center gap-2 text-base font-semibold leading-6 text-text-secondary transition-colors hover:text-accent"
+      >
+        <BackIcon />
+        Back to Jobs
+      </Link>
 
-        <div className="mt-8 flex flex-col gap-6">
-          <JobInfo
-            title={job.title}
-            company={job.company}
-            matchScore={job.matchScore}
-            postUrl={job.postUrl}
-            sourceDisplayName={job.sourceDisplayName}
-            salary={job.salary}
-            location={job.location}
-            jobType={job.jobType}
-            dateFound={job.dateFound}
-          />
+      <div className="mt-8 flex flex-col gap-6">
+        <JobInfo
+          title={job.title}
+          company={job.company}
+          matchScore={job.matchScore}
+          postUrl={job.postUrl}
+          sourceDisplayName={job.sourceDisplayName}
+          salary={job.salary}
+          location={job.location}
+          jobType={job.jobType}
+          dateFound={job.dateFound}
+        />
 
-          <MatchScore
-            reason={job.matchReason}
-            matchedSkills={job.matchedSkills}
-            missingSkills={job.missingSkills}
-          />
+        <MatchScore
+          reason={job.matchReason}
+          matchedSkills={job.matchedSkills}
+          missingSkills={job.missingSkills}
+        />
 
-          <CompanyResearch
-            jobId={data.id}
-            company={job.company}
-            initialResearch={job.companyResearch}
-          />
-          <InterviewPrepExpansion prep={interviewPrep} />
-          <TailoredResumeAction
-            jobId={data.id}
-            initialState={tailoredResumeInitialState}
-          />
-          <JobActions company={job.company} applyUrl={job.postUrl} />
-          <JobDescription
-            description={job.description}
-            postUrl={job.postUrl}
-            responsibilities={job.responsibilities}
-            requirements={job.requirements}
-            niceToHave={job.niceToHave}
-            benefits={job.benefits}
-            aboutCompany={job.aboutCompany}
-          />
-        </div>
-      </section>
-    </main>
+        <CompanyResearch
+          jobId={data.id}
+          company={job.company}
+          initialResearch={job.companyResearch}
+        />
+        <InterviewPrepExpansion prep={interviewPrep} />
+        <TailoredResumeAction
+          jobId={data.id}
+          initialState={tailoredResumeInitialState}
+        />
+        <JobActions company={job.company} applyUrl={job.postUrl} />
+        <JobDescription
+          description={job.description}
+          postUrl={job.postUrl}
+          responsibilities={job.responsibilities}
+          requirements={job.requirements}
+          niceToHave={job.niceToHave}
+          benefits={job.benefits}
+          aboutCompany={job.aboutCompany}
+        />
+      </div>
+    </div>
   );
 }

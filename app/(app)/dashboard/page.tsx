@@ -1,7 +1,5 @@
-import type { ReactElement } from "react";
+import { Suspense, type ReactElement } from "react";
 
-import { getUserEntitlement } from "@/lib/billing/entitlements";
-import { getCurrentPeriodUsage } from "@/lib/billing/usage";
 import { IncompleteProfileBanner } from "@/components/dashboard/IncompleteProfileBanner";
 import { JobsOverTimeChart } from "@/components/dashboard/JobsOverTimeChart";
 import { MatchDistributionChart } from "@/components/dashboard/MatchDistributionChart";
@@ -15,7 +13,6 @@ import {
 } from "@/components/dashboard/StatsBar";
 import type { DashboardStat } from "@/components/dashboard/StatsBar";
 import { TodayWorkspace } from "@/components/dashboard/TodayWorkspace";
-import { Navbar } from "@/components/layout/Navbar";
 import {
   buildRecentActivityItems,
   type CompletedRunRow,
@@ -108,6 +105,18 @@ function chartYAxis(points: { count: number }[]): YAxisConfig {
   );
 }
 
+function chartCardData<T extends { count: number }>(
+  result: T[] | null,
+): {
+  data: T[];
+  emptyMessage?: string;
+} {
+  return {
+    data: hasAnyCount(result) ? result : [],
+    emptyMessage: result === null ? CHART_LOAD_ERROR_MESSAGE : undefined,
+  };
+}
+
 function clampScore(score: number | null): number {
   if (score === null || !Number.isFinite(score)) {
     return 0;
@@ -142,24 +151,86 @@ function mapTailoredResumeRow(
   };
 }
 
+function ChartCardSkeleton({ title }: { title: string }): ReactElement {
+  return (
+    <section
+      role="status"
+      aria-label={`${title} loading`}
+      className="h-full rounded-md border border-border bg-surface-elevated p-6 shadow-card"
+    >
+      <h2 className="text-base font-semibold leading-6 text-text-primary">
+        {title}
+      </h2>
+      <div className="mt-2 h-4 w-48 animate-pulse rounded-md bg-surface-secondary" />
+      <div className="mt-6 h-[280px] animate-pulse rounded-md bg-surface-secondary" />
+      <span className="sr-only">Loading {title}.</span>
+    </section>
+  );
+}
+
+async function ResearchActivityChartCard({
+  userId,
+  now,
+}: {
+  userId: string;
+  now: Date;
+}): Promise<ReactElement> {
+  const { data, emptyMessage } = chartCardData(
+    await fetchResearchActivity(userId, now),
+  );
+
+  return (
+    <ResearchActivityChart
+      data={data}
+      yAxis={chartYAxis(data)}
+      emptyMessage={emptyMessage}
+    />
+  );
+}
+
+async function JobsOverTimeChartCard({
+  userId,
+  now,
+}: {
+  userId: string;
+  now: Date;
+}): Promise<ReactElement> {
+  const { data, emptyMessage } = chartCardData(
+    await fetchJobsOverTime(userId, now),
+  );
+
+  return (
+    <JobsOverTimeChart
+      data={data}
+      yAxis={chartYAxis(data)}
+      emptyMessage={emptyMessage}
+    />
+  );
+}
+
+async function MatchDistributionChartCard({
+  userId,
+}: {
+  userId: string;
+}): Promise<ReactElement> {
+  const { data, emptyMessage } = chartCardData(
+    await fetchMatchDistribution(userId),
+  );
+
+  return (
+    <MatchDistributionChart
+      data={data}
+      yAxis={chartYAxis(data)}
+      emptyMessage={emptyMessage}
+    />
+  );
+}
+
 export default async function DashboardPage(): Promise<ReactElement> {
   const user = await requireCurrentUser();
   const insforge = await createInsforgeServer();
   const now = new Date();
   const weekCutoff = new Date(now.getTime() - WEEK_IN_MS).toISOString();
-
-  const entitlementPromise = getUserEntitlement(user.id).catch((err) => {
-    console.error("[dashboard] Error loading entitlement:", err);
-    return {
-      planKey: "free" as const,
-      status: "active",
-      currentPeriodStart: null,
-      currentPeriodEnd: null,
-      cancelAtPeriodEnd: false,
-      stripeCustomerId: null,
-      stripeSubscriptionId: null,
-    };
-  });
 
   const [
     profileResult,
@@ -169,10 +240,6 @@ export default async function DashboardPage(): Promise<ReactElement> {
     researchedResult,
     engagementJobsResult,
     tailoredResumesResult,
-    jobsOverTimeResult,
-    matchDistributionResult,
-    researchActivityResult,
-    usage,
   ] = await Promise.all([
     insforge.database
       .from("profiles")
@@ -215,25 +282,7 @@ export default async function DashboardPage(): Promise<ReactElement> {
       .eq("user_id", user.id)
       .order("generated_at", { ascending: false })
       .limit(50),
-    fetchJobsOverTime(user.id, now),
-    fetchMatchDistribution(user.id),
-    fetchResearchActivity(user.id, now),
-    entitlementPromise
-      .then((ent) => getCurrentPeriodUsage(user.id, ent))
-      .catch((err) => {
-        console.error("[dashboard] Error loading usage:", err);
-        return {
-          job_search_run: 0,
-          job_match_score: 0,
-          company_research_run: 0,
-          tailored_resume_generate: 0,
-          base_resume_generate: 0,
-          resume_extract: 0,
-        };
-      }),
   ]);
-
-  const entitlement = await entitlementPromise;
 
   const profileLoadFailed = Boolean(profileResult.error);
 
@@ -350,82 +399,47 @@ export default async function DashboardPage(): Promise<ReactElement> {
     }
   }
 
-  // Charts render real data only when at least one bucket is non-zero;
-  // a null fetch result (query/config failure) shows the error message
-  // and an all-zero result falls back to each chart's no-data default.
-  const jobsOverTimeData = hasAnyCount(jobsOverTimeResult)
-    ? jobsOverTimeResult
-    : [];
-  const matchDistributionData = hasAnyCount(matchDistributionResult)
-    ? matchDistributionResult
-    : [];
-  const researchActivityData = hasAnyCount(researchActivityResult)
-    ? researchActivityResult
-    : [];
-
   return (
-    <main className="min-h-screen bg-background">
-      <Navbar />
-      <section className="mx-auto w-full max-w-[1280px] px-6 py-8 lg:px-0">
-        <div className="flex flex-col gap-6">
-          <TodayWorkspace
-            profileComplete={profileComplete}
-            profileLoadFailed={profileLoadFailed}
-            stats={stats}
-            actions={todayActions}
-            actionsLoadFailed={todayActionsLoadFailed}
-            entitlement={entitlement}
-            usage={usage}
-          />
-          {showIncompleteProfileBanner ? <IncompleteProfileBanner /> : null}
-          <StatsBar stats={stats} />
-          <SkillGapInsights
-            insights={skillGapInsights}
-            loadFailed={engagementJobsLoadFailed}
-          />
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <RecentActivity
-              entries={activityEntries}
-              emptyMessage={
-                activityLoadFailed
-                  ? "Could not load your recent activity. Refresh the page to try again."
-                  : undefined
-              }
-            />
-            <ResearchActivityChart
-              data={researchActivityData}
-              yAxis={chartYAxis(researchActivityData)}
-              emptyMessage={
-                researchActivityResult === null
-                  ? CHART_LOAD_ERROR_MESSAGE
-                  : undefined
-              }
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <JobsOverTimeChart
-                data={jobsOverTimeData}
-                yAxis={chartYAxis(jobsOverTimeData)}
-                emptyMessage={
-                  jobsOverTimeResult === null
-                    ? CHART_LOAD_ERROR_MESSAGE
-                    : undefined
-                }
-              />
-            </div>
-            <MatchDistributionChart
-              data={matchDistributionData}
-              yAxis={chartYAxis(matchDistributionData)}
-              emptyMessage={
-                matchDistributionResult === null
-                  ? CHART_LOAD_ERROR_MESSAGE
-                  : undefined
-              }
-            />
-          </div>
+    <div className="flex flex-col gap-6">
+      <TodayWorkspace
+        profileComplete={profileComplete}
+        profileLoadFailed={profileLoadFailed}
+        actions={todayActions}
+        actionsLoadFailed={todayActionsLoadFailed}
+      />
+      {showIncompleteProfileBanner ? <IncompleteProfileBanner /> : null}
+      <StatsBar stats={stats} />
+      <SkillGapInsights
+        insights={skillGapInsights}
+        loadFailed={engagementJobsLoadFailed}
+      />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <RecentActivity
+          entries={activityEntries}
+          emptyMessage={
+            activityLoadFailed
+              ? "Could not load your recent activity. Refresh the page to try again."
+              : undefined
+          }
+        />
+        <Suspense
+          fallback={<ChartCardSkeleton title="Company Research Activity" />}
+        >
+          <ResearchActivityChartCard userId={user.id} now={now} />
+        </Suspense>
+      </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Suspense fallback={<ChartCardSkeleton title="Jobs Found Over Time" />}>
+            <JobsOverTimeChartCard userId={user.id} now={now} />
+          </Suspense>
         </div>
-      </section>
-    </main>
+        <Suspense
+          fallback={<ChartCardSkeleton title="Match Score Distribution" />}
+        >
+          <MatchDistributionChartCard userId={user.id} />
+        </Suspense>
+      </div>
+    </div>
   );
 }

@@ -1,5 +1,10 @@
 import type { ReactElement } from "react";
 
+import {
+  MATCH_VISUAL_INFO_THRESHOLD,
+  MATCH_VISUAL_SUCCESS_THRESHOLD,
+} from "@/lib/utils";
+
 type Props = {
   title: string;
   company: string;
@@ -201,6 +206,18 @@ function iconClassByTone(tone: InfoCardProps["tone"]): string {
   return "bg-surface-secondary text-text-secondary";
 }
 
+function matchScoreBadgeClass(score: number): string {
+  if (score >= MATCH_VISUAL_SUCCESS_THRESHOLD) {
+    return "bg-success-lightest text-success-foreground";
+  }
+
+  if (score >= MATCH_VISUAL_INFO_THRESHOLD) {
+    return "bg-info-lightest text-info-foreground";
+  }
+
+  return "bg-warning text-warning-foreground";
+}
+
 function InfoCard({ label, value, tone }: InfoCardProps): ReactElement {
   return (
     <article className="flex min-w-0 items-center gap-4 rounded-md border border-border bg-surface-elevated p-5 shadow-card">
@@ -254,7 +271,9 @@ export function JobInfo({
                   className="h-1 w-1 rounded-full bg-text-muted"
                   aria-hidden="true"
                 />
-                <span className="rounded-full bg-success-lightest px-3 py-1 text-sm font-semibold leading-5 text-success-foreground">
+                <span
+                  className={`rounded-full px-3 py-1 text-sm font-semibold leading-5 ${matchScoreBadgeClass(matchScore)}`}
+                >
                   {matchScore}% match
                 </span>
                 <span className="rounded-full border border-border bg-surface px-3 py-1 text-sm font-semibold leading-5 text-text-secondary">

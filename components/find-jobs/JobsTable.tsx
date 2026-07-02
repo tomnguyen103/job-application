@@ -2,6 +2,10 @@ import Link from "next/link";
 import type { ReactElement } from "react";
 
 import { JobsPagination } from "@/components/find-jobs/JobsPagination";
+import {
+  MATCH_VISUAL_INFO_THRESHOLD,
+  MATCH_VISUAL_SUCCESS_THRESHOLD,
+} from "@/lib/utils";
 
 export type JobListItem = {
   id: string;
@@ -37,11 +41,11 @@ const HEADERS = [
 
 // Color ranges derived from the find-jobs design: green >= 90, blue 80-89, orange below.
 function matchScoreBarClass(score: number): string {
-  if (score >= 90) {
+  if (score >= MATCH_VISUAL_SUCCESS_THRESHOLD) {
     return "bg-success";
   }
 
-  if (score >= 80) {
+  if (score >= MATCH_VISUAL_INFO_THRESHOLD) {
     return "bg-info";
   }
 

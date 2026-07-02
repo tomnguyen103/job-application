@@ -1,15 +1,28 @@
 import type { ReactElement } from "react";
+import Link from "next/link";
+
 import { BILLING_PLANS, type BillingEventType } from "@/lib/billing/plans";
 
 type Props = {
   usage: Record<BillingEventType, number>;
   planKey: "free" | "pro";
+  showPlansLink?: boolean;
 };
 
-export function UsageMeter({ usage, planKey }: Props): ReactElement {
+export function UsageMeter({
+  usage,
+  planKey,
+  showPlansLink = true,
+}: Props): ReactElement {
   const plan = BILLING_PLANS[planKey];
-  
   const eventTypes = Object.keys(plan.quotas) as BillingEventType[];
+  const getPercent = (type: BillingEventType): number => {
+    const current = usage[type] || 0;
+    const limit = plan.quotas[type].limit;
+    return Math.min(100, Math.round((current / limit) * 100));
+  };
+  const hasNearLimitUsage =
+    showPlansLink && eventTypes.some((type) => getPercent(type) >= 90);
 
   return (
     <div className="rounded-md border border-border bg-surface p-4 shadow-card">
@@ -21,7 +34,7 @@ export function UsageMeter({ usage, planKey }: Props): ReactElement {
           const current = usage[type] || 0;
           const quota = plan.quotas[type];
           const limit = quota.limit;
-          const percent = Math.min(100, Math.round((current / limit) * 100));
+          const percent = getPercent(type);
 
           let colorClass = "bg-success";
           if (percent >= 90) {
@@ -51,6 +64,14 @@ export function UsageMeter({ usage, planKey }: Props): ReactElement {
           );
         })}
       </div>
+      {hasNearLimitUsage ? (
+        <Link
+          href="/pricing"
+          className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-text-primary shadow-card transition-colors hover:border-accent hover:bg-surface-secondary"
+        >
+          View plans
+        </Link>
+      ) : null}
     </div>
   );
 }
