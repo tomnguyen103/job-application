@@ -231,6 +231,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
     }
 
     let uploadedKey: string | null = null;
+    let metadataPersisted = false;
 
     try {
       const buffer = await renderToBuffer(
@@ -292,6 +293,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
           { status: 500 },
         );
       }
+      metadataPersisted = true;
 
       const previous = (previousRows ?? []) as PreviousTailoredResumeRow[];
       const removedStorageKeys = new Set<string>();
@@ -346,7 +348,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       });
     } catch (error) {
       console.error("[tailored-resume]", error);
-      if (uploadedKey) {
+      if (uploadedKey && !metadataPersisted) {
         await cleanupGeneratedTailoredResumeFile(
           bucket,
           uploadedKey,

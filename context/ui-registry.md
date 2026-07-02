@@ -22,7 +22,8 @@ After building any component - update this file with the component name, file pa
 
 - Dashboard charts now render through client loader wrappers in `components/dashboard/*ChartLoader.tsx`.
 - The loaders use `next/dynamic` with the existing `components/layout/DashboardChartLoading.tsx` skeleton fallback so Recharts chart implementations are loaded behind dynamic imports.
-- No new visual classes, app tokens, or interaction patterns were added.
+- `components/profile/ResumeUpload.tsx` now sends a per-click idempotency key with the existing Generate Resume action and guards duplicate in-flight clicks through a ref. This is behavioral only; the button classes and visible layout did not change.
+- No new visual classes, app tokens, or visual interaction patterns were added.
 
 ## Grade-A Maintainability PR7 (2026-07-02)
 
