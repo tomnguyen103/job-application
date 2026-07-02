@@ -45,6 +45,15 @@ export type RecordUsageResult = {
   planKey?: "free" | "pro";
 };
 
+export type BillingUsageRpcClient = {
+  database: {
+    rpc(
+      functionName: string,
+      args: Record<string, unknown>,
+    ): Promise<{ data: unknown; error: BillingUsageError | null }>;
+  };
+};
+
 export type UsageFailureHttpResult = {
   status: 402 | 500;
   body: {
@@ -309,6 +318,41 @@ export async function recordUsage(
   } catch (error) {
     const err = error as Error;
     console.error("[billing/usage] Error in recordUsage:", err);
+    return { success: false, error: err.message || String(error) };
+  }
+}
+
+export async function releaseResumeExtractReservation(
+  userId: string,
+  idempotencyKey: string,
+  options: { insforge?: BillingUsageRpcClient } = {},
+): Promise<RecordUsageResult> {
+  try {
+    let insforge = options.insforge;
+    if (!insforge) {
+      const { createInsforgeServer } = await import("@/lib/insforge-server");
+      insforge = await createInsforgeServer() as unknown as BillingUsageRpcClient;
+    }
+
+    const { data, error } = await insforge.database.rpc("release_resume_extract_reservation", {
+      p_user_id: userId,
+      p_idempotency_key: idempotencyKey,
+    });
+
+    if (error) {
+      console.error("[billing/usage] RPC Error in releaseResumeExtractReservation:", error);
+      return { success: false, error: error.message };
+    }
+
+    const result = data as { success?: boolean; status?: string } | null;
+    if (!result?.success) {
+      return { success: false, error: `Failed to release resume extract reservation: ${result?.status ?? "unknown"}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    const err = error as Error;
+    console.error("[billing/usage] Error in releaseResumeExtractReservation:", err);
     return { success: false, error: err.message || String(error) };
   }
 }

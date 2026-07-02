@@ -5,6 +5,8 @@ import { BILLING_PLANS, getPeriodBoundaries, UserEntitlement } from "../lib/bill
 import {
   checkQuotaAvailable,
   getCurrentPeriodUsage,
+  releaseResumeExtractReservation,
+  type BillingUsageRpcClient,
   type BillingUsageClient,
 } from "../lib/billing/usage";
 import { isUniqueConstraintViolation } from "../lib/billing/usage-errors";
@@ -199,5 +201,30 @@ test("idempotency check parses unique constraint violations as success", () => {
   assert.ok(isUniqueConstraintViolation({ code: "23505" }));
   assert.ok(isUniqueConstraintViolation({ message: "duplicate key value violates unique constraint uq_usage_ledger_user_event_idempotency" }));
   assert.strictEqual(isUniqueConstraintViolation({ code: "other" }), false);
+});
+
+test("releaseResumeExtractReservation calls the narrow resume extraction release RPC", async () => {
+  const calls: Array<{ functionName: string; args: Record<string, unknown> }> = [];
+  const insforge: BillingUsageRpcClient = {
+    database: {
+      rpc: async (functionName, args) => {
+        calls.push({ functionName, args });
+        return { data: { success: true, status: "released" }, error: null };
+      },
+    },
+  };
+
+  const result = await releaseResumeExtractReservation("user-123", "extract:abc", { insforge });
+
+  assert.strictEqual(result.success, true);
+  assert.deepStrictEqual(calls, [
+    {
+      functionName: "release_resume_extract_reservation",
+      args: {
+        p_user_id: "user-123",
+        p_idempotency_key: "extract:abc",
+      },
+    },
+  ]);
 });
 
